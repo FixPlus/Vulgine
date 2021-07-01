@@ -6,52 +6,73 @@
 #define VULGINE_UTILITIES_H
 #include <string>
 #include <ostream>
+#include <vulkan/vulkan.h>
 
 namespace Vulgine{
-    class Logger{
-        std::ostream* output;
-        bool enabled = true;
-    public:
 
-        explicit Logger(std::ostream* stream): output(stream){}
-        void operator()(std::string const& log){
-            if(enabled)
-                *output << log << std::endl;
-        }
+    namespace Utilities {
+        class Logger {
+            std::ostream *output;
+            bool enabled = true;
+        public:
 
-        void changeLogFile(std::ostream* new_out){
-            output = new_out;
-        }
+            explicit Logger(std::ostream *stream) : output(stream) {}
 
-        [[nodiscard]] bool hasNullLogFile() const{
-            return output == nullptr;
-        }
+            void operator()(std::string const &log) {
+                if (enabled)
+                    *output << log << std::endl;
+            }
 
-        void enable(){
-            enabled = true;
-        }
+            void changeLogFile(std::ostream *new_out) {
+                output = new_out;
+            }
 
-        void disable(){
-            enabled = false;
-        }
-    };
+            [[nodiscard]] bool hasNullLogFile() const {
+                return output == nullptr;
+            }
 
-    extern Logger logger;
+            void enable() {
+                enabled = true;
+            }
 
-    class Errs{
-        std::string lastError;
-    public:
-        void operator()(std::string const& err) {
-            logger("[ERROR]: " + err);
-            lastError = err;
-        }
+            void disable() {
+                enabled = false;
+            }
+        };
+    }
 
-        [[nodiscard]] std::string get() const{
-            return lastError;
-        }
-    };
+    extern Utilities::Logger logger;
 
-    extern Errs errs;
+    namespace Utilities{
+        class Errs {
+            std::string lastError;
+        public:
+            void operator()(std::string const &err) {
+                logger("[ERROR]: " + err);
+                lastError = err;
+            }
+
+            [[nodiscard]] std::string get() const {
+
+                return lastError;
+            }
+        };
+
+        std::string errorString(VkResult errorCode);
+        void ExitFatal(int err_code = -1, std::string const& err = "program aborted");
+    }
+    extern Utilities::Errs errs;
+
+}
+
+#define VK_CHECK_RESULT(f)																				\
+{																										\
+	VkResult res = (f);																					\
+	if (res != VK_SUCCESS)																				\
+	{																									\
+		errs("Fatal : VkResult is \"" + ::Vulgine::Utilities::errorString(res) + "\" in " + __FILE__ + " at line " + std::to_string(__LINE__) + "\n"); \
+		assert(res == VK_SUCCESS);																		\
+	}																									\
 }
 
 #endif //VULGINE_UTILITIES_H

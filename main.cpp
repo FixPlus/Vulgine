@@ -8,7 +8,12 @@
 
 int main(int argc, char** argv){
 
-    auto* vulgine = Vulgine::Vulgine::createInstance();
+    Vulgine::PreSettings settings;
+
+    settings.windowName = "HELLO THERE";
+    settings.windowSize = glm::vec2{1200, 800};
+
+    auto* vulgine = Vulgine::Vulgine::createInstance(settings);
 
     while(vulgine->cycle());
 
