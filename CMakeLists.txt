@@ -88,24 +88,32 @@ ELSE()
     message(STATUS ${Vulkan_LIBRARY})
 ENDIF()
 
-IF(WIN32)
-    find_library(GLFW_LIBRARY NAMES glfw3 PATHS ${CMAKE_CURRENT_SOURCE_DIR}/lib/win/GLFW)
-    IF(${GLFW_LIBRARY} STREQUAL "")
-        message(FATAL_ERROR "GLFW library not found!")
+find_package(glfw3)
+
+IF(NOT glfw_FOUND)
+    IF(WIN32)
+        find_library(GLFW_LIBRARY NAMES glfw3dll PATHS ${CMAKE_CURRENT_SOURCE_DIR}/lib/win/GLFW)
+        IF(${GLFW_LIBRARY} STREQUAL "")
+            message(FATAL_ERROR "GLFW library not found!")
+        ENDIF()
+        message(STATUS ${GLFW_LIBRARY})
+    ELSE()
+        message(FATAL_ERROR "Not supported linking of GLFW on this platform!")
     ENDIF()
-    message(STATUS ${GLFW_LIBRARY})
-ELSE()
-    message(FATAL_ERROR "Not supported linking of GLFW on this platform!")
+ELSEIF()
+    set(GLFW_LIBRARY glfw)
 ENDIF()
 
 include_directories(external)
-
-add_library(${LIB_NAME} SHARED include/library.h)
+include_directories(external/glm)
+include_directories(source)
 
 add_subdirectory(source)
 
-add_executable(test main.cpp)
+add_library(${LIB_NAME} SHARED $<TARGET_OBJECTS:base>)
 
+add_executable(test main.cpp)
+set_property(TARGET test PROPERTY CXX_STANDARD 20)
 
 
 set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--export-all-symbols")
@@ -122,5 +130,13 @@ endif(WIN32)
 
 target_link_libraries(test ${LIB_NAME})
 
+set(CMAKE_INSTALL_PREFIX ./install)
 install(TARGETS test ${LIB_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX})
-
+IF(NOT glfw_FOUND)
+    IF(WIN32)
+        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/lib/win/GLFW/glfw3.dll glfw3.dll COPYONLY)
+        install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/lib/win/GLFW/glfw3.dll DESTINATION ${CMAKE_INSTALL_PREFIX})
+    ELSE()
+        message(FATAl_ERROR "Other platforms don't contain bundled glfw lib yet!")
+    ENDIF()
+ENDIF()
