@@ -1,0 +1,1 @@
+target_sources(${LIB_NAME} PUBLIC library.cpp)

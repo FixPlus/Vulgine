@@ -1,0 +1,126 @@
+cmake_minimum_required(VERSION 3.17)
+project(Vulgine)
+
+#Type here your project name
+set(LIB_NAME Vulgine)
+
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    project(${LIB_NAME})
+endif()
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_C_COMPILER_WORKS ON)
+set(CMAKE_CXX_COMPILER_WORKS ON)
+
+set(CXX_STANDARD_REQUIRED ON)
+
+
+# Use FindVulkan module added with CMAKE 3.7
+if (NOT CMAKE_VERSION VERSION_LESS 3.7.0)
+    message(STATUS "Using module to find Vulkan")
+    find_package(Vulkan)
+endif()
+
+IF(UNIX AND NOT APPLE)
+    set(LINUX TRUE)
+ENDIF()
+
+IF(WIN32)
+    IF (NOT Vulkan_FOUND)
+        find_library(Vulkan_LIBRARY NAMES vulkan-1 vulkan PATHS ${CMAKE_CURRENT_SOURCE_DIR}/lib/win/vulkan)
+        IF (Vulkan_LIBRARY)
+            set(Vulkan_FOUND ON)
+            MESSAGE("Using bundled Vulkan library version")
+        ENDIF()
+    ENDIF()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_WIN32_KHR")
+ELSEIF(LINUX)
+    IF (NOT Vulkan_FOUND)
+        find_library(Vulkan_LIBRARY NAMES vulkan HINTS "$ENV{VULKAN_SDK}/lib" "${CMAKE_CURRENT_SOURCE_DIR}/lib/vulkan" REQUIRED)
+        IF (Vulkan_LIBRARY)
+            set(Vulkan_FOUND ON)
+            MESSAGE("Using bundled Vulkan library version")
+        ENDIF()
+    ENDIF()
+    find_package(Threads REQUIRED)
+    IF(USE_D2D_WSI)
+        MESSAGE("Using direct to display extension...")
+        add_definitions(-D_DIRECT2DISPLAY)
+    ELSEIF(USE_DIRECTFB_WSI)
+        find_package(DirectFB REQUIRED)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_DIRECTFB_EXT")
+        include_directories(${DIRECTFB_INCLUDE_DIR})
+    ELSEIF(USE_WAYLAND_WSI)
+        find_program(PKG_CONFIG pkg-config)
+        if (NOT PKG_CONFIG)
+            message(FATAL_ERROR "pkg-config binary not found")
+        endif ()
+        find_package(Wayland REQUIRED)
+        if (NOT WAYLAND_FOUND)
+            message(FATAL_ERROR "Wayland development package not found")
+        endif ()
+        pkg_check_modules(WAYLAND_PROTOCOLS REQUIRED wayland-protocols)
+        if (NOT WAYLAND_PROTOCOLS_FOUND)
+            message(FATAL_ERROR "Wayland protocols package not found")
+        endif ()
+        find_program(WAYLAND_SCANNER wayland-scanner)
+        if (NOT WAYLAND_SCANNER)
+            message(FATAL_ERROR "wayland-scanner binary not found")
+        endif ()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_WAYLAND_KHR")
+        include_directories(${WAYLAND_INCLUDE_DIR})
+        execute_process(COMMAND ${PKG_CONFIG} --variable=pkgdatadir wayland-protocols OUTPUT_VARIABLE protocol_dir OUTPUT_STRIP_TRAILING_WHITESPACE)
+        execute_process(COMMAND ${WAYLAND_SCANNER} client-header ${protocol_dir}/stable/xdg-shell/xdg-shell.xml ${CMAKE_BINARY_DIR}/xdg-shell-client-protocol.h
+                COMMAND ${WAYLAND_SCANNER} private-code ${protocol_dir}/stable/xdg-shell/xdg-shell.xml ${CMAKE_BINARY_DIR}/xdg-shell-protocol.c)
+        include_directories(${CMAKE_BINARY_DIR})
+    ELSE(USE_D2D_WSI)
+        find_package(XCB REQUIRED)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_XCB_KHR")
+    ENDIF(USE_D2D_WSI)
+ELSEIF(APPLE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_MACOS_MVK -DVK_EXAMPLE_XCODE_GENERATED")
+    # Todo : android?
+ENDIF(WIN32)
+
+IF (NOT Vulkan_FOUND)
+    message(FATAL_ERROR "Could not find Vulkan library!")
+ELSE()
+    message(STATUS ${Vulkan_LIBRARY})
+ENDIF()
+
+IF(WIN32)
+    find_library(GLFW_LIBRARY NAMES glfw3 PATHS ${CMAKE_CURRENT_SOURCE_DIR}/lib/win/GLFW)
+    IF(${GLFW_LIBRARY} STREQUAL "")
+        message(FATAL_ERROR "GLFW library not found!")
+    ENDIF()
+    message(STATUS ${GLFW_LIBRARY})
+ELSE()
+    message(FATAL_ERROR "Not supported linking of GLFW on this platform!")
+ENDIF()
+
+include_directories(external)
+
+add_library(${LIB_NAME} SHARED include/library.h)
+
+add_subdirectory(source)
+
+add_executable(test main.cpp)
+
+
+
+set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--export-all-symbols")
+
+
+
+target_link_libraries(${LIB_NAME} ${Vulkan_LIBRARY} ${GLFW_LIBRARY})
+
+if(WIN32)
+    target_link_libraries(${LIB_NAME} ${WINLIBS} )
+else(WIN32)
+    target_link_libraries(${LIB_NAME} ${XCB_LIBRARIES} ${WAYLAND_CLIENT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+endif(WIN32)
+
+target_link_libraries(test ${LIB_NAME})
+
+install(TARGETS test ${LIB_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX})
+

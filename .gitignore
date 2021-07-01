@@ -1,0 +1,9 @@
+.vs
+CMakeSettings.json
+out
+data/glslc
+data/glslc.exe
+.idea
+cmake-build-debug
+cmake-build-release
+data/Models
