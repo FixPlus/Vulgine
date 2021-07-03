@@ -8,8 +8,9 @@
 
 int main(int argc, char** argv){
 
-    Vulgine::initializers.windowName = "HELLO THERE";
-    Vulgine::initializers.windowSize = {1200, 800};
+    Vulgine::initializeInfo.windowName = "HELLO THERE";
+    Vulgine::initializeInfo.windowSize = {1200, 800};
+    Vulgine::initializeInfo.enableVulkanValidationLayers = true;
 
     auto* vulgine = Vulgine::Vulgine::createInstance();
 

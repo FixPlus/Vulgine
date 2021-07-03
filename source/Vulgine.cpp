@@ -1,5 +1,5 @@
 #include "Vulgine.h"
-
+#include "vulkan/VulkanDebug.h"
 #include <iostream>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -14,7 +14,7 @@ namespace Vulgine{
     Vulgine* vlg_instance = nullptr;
     std::string err_message = "";
 
-    Initializers initializers;
+    Initializers initializeInfo;
 
     VulgineImpl::VulgineImpl(){
 
@@ -33,6 +33,8 @@ namespace Vulgine{
     }
 
     VulgineImpl::~VulgineImpl() {
+        delete device;
+        debug::freeDebugCallback(instance);
         vkDestroyInstance(instance, nullptr);
         glfwDestroyWindow(window.instance);
         glfwTerminate();
@@ -167,13 +169,27 @@ namespace Vulgine{
 
         logger("Vulkan Instance created");
 
+        if(initializeInfo.enableVulkanValidationLayers){
+            // The report flags determine what type of messages for the layers will be displayed
+            // For validating (debugging) an application the error and warning bits should suffice
+            VkDebugReportFlagsEXT debugReportFlags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
+            // Additional flags include performance info, loader and layer debug messages, etc.
+            debug::setupDebugging(instance, debugReportFlags, VK_NULL_HANDLE);
+
+            logger("Vulkan Validation layers enabled");
+        }
+
+        createVulkanDevice();
+
+        logger("Vulkan Device Created");
+
         return true;
     }
 
     void VulgineImpl::createVkInstance() {
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-        appInfo.pApplicationName = "";
+        appInfo.pApplicationName = initializeInfo.applicationName.c_str();
         appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
         appInfo.pEngineName = "VulGine";
         appInfo.engineVersion = VK_MAKE_VERSION(VULGINE_VERSION_MAJOR, VULGINE_VERSION_MINOR, VULGINE_VERSION_REVISION);
@@ -182,30 +198,95 @@ namespace Vulgine{
         VkInstanceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         createInfo.pApplicationInfo = &appInfo;
-        uint32_t glfwExtensionCount = 0;
-        const char** glfwExtensions;
 
-        glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+        auto glfwExtensions = getRequiredExtensionsList();
 
-        // TODO: implement external extensions list queries
+        if(initializeInfo.enableVulkanValidationLayers){
+            // The VK_LAYER_KHRONOS_validation contains all current validation functionality.
+            // Note that on Android this layer requires at least NDK r20
+            const char* validationLayerName = "VK_LAYER_KHRONOS_validation";
+            // Check if this layer is available at instance level
+            uint32_t instanceLayerCount;
+            vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr);
+            std::vector<VkLayerProperties> instanceLayerProperties(instanceLayerCount);
+            vkEnumerateInstanceLayerProperties(&instanceLayerCount, instanceLayerProperties.data());
+            bool validationLayerPresent = false;
+            for (VkLayerProperties layer : instanceLayerProperties) {
+                if (strcmp(layer.layerName, validationLayerName) == 0) {
+                    validationLayerPresent = true;
+                    break;
+                }
+            }
+            if (validationLayerPresent) {
+                createInfo.ppEnabledLayerNames = &validationLayerName;
+                createInfo.enabledLayerCount = 1;
+            } else {
+                createInfo.enabledLayerCount = 0;
+                initializeInfo.enableVulkanValidationLayers = false;
+                errs("Validation layer VK_LAYER_KHRONOS_validation not present, validation is disabled");
+            }
+        }
 
-        createInfo.enabledExtensionCount = glfwExtensionCount;
-        createInfo.ppEnabledExtensionNames = glfwExtensions;
-        createInfo.enabledLayerCount = 0;
+
+        createInfo.enabledExtensionCount = glfwExtensions.size();
+        createInfo.ppEnabledExtensionNames = glfwExtensions.data();
 
         VK_CHECK_RESULT(vkCreateInstance(&createInfo, nullptr, &instance))
     }
 
     void VulgineImpl::initFields() {
 
-        if(initializers.windowSize) {
-            auto size = initializers.windowSize.value();
+        if(initializeInfo.windowSize) {
+            auto size = initializeInfo.windowSize.value();
             window.height = size.second;
             window.width = size.first;
         }
 
-        if(initializers.windowName){
-            window.name = initializers.windowName.value();
+        if(initializeInfo.windowName){
+            window.name = initializeInfo.windowName.value();
+        }
+
+    }
+
+    std::vector<const char*> VulgineImpl::getRequiredExtensionsList() {
+
+        uint32_t glfwExtensionCount = 0;
+        const char** glfwExtensions;
+
+        glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+
+        std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+
+
+        if(initializeInfo.enableVulkanValidationLayers)
+            extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+
+        return extensions;
+    }
+
+    void VulgineImpl::createVulkanDevice() {
+        uint32_t deviceCount = 0;
+        vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+        if(deviceCount == 0){
+            Utilities::ExitFatal(-1, "There are no GPUs supporting Vulkan");
+        }
+
+        std::vector<VkPhysicalDevice> availableDevices(deviceCount);
+        vkEnumeratePhysicalDevices(instance, &deviceCount, availableDevices.data());
+
+        //TODO: make it available to choose the device
+
+        physicalDevice = availableDevices[0];
+
+        // Store properties (including limits), features and memory properties of the physical device (so that examples can check against them)
+        vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
+        vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
+        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &deviceMemoryProperties);
+
+        device = new VulkanDevice(physicalDevice);
+        VkResult res = device->createLogicalDevice(enabledFeatures, enabledDeviceExtensions, deviceCreatepNextChain);
+        if (res != VK_SUCCESS) {
+            Utilities::ExitFatal(res, "Could not create Vulkan device: \n" + Utilities::errorString(res));
         }
 
     }
@@ -228,8 +309,7 @@ namespace Vulgine{
     }
 
     void Initializers::reset() {
-        windowName.reset();
-        windowSize.reset();
+        *this = Initializers();
     }
 
     std::string getStringVersion() {

@@ -32,11 +32,13 @@ namespace Vulgine {
     struct Initializers{
         std::optional<std::string> windowName;
         std::optional<std::pair<uint32_t, uint32_t>> windowSize;
+        bool enableVulkanValidationLayers = false;
+        std::string applicationName = "VulGineApp";
 
         void reset();
     };
 
-    extern Initializers initializers;
+    extern Initializers initializeInfo;
 
     struct Vulgine{
     protected:

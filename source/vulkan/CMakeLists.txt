@@ -1,0 +1,2 @@
+add_library(VulkanBase OBJECT VulkanDebug.h VulkanDebug.cpp VulkanDevice.h VulkanDevice.cpp VulkanBuffer.cpp VulkanBuffer.h VulkanInitializers.hpp)
+set_property(TARGET VulkanBase PROPERTY CXX_STANDARD 20)
