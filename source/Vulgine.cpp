@@ -1,4 +1,4 @@
-#include "../include/Vulgine.h"
+#include "Vulgine.h"
 
 #include <iostream>
 #include <GLFW/glfw3.h>
@@ -14,7 +14,9 @@ namespace Vulgine{
     Vulgine* vlg_instance = nullptr;
     std::string err_message = "";
 
-    Vulgine::Vulgine(){
+    Initializers initializers;
+
+    VulgineImpl::VulgineImpl(){
 
         uint32_t extensionCount = 0;
         vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
@@ -23,14 +25,14 @@ namespace Vulgine{
 
     }
 
-    bool Vulgine::cycle() {
+    bool VulgineImpl::cycle() {
         if(glfwWindowShouldClose(window.instance))
             return false;
         glfwPollEvents();
         return true;
     }
 
-    Vulgine::~Vulgine() {
+    VulgineImpl::~VulgineImpl() {
         vkDestroyInstance(instance, nullptr);
         glfwDestroyWindow(window.instance);
         glfwTerminate();
@@ -44,7 +46,7 @@ namespace Vulgine{
         errs("GLFW error: " + std::string(description) + "(Error code: " + std::to_string(code) + ")");
     }
 
-    Vulgine* Vulgine::createInstance(PreSettings const& settings){
+    Vulgine* Vulgine::createInstance(){
 
         // if no specific log file is set, proceed using standard output file
 
@@ -53,21 +55,31 @@ namespace Vulgine{
 
         if(vlg_instance == nullptr){
 
-            try{
-                vlg_instance = new Vulgine();
-            }
-            catch (std::bad_alloc const& e){
-                vlg_instance = nullptr;
-                errs("Can't create VulGine instance: out of RAM");
+            // check version compatibility
+
+            int major, minor, revision;
+
+            int h_major, h_minor, h_revision;
+
+            getVersion(&major, &minor, &revision);
+            getHeaderVersion(&h_major, &h_minor, &h_revision);
+
+            if(major != h_major){
+                errs("Loaded VulGine library version is incompatible: expected " + std::to_string(h_major) + ", loaded " + std::to_string(major));
                 return nullptr;
             }
-            logger("VulGine Instance allocated");
 
-            vlg_instance->setup(settings);
+            if(minor < h_minor){
+                errs("Loaded VulGine library version is incompatible: expected not less " +
+                        std::to_string(major) + "." + std::to_string(h_minor) + ", loaded " + std::to_string(major) + "." + std::to_string(minor));
+                return nullptr;
+            }
+
+            logger("Loaded compatible VulGine version: " + getStringVersion());
 
             // checking if loaded GLFW library has compatible version
 
-            int major, minor, revision;
+
             glfwGetVersion(&major, &minor, &revision);
             if(major != GLFW_VERSION_MAJOR) {
                 errs("Unsupported GLFW version: " + std::to_string(major) + "(expected " +
@@ -80,39 +92,25 @@ namespace Vulgine{
                 return nullptr;
             }
             logger("Proper GLFW version loaded: " + std::string(glfwGetVersionString()));
-            // initializing GLFW
 
-            glfwInit();
-
-            int code = glfwGetError(nullptr);
-
-            if (code != GLFW_NO_ERROR){
-                errs("GLFW Initialization failed with following error code: " + std::to_string(code));
+            VulgineImpl* vlg_instance_impl;
+            try{
+                vlg_instance_impl = new VulgineImpl();
+                vlg_instance = vlg_instance_impl;
+            }
+            catch (std::bad_alloc const& e){
+                vlg_instance = nullptr;
+                errs("Can't create VulGine instance: out of RAM");
                 return nullptr;
             }
-            logger("GLFW Initialized");
+            logger("VulGine Instance allocated");
 
-            glfwSetErrorCallback(error_callback);
+            bool initComplete = vlg_instance_impl->initialize();
 
-
-            // creating window
-
-            glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
-            auto window = glfwCreateWindow(vlg_instance->window.width, vlg_instance->window.height,
-                                           vlg_instance->window.name.c_str(), nullptr, nullptr);
-
-            vlg_instance->window.instance = window;
-
-            logger("GLFW: created window");
-
-
-            //TODO: vulkan instance, physical and virtual devices initialization processes
-
-            vlg_instance->createVkInstance();
-
-            logger("Vulkan Instance created");
-
+            if(!initComplete){
+                delete vlg_instance;
+                return nullptr;
+            }
             return vlg_instance;
 
         }else{
@@ -122,6 +120,7 @@ namespace Vulgine{
 
 
     }
+
     void Vulgine::freeInstance(Vulgine* instance){
         if(instance == nullptr || instance != vlg_instance)
             errs("Invalid pointer");
@@ -132,25 +131,52 @@ namespace Vulgine{
         }
     }
 
-    void Vulgine::setup(const PreSettings &settings) {
-        if(settings.windowSize) {
-            auto size = settings.windowSize.value();
-            window.height = size.y;
-            window.width = size.x;
-        }
+    bool VulgineImpl::initialize() {
 
-        if(settings.windowName){
-            window.name = settings.windowName.value();
+        initFields();
+
+        // initializing GLFW
+
+        glfwInit();
+
+        int code = glfwGetError(nullptr);
+
+        if (code != GLFW_NO_ERROR){
+            errs("GLFW Initialization failed with following error code: " + std::to_string(code));
+            return false;
         }
+        logger("GLFW Initialized");
+
+        glfwSetErrorCallback(error_callback);
+
+
+        // creating window
+
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+
+        window.instance = glfwCreateWindow(window.width, window.height,
+                                       window.name.c_str(), nullptr, nullptr);
+
+
+        logger("GLFW: created window");
+
+
+        //TODO: vulkan instance, physical and virtual devices initialization processes
+
+        createVkInstance();
+
+        logger("Vulkan Instance created");
+
+        return true;
     }
 
-    void Vulgine::createVkInstance() {
+    void VulgineImpl::createVkInstance() {
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         appInfo.pApplicationName = "";
         appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
         appInfo.pEngineName = "VulGine";
-        appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+        appInfo.engineVersion = VK_MAKE_VERSION(VULGINE_VERSION_MAJOR, VULGINE_VERSION_MINOR, VULGINE_VERSION_REVISION);
         appInfo.apiVersion = VK_API_VERSION_1_0;
 
         VkInstanceCreateInfo createInfo{};
@@ -161,11 +187,27 @@ namespace Vulgine{
 
         glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
+        // TODO: implement external extensions list queries
+
         createInfo.enabledExtensionCount = glfwExtensionCount;
         createInfo.ppEnabledExtensionNames = glfwExtensions;
         createInfo.enabledLayerCount = 0;
 
         VK_CHECK_RESULT(vkCreateInstance(&createInfo, nullptr, &instance))
+    }
+
+    void VulgineImpl::initFields() {
+
+        if(initializers.windowSize) {
+            auto size = initializers.windowSize.value();
+            window.height = size.second;
+            window.width = size.first;
+        }
+
+        if(initializers.windowName){
+            window.name = initializers.windowName.value();
+        }
+
     }
 
 
@@ -179,5 +221,20 @@ namespace Vulgine{
         logger.changeLogFile(&output);
     }
 
+    void getVersion(int* v_major, int* v_minor, int* v_revision){
+        *v_major = VULGINE_VERSION_MAJOR;
+        *v_minor = VULGINE_VERSION_MINOR;
+        *v_revision = VULGINE_VERSION_REVISION;
+    }
 
+    void Initializers::reset() {
+        windowName.reset();
+        windowSize.reset();
+    }
+
+    std::string getStringVersion() {
+        std::string ret;
+        ret = "VulGine " + std::to_string(VULGINE_VERSION_MAJOR) + "." + std::to_string(VULGINE_VERSION_MINOR) + "." + std::to_string(VULGINE_VERSION_REVISION);
+        return ret;
+    }
 }

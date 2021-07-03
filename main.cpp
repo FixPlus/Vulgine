@@ -2,18 +2,16 @@
 // Created by Бушев Дмитрий on 01.07.2021.
 //
 
-#include "include/Vulgine.h"
+#include "include/IVulgine.h"
 
 
 
 int main(int argc, char** argv){
 
-    Vulgine::PreSettings settings;
+    Vulgine::initializers.windowName = "HELLO THERE";
+    Vulgine::initializers.windowSize = {1200, 800};
 
-    settings.windowName = "HELLO THERE";
-    settings.windowSize = glm::vec2{1200, 800};
-
-    auto* vulgine = Vulgine::Vulgine::createInstance(settings);
+    auto* vulgine = Vulgine::Vulgine::createInstance();
 
     while(vulgine->cycle());
 
