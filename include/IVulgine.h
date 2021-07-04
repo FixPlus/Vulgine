@@ -20,7 +20,7 @@
 
 #include <string>
 #include <map>
-
+#include "IVulgineScene.h"
 
 #define VULGINE_VERSION_MAJOR    0
 #define VULGINE_VERSION_MINOR    0
@@ -46,6 +46,9 @@ namespace Vulgine {
         virtual ~Vulgine() = default;
     public:
 
+        virtual Scene* initNewScene() = 0;
+        virtual RenderTarget* initNewRenderTarget() = 0;
+        virtual void buildRenderPass(std::vector<RenderTask> const& renderTaskQueue) = 0;
 
         virtual bool cycle() = 0;
         static Vulgine* createInstance();
@@ -64,12 +67,16 @@ namespace Vulgine {
 
     void getVersion(int* v_major, int* v_minor, int* v_revision);
 
-    void getHeaderVersion(int* v_major, int* v_minor, int* v_revision){
+    void getHeaderVersion(int* v_major, int* v_minor, int* v_revision)
+#ifndef VULGINE_DO_NOT_DEFINE_HEADER_VERSION
+    {
         *v_major = VULGINE_VERSION_MAJOR;
         *v_minor = VULGINE_VERSION_MINOR;
         *v_revision = VULGINE_VERSION_REVISION;
     }
-
+#else
+;
+#endif
     std::string getStringVersion();
 
 }

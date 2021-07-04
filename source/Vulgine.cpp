@@ -1,5 +1,6 @@
 #include "Vulgine.h"
 #include "vulkan/VulkanDebug.h"
+#include "VulgineScene.h"
 #include <iostream>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -11,7 +12,7 @@
 
 namespace Vulgine{
 
-    Vulgine* vlg_instance = nullptr;
+    VulgineImpl* vlg_instance = nullptr;
     std::string err_message = "";
 
     Initializers initializeInfo;
@@ -29,16 +30,43 @@ namespace Vulgine{
         if(glfwWindowShouldClose(window.instance))
             return false;
         glfwPollEvents();
+
+        if(prepared)
+            renderFrame();
+
         return true;
     }
 
     VulgineImpl::~VulgineImpl() {
-        delete device;
+
         debug::freeDebugCallback(instance);
+        swapChain.cleanup();
+
+        offScreenFramebuffers.clear();
+        onScreenFramebuffers.clear();
+
+        vkDestroyImageView(device->logicalDevice, depthStencil.view, nullptr);
+        vkDestroyImage(device->logicalDevice, depthStencil.image, nullptr);
+        vkFreeMemory(device->logicalDevice, depthStencil.mem, nullptr);
+
+        destroyCommandBuffers();
+
+        destroyRenderPasses();
+
+        vkDestroyCommandPool(device->logicalDevice, cmdPool, nullptr);
+
+        delete device;
         vkDestroyInstance(instance, nullptr);
         glfwDestroyWindow(window.instance);
         glfwTerminate();
     }
+
+    void VulgineImpl::destroyCommandBuffers()
+    {
+        vkFreeCommandBuffers(device->logicalDevice, cmdPool, static_cast<uint32_t>(drawCmdBuffers.size()), drawCmdBuffers.data());
+        drawCmdBuffers.clear();
+    }
+
 
     std::string getLastErrorLog(){
         return err_message;
@@ -64,6 +92,7 @@ namespace Vulgine{
             int h_major, h_minor, h_revision;
 
             getVersion(&major, &minor, &revision);
+#if 0
             getHeaderVersion(&h_major, &h_minor, &h_revision);
 
             if(major != h_major){
@@ -76,7 +105,7 @@ namespace Vulgine{
                         std::to_string(major) + "." + std::to_string(h_minor) + ", loaded " + std::to_string(major) + "." + std::to_string(minor));
                 return nullptr;
             }
-
+#endif
             logger("Loaded compatible VulGine version: " + getStringVersion());
 
             // checking if loaded GLFW library has compatible version
@@ -183,7 +212,40 @@ namespace Vulgine{
 
         logger("Vulkan Device Created");
 
+        createCommandPool();
+
+        swapChain.create(&window.width,&window.height, true);
+
+        logger("Swap chain created");
+
+        createCommandBuffers();
+
+        setupDepthStencil();
+
         return true;
+    }
+
+    void VulgineImpl::createCommandPool()
+    {
+        VkCommandPoolCreateInfo cmdPoolInfo = {};
+        cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        cmdPoolInfo.queueFamilyIndex = swapChain.queueNodeIndex;
+        cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        VK_CHECK_RESULT(vkCreateCommandPool(device->logicalDevice, &cmdPoolInfo, nullptr, &cmdPool));
+    }
+
+    void VulgineImpl::createCommandBuffers()
+    {
+        // Create one command buffer for each swap chain image and reuse for rendering
+        drawCmdBuffers.resize(swapChain.imageCount);
+
+        VkCommandBufferAllocateInfo cmdBufAllocateInfo =
+                initializers::commandBufferAllocateInfo(
+                        cmdPool,
+                        VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                        static_cast<uint32_t>(drawCmdBuffers.size()));
+
+        VK_CHECK_RESULT(vkAllocateCommandBuffers(device->logicalDevice, &cmdBufAllocateInfo, drawCmdBuffers.data()));
     }
 
     void VulgineImpl::createVkInstance() {
@@ -276,21 +338,154 @@ namespace Vulgine{
 
         //TODO: make it available to choose the device
 
-        physicalDevice = availableDevices[0];
 
-        // Store properties (including limits), features and memory properties of the physical device (so that examples can check against them)
-        vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
-        vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
-        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &deviceMemoryProperties);
 
-        device = new VulkanDevice(physicalDevice);
+        device = new VulkanDevice(availableDevices[0]);
         VkResult res = device->createLogicalDevice(enabledFeatures, enabledDeviceExtensions, deviceCreatepNextChain);
         if (res != VK_SUCCESS) {
             Utilities::ExitFatal(res, "Could not create Vulkan device: \n" + Utilities::errorString(res));
         }
 
+        if(!getSupportedDepthFormat()){
+            Utilities::ExitFatal(-1, "Selected GPU doesn't support any depth format");
+        }
+
+        // Get a graphics queue from the device
+        vkGetDeviceQueue(device->logicalDevice, device->queueFamilyIndices.graphics, 0, &queue);
+
+        swapChain.connect(instance, device->physicalDevice, device->logicalDevice);
+
+        swapChain.initSurface(window.instance);
+
     }
 
+    void VulgineImpl::renderFrame() {
+
+        // Acquire the next image from the swap chain
+        VkResult result = swapChain.acquireNextImage(&currentBuffer);
+        // Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
+        if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR)) {
+            // TODO: recreate swap chain here as window size changed
+        }
+        else {
+            VK_CHECK_RESULT(result);
+        }
+
+        swapChain.submitInfo.commandBufferCount = 1;
+        swapChain.submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
+        VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &swapChain.submitInfo, VK_NULL_HANDLE));
+
+
+        result = swapChain.queuePresent(queue, currentBuffer);
+        if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) {
+            if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+                // TODO: recreate swap chain here as window size changed
+                return;
+            } else {
+                VK_CHECK_RESULT(result);
+            }
+        }
+
+        // TODO: add support for rendering frames 'in flight' to improve graphics card resource usage
+
+        VK_CHECK_RESULT(vkQueueWaitIdle(queue));
+
+    }
+
+    Scene *VulgineImpl::initNewScene() {
+        Scene* ret;
+        try{
+            ret = new SceneImpl{};
+        }
+        catch(std::bad_alloc const& e) {
+            Utilities::ExitFatal(-1, e.what());
+        }
+
+        return ret;
+    }
+
+    RenderTarget *VulgineImpl::initNewRenderTarget() {
+        return nullptr;
+    }
+
+    void VulgineImpl::buildRenderPass(const std::vector<RenderTask> &renderTaskQueue) {
+
+    }
+
+    VkBool32 VulgineImpl::getSupportedDepthFormat()
+    {
+        // Since all depth formats may be optional, we need to find a suitable depth format to use
+        // Start with the highest precision packed format
+        std::vector<VkFormat> depthFormats = {
+                VK_FORMAT_D32_SFLOAT_S8_UINT,
+                VK_FORMAT_D32_SFLOAT,
+                VK_FORMAT_D24_UNORM_S8_UINT,
+                VK_FORMAT_D16_UNORM_S8_UINT,
+                VK_FORMAT_D16_UNORM
+        };
+
+        for (auto& format : depthFormats)
+        {
+            VkFormatProperties formatProps;
+            vkGetPhysicalDeviceFormatProperties(device->physicalDevice, format, &formatProps);
+            // Format must support depth stencil attachment for optimal tiling
+            if (formatProps.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
+            {
+                depthFormat = format;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    void VulgineImpl::setupDepthStencil()
+    {
+        VkImageCreateInfo imageCI{};
+        imageCI.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageCI.imageType = VK_IMAGE_TYPE_2D;
+        imageCI.format = depthFormat;
+        imageCI.extent = { window.width, window.height, 1 };
+        imageCI.mipLevels = 1;
+        imageCI.arrayLayers = 1;
+        imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+        VK_CHECK_RESULT(vkCreateImage(device->logicalDevice, &imageCI, nullptr, &depthStencil.image));
+        VkMemoryRequirements memReqs{};
+        vkGetImageMemoryRequirements(device->logicalDevice, depthStencil.image, &memReqs);
+
+        VkMemoryAllocateInfo memAllloc{};
+        memAllloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        memAllloc.allocationSize = memReqs.size;
+        memAllloc.memoryTypeIndex = device->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        VK_CHECK_RESULT(vkAllocateMemory(device->logicalDevice, &memAllloc, nullptr, &depthStencil.mem));
+        VK_CHECK_RESULT(vkBindImageMemory(device->logicalDevice, depthStencil.image, depthStencil.mem, 0));
+
+        VkImageViewCreateInfo imageViewCI{};
+        imageViewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        imageViewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        imageViewCI.image = depthStencil.image;
+        imageViewCI.format = depthFormat;
+        imageViewCI.subresourceRange.baseMipLevel = 0;
+        imageViewCI.subresourceRange.levelCount = 1;
+        imageViewCI.subresourceRange.baseArrayLayer = 0;
+        imageViewCI.subresourceRange.layerCount = 1;
+        imageViewCI.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        // Stencil aspect should only be set on depth + stencil formats (VK_FORMAT_D16_UNORM_S8_UINT..VK_FORMAT_D32_SFLOAT_S8_UINT
+        if (depthFormat >= VK_FORMAT_D16_UNORM_S8_UINT) {
+            imageViewCI.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+        }
+        VK_CHECK_RESULT(vkCreateImageView(device->logicalDevice, &imageViewCI, nullptr, &depthStencil.view));
+    }
+
+    void VulgineImpl::destroyRenderPasses() {
+        for(auto* pass: renderPasses)
+            delete pass;
+
+        renderPasses.clear();
+    }
 
     void disableLog(){
         logger.disable();
@@ -317,4 +512,6 @@ namespace Vulgine{
         ret = "VulGine " + std::to_string(VULGINE_VERSION_MAJOR) + "." + std::to_string(VULGINE_VERSION_MINOR) + "." + std::to_string(VULGINE_VERSION_REVISION);
         return ret;
     }
+
+
 }

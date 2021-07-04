@@ -1,7 +1,13 @@
 #ifndef VULGINE_VULGINE_H
 #define VULGINE_VULGINE_H
-#include "../include/IVulgine.h"
+
+#define VULGINE_DO_NOT_DEFINE_HEADER_VERSION
+#include "IVulgine.h"
+#undef VULGINE_DO_NOT_DEFINE_HEADER_VERSION
+
 #include "vulkan/VulkanDevice.h"
+#include "vulkan/VulkanSwapChain.h"
+#include "VulgineRenderPass.h"
 #include <vector>
 
 #define GLFW_INCLUDE_VULKAN
@@ -12,6 +18,8 @@ namespace Vulgine {
 
     class VulgineImpl: public Vulgine{
         static std::vector<const char*> getRequiredExtensionsList();
+
+        VkBool32 getSupportedDepthFormat();
     protected:
         struct Window {
             GLFWwindow *instance = nullptr;
@@ -21,10 +29,6 @@ namespace Vulgine {
         } window;
 
         VkInstance instance = VK_NULL_HANDLE;
-        VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-        VkPhysicalDeviceFeatures deviceFeatures;
-        VkPhysicalDeviceProperties deviceProperties;
-        VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
 
         /** @brief Set of physical device features to be enabled for this example (must be set in the derived constructor) */
         VkPhysicalDeviceFeatures enabledFeatures{};
@@ -34,19 +38,68 @@ namespace Vulgine {
         /** @brief Optional pNext structure for passing extension structures to device creation */
         void* deviceCreatepNextChain = nullptr;
 
-        VulkanDevice* device;
+
+        VkQueue queue = VK_NULL_HANDLE;
+        VulkanSwapChain swapChain;
+
+        bool prepared = false;
+
+        // Command buffer pool
+        VkCommandPool cmdPool;
+        // Command buffers used for rendering
+        std::vector<VkCommandBuffer> drawCmdBuffers;
+        // Active frame buffer index
+        uint32_t currentBuffer = 0;
+
+        // Onscreen frame buffers (one per each swap chain image)
+
+        std::vector<Framebuffer> onScreenFramebuffers;
+
+        // Offscreen frame buffers (one per each offscreen render pass)
+
+        std::vector<Framebuffer> offScreenFramebuffers;
+
+        // depth/stencil image used by onscreen renderPass (only one for all frame buffers)
+
+        struct {
+            VkImage image;
+            VkDeviceMemory mem;
+            VkImageView view;
+        } depthStencil;
+
+        // Queue of render passes. Must contain at least 1 pass (onscreen)
+
+        std::vector<RenderPass*> renderPasses;
+
+        // Depth buffer format (selected during Vulkan initialization)
+        VkFormat depthFormat;
 
         void createVkInstance();
         void createVulkanDevice();
+        void createCommandBuffers();
+        void setupDepthStencil();
+        void createCommandPool();
+
+        void destroyRenderPasses();
+        void destroyCommandBuffers();
 
         void initFields();
+        void renderFrame();
     public:
+        VulkanDevice* device = nullptr;
+
+        RenderTarget* initNewRenderTarget() override;
+        void buildRenderPass(std::vector<RenderTask> const& renderTaskQueue) override;
+
+        Scene* initNewScene() override;
         bool initialize();
         explicit VulgineImpl();
         ~VulgineImpl() override;
         bool cycle() override;
 
     };
+    extern VulgineImpl* vlg_instance;
+
 
 
 }

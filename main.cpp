@@ -5,7 +5,6 @@
 #include "include/IVulgine.h"
 
 
-
 int main(int argc, char** argv){
 
     Vulgine::initializeInfo.windowName = "HELLO THERE";

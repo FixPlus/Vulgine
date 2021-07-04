@@ -68,4 +68,4 @@ struct VulkanDevice
 	bool            extensionSupported(std::string extension);
 	VkFormat        getSupportedDepthFormat(bool checkSamplingSupport);
 };
-}        // namespace vks
+}        // namespace Vulgine
