@@ -8,6 +8,7 @@
 #include <vector>
 #include <cstdint>
 #include <glm/vec3.hpp>
+#include <string>
 
 namespace Vulgine{
 
@@ -17,6 +18,11 @@ namespace Vulgine{
         virtual void createImpl() = 0;
         virtual void destroyImpl() = 0;
     public:
+        Creatable() = default;
+        Creatable(Creatable const& another) = delete;
+        Creatable const& operator=(Creatable const& another) = delete;
+        Creatable(Creatable&& another) = default;
+        Creatable& operator=(Creatable&& another) = default;
         void create() {
             if(created)
                 return;
@@ -39,14 +45,25 @@ namespace Vulgine{
         virtual ~Creatable() = default;
     };
 
+    struct Scene;
 
     struct Camera: public Creatable{
+    protected:
+        Scene* parent_;
+        uint32_t id_;
+    public:
+
+        Camera(Scene* parent, uint32_t id): parent_(parent), id_(id){}
         glm::vec3 position;
         glm::vec3 rotation;
+
+        Scene* parent() const{ return parent_;};
+        uint32_t id() const { return id_;}
+
     };
 
 
-    struct RenderTarget: public Creatable{
+    struct RenderTarget{
 
         enum { COLOR, DEPTH_STENCIL} attachmentType;
         enum { SCREEN, OFFSCREEN} renderType;
@@ -54,49 +71,64 @@ namespace Vulgine{
 
     };
 
-    struct Material: public Creatable{
+    /**
+ *
+ *  RGBA32SF -->  glm::vec4
+ *  RGB32SF  -->  glm::vec3
+ *  RG32SF   -->  glm::vec2
+ *  R32SF    -->  glm::vec1(32-bit float)
+ *
+ * */
 
+    enum class AttributeFormat{RGBA32SF, RGB32SF, RG32SF, R32SF};
+
+    struct VertexFormat{
+        std::vector<AttributeFormat> perVertexAttributes;
+        std::vector<AttributeFormat> perInstanceAttributes;
     };
 
-    struct Scene;
+
+    class Material: public Creatable{
+        uint32_t id_;
+    public:
+
+        VertexFormat vertexFormat;
+
+        std::string vertexShader;
+
+        explicit Material(uint32_t id): id_(id){}
+        uint32_t id() const { return id_;}
+    };
+
+
 
     class Light: public Creatable{
     protected:
         Scene* parent_;
+        uint32_t id_;
     public:
-        explicit Light(Scene* parent): parent_(parent){}
+        Light(Scene* parent, uint32_t id): parent_(parent), id_(id){}
         glm::vec3 direction;
         Scene* parent() const{ return parent_;};
+        uint32_t id() const { return id_;}
     };
 
 
     struct RenderTask{
         Scene* scene;
         Camera* camera;
-        std::vector<RenderTarget*> renderTargets;
+        std::vector<RenderTarget> renderTargets;
     };
 
     class Mesh: public Creatable{
     protected:
         Scene* parent_;
+        uint32_t id_;
     public:
 
-        explicit Mesh(Scene* parent): parent_(parent){}
-        /**
-         *
-         *  RGBA32SF -->  glm::vec4
-         *  RGB32SF  -->  glm::vec3
-         *  RG32SF   -->  glm::vec2
-         *  R32SF    -->  glm::vec1(32-bit float)
-         *
-         * */
+        Mesh(Scene* parent, uint32_t id): parent_(parent), id_(id){}
 
-        enum class AttributeFormat{RGBA32SF, RGB32SF, RG32SF, R32SF};
-
-        struct VertexFormat{
-            std::vector<AttributeFormat> perVertexAttributes;
-            std::vector<AttributeFormat> perInstanceAttributes;
-        } vertexFormat;
+        VertexFormat vertexFormat;
 
         struct {
             /** non-owning pointer to valid vertex data */
@@ -135,6 +167,7 @@ namespace Vulgine{
         virtual void updateInstanceData() = 0;
 
         Scene* parent() const{ return parent_;};
+        uint32_t id() const { return id_;}
 
 
 

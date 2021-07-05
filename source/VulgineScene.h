@@ -7,28 +7,36 @@
 
 #include <../include/IVulgineScene.h>
 #include <VulgineObjects.h>
+#include <stack>
 
-#include <deque>
+#include <unordered_map>
 
 namespace Vulgine{
 
 
     struct SceneImpl: public Scene{
-        std::deque<MeshImpl*> meshes;
-        std::deque<LightImpl*> lights;
+
+        explicit SceneImpl(uint32_t id): Scene(id){};
+        std::stack<uint32_t> meshFreeIds;
+        std::stack<uint32_t> lightFreeIds;
+        std::stack<uint32_t> cameraFreeIds;
+
+        std::unordered_map<uint32_t, MeshImpl> meshes;
+        std::unordered_map<uint32_t, LightImpl> lights;
+        std::unordered_map<uint32_t, CameraImpl> cameras;
 
         Light* createLightSource() override;
         Mesh* createEmptyMesh() override;
+        Camera* createCamera() override;
 
-        void disconnectMesh(Mesh* mesh) override;
-        void disconnectLightSource(Light* light) override;
+        void deleteMesh(Mesh* mesh) override;
+        void deleteLightSource(Light* light) override;
+        void deleteCamera(Camera* camera) override;
 
         void draw(CameraImpl* camera);
 
-        ~SceneImpl() override{
-            for(auto* mesh: meshes)
-                dynamic_cast<MeshImpl*>(mesh)->disconnectFromParent();
-        }
+        ~SceneImpl() override{ logger("Scene deleted");}
+
     };
 }
 #endif //TEST_EXE_VULGINESCENE_H

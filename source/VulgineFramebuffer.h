@@ -16,6 +16,9 @@ namespace Vulgine{
         void createImpl() override;
         void destroyImpl() override;
     public:
+        Framebuffer() = default;
+        Framebuffer(Framebuffer&& another) = default;
+        Framebuffer& operator=(Framebuffer&& another) = default;
         VkFramebuffer framebuffer;
 
         int width, height;

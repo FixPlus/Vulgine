@@ -8,6 +8,7 @@
 #include "vulkan/VulkanDevice.h"
 #include "vulkan/VulkanSwapChain.h"
 #include "VulgineRenderPass.h"
+#include "VulginePipeline.h"
 #include <vector>
 
 #define GLFW_INCLUDE_VULKAN
@@ -67,9 +68,24 @@ namespace Vulgine {
             VkImageView view;
         } depthStencil;
 
-        // Queue of render passes. Must contain at least 1 pass (onscreen)
+        std::vector<RenderTask> taskQueue;
+        // Container for scene objects
 
-        std::vector<RenderPass*> renderPasses;
+        struct {
+            std::stack<uint32_t> freeIds;
+            std::unordered_map<uint32_t, SceneImpl> container;
+        } scenes;
+
+        // Container for materials
+
+        struct {
+            std::stack<uint32_t> freeIds;
+            std::unordered_map<uint32_t, MaterialImpl> container;
+        } materials;
+
+        // Container for pipelines
+
+        std::map<std::tuple<MaterialImpl*, SceneImpl*, RenderPass*>, Pipeline> pipelines;
 
         // Depth buffer format (selected during Vulkan initialization)
         VkFormat depthFormat;
@@ -79,19 +95,45 @@ namespace Vulgine {
         void createCommandBuffers();
         void setupDepthStencil();
         void createCommandPool();
+        void createPipelineCache();
 
         void destroyRenderPasses();
         void destroyCommandBuffers();
 
         void initFields();
         void renderFrame();
+
+        void buildRenderPasses();
+        void createOnscreenFrameBuffers();
+        void destroyOnscreenFrameBuffers();
+
+        void loadShaders();
+        void destroyShaders();
     public:
+
+        std::map<std::string, ShaderModule> vertexShaders;
+        std::map<std::string, ShaderModule> fragmentShaders;
+
         VulkanDevice* device = nullptr;
 
-        RenderTarget* initNewRenderTarget() override;
-        void buildRenderPass(std::vector<RenderTask> const& renderTaskQueue) override;
+        // Pipeline cache object
+        VkPipelineCache pipelineCache;
+
+        // Queue of render passes. Must contain at least 1 pass (onscreen)
+
+        std::vector<RenderPass*> renderPasses;
+
+        RenderPass* onscreenRenderPass;
+
+
+
+        void updateRenderTaskQueue(std::vector<RenderTask> const& renderTaskQueue) override;
 
         Scene* initNewScene() override;
+        void deleteScene(Scene* scene) override;
+
+        Material* initNewMaterial() override;
+        void deleteMaterial(Material* scene) override;
         bool initialize();
         explicit VulgineImpl();
         ~VulgineImpl() override;

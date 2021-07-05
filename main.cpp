@@ -13,7 +13,21 @@ int main(int argc, char** argv){
 
     auto* vulgine = Vulgine::Vulgine::createInstance();
 
+    auto* scene = vulgine->initNewScene();
+
+    auto* material = vulgine->initNewMaterial();
+
+    auto* camera = scene->createCamera();
+
+    Vulgine::RenderTarget renderTarget = {Vulgine::RenderTarget::COLOR, Vulgine::RenderTarget::SCREEN};
+
+    vulgine->updateRenderTaskQueue({{scene, camera, {renderTarget}}});
+
     while(vulgine->cycle());
+
+
+
+    //vulgine->deleteScene(scene);
 
     Vulgine::Vulgine::freeInstance(vulgine);
 

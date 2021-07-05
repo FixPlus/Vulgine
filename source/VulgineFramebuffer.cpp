@@ -26,5 +26,6 @@ void Vulgine::Framebuffer::destroyImpl() {
 }
 
 Vulgine::Framebuffer::~Framebuffer() {
-    vkDestroyFramebuffer(vlg_instance->device->logicalDevice, framebuffer, nullptr);
+    if(isCreated())
+        vkDestroyFramebuffer(vlg_instance->device->logicalDevice, framebuffer, nullptr);
 }

@@ -47,8 +47,12 @@ namespace Vulgine {
     public:
 
         virtual Scene* initNewScene() = 0;
-        virtual RenderTarget* initNewRenderTarget() = 0;
-        virtual void buildRenderPass(std::vector<RenderTask> const& renderTaskQueue) = 0;
+        virtual void deleteScene(Scene* scene) = 0;
+
+        virtual Material* initNewMaterial() = 0;
+        virtual void deleteMaterial(Material* scene) = 0;
+
+        virtual void updateRenderTaskQueue(std::vector<RenderTask> const& renderTaskQueue) = 0;
 
         virtual bool cycle() = 0;
         static Vulgine* createInstance();
