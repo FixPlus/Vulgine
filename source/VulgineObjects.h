@@ -13,6 +13,8 @@
 
 namespace Vulgine{
 
+    struct RenderPass;
+
     struct MeshImpl: public Mesh{
 
         explicit MeshImpl(Scene* parent, uint32_t id): Mesh(parent, id){ logger("Mesh created");};
@@ -25,6 +27,8 @@ namespace Vulgine{
 
 
         void updateInstanceData() override;
+
+        void draw(VkCommandBuffer commandBuffer, Camera* camera, RenderPass* pass);
 
 
         ~MeshImpl() override{ logger("Mesh destroyed");/* TODO: destruction*/};
@@ -41,8 +45,11 @@ namespace Vulgine{
     };
 
     struct ShaderModule: public Creatable{
-        VkShaderModule module;
-        std::string name;
+        VkShaderModule module = VK_NULL_HANDLE;
+        std::string name = "";
+
+        ShaderModule() = default;
+        ShaderModule(VkShaderModule mod, std::string nm): module(mod), name(std::move(nm)){}
 
         void createImpl() override;
         void destroyImpl() override;

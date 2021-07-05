@@ -17,7 +17,17 @@ int main(int argc, char** argv){
 
     auto* material = vulgine->initNewMaterial();
 
+    material->vertexShader = "vert_default";
+
     auto* camera = scene->createCamera();
+
+    auto* mesh = scene->createEmptyMesh();
+
+    Vulgine::Mesh::Primitive primitive;
+
+    primitive.material = material;
+
+    mesh->primitives.push_back(primitive);
 
     Vulgine::RenderTarget renderTarget = {Vulgine::RenderTarget::COLOR, Vulgine::RenderTarget::SCREEN};
 

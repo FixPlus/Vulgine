@@ -42,6 +42,11 @@ namespace Vulgine{
         scenes.container.clear();
         materials.container.clear();
 
+        destroyShaders();
+
+
+        pipelines.clear();
+
         debug::freeDebugCallback(instance);
         swapChain.cleanup();
 
@@ -232,6 +237,10 @@ namespace Vulgine{
         createPipelineCache();
 
         logger("Created pipeline cache");
+
+        loadShaders();
+
+        logger("default shader pack loaded");
 
         logger("Initialization of VulGine completed successfully");
 
@@ -553,7 +562,10 @@ namespace Vulgine{
                 Utilities::ExitFatal(-1, "Offscreen rendering is not supported yet");
             }
 
-            auto* renderPass = renderPasses.emplace_back(new DefaultRenderPass{});
+            DefaultRenderPass* renderPass = dynamic_cast<DefaultRenderPass*>(renderPasses.emplace_back(new DefaultRenderPass{}));
+
+            renderPass->camera = reinterpret_cast<CameraImpl *>(taskQueue[0].camera);
+            renderPass->scene = reinterpret_cast<SceneImpl *>(taskQueue[0].scene);
 
             // creating general render pass for onScreen rendering
 
@@ -652,6 +664,9 @@ namespace Vulgine{
             }
         }
 
+        // lastly, we build draw command buffers for each swap chain image
+
+        buildCommandBuffers();
 
     }
 
@@ -680,6 +695,66 @@ namespace Vulgine{
 
     void VulgineImpl::destroyOnscreenFrameBuffers() {
         onScreenFramebuffers.clear();
+    }
+
+    VkShaderModule loadShader(const char *fileName, VkDevice device)
+    {
+        std::ifstream is(fileName, std::ios::binary | std::ios::in | std::ios::ate);
+
+        if (is.is_open())
+        {
+            size_t size = is.tellg();
+            is.seekg(0, std::ios::beg);
+            char* shaderCode = new char[size];
+            is.read(shaderCode, size);
+            is.close();
+
+            assert(size > 0);
+
+            VkShaderModule shaderModule;
+            VkShaderModuleCreateInfo moduleCreateInfo{};
+            moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+            moduleCreateInfo.codeSize = size;
+            moduleCreateInfo.pCode = (uint32_t*)shaderCode;
+
+            VK_CHECK_RESULT(vkCreateShaderModule(device, &moduleCreateInfo, NULL, &shaderModule));
+
+            delete[] shaderCode;
+
+            return shaderModule;
+        }
+        else
+        {
+            Utilities::ExitFatal( -1, std::string("Error: Could not open shader file \"") + fileName + "\"" + "\n");
+            return VK_NULL_HANDLE;
+        }
+    }
+
+    void VulgineImpl::loadShaders() {
+        auto shader = loadShader("default.vert.spv", device->logicalDevice);
+        vertexShaders.emplace(std::piecewise_construct, std::forward_as_tuple("vert_default"), std::forward_as_tuple(shader, "vert_default"));
+        shader = loadShader("default.frag.spv", device->logicalDevice);
+        fragmentShaders.emplace(std::piecewise_construct, std::forward_as_tuple("frag_default"), std::forward_as_tuple(shader, "frag_default"));
+    }
+
+    void VulgineImpl::destroyShaders() {
+        vertexShaders.clear();
+        fragmentShaders.clear();
+    }
+
+    void VulgineImpl::buildCommandBuffers() {
+        VkCommandBufferBeginInfo cmdBufInfo = initializers::commandBufferBeginInfo();
+        if(renderPasses.size() != 1)
+            Utilities::ExitFatal(-1, "Multipasses aren't supported yet");
+        for(int i = 0; i < onScreenFramebuffers.size(); i++){
+            VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[i], &cmdBufInfo))
+
+            renderPasses[0]->buildCmdBuffers(drawCmdBuffers[i], &onScreenFramebuffers[i]);
+
+            VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[i]));
+        }
+
+        prepared = true;
     }
 
     void disableLog(){

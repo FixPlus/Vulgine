@@ -111,16 +111,20 @@ ELSE()
     message(FATAL_ERROR "Not supported linking of GLFW on this platform!")
 ENDIF()
 
+set(VULGINE_TOP_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
+set(CMAKE_INSTALL_PREFIX ./install)
+
 include_directories(external)
 include_directories(include)
 include_directories(external/glm)
 include_directories(source)
 
+add_executable(test main.cpp)
 add_subdirectory(source)
 
 add_library(${LIB_NAME} SHARED $<TARGET_OBJECTS:VulgineCore> $<TARGET_OBJECTS:VulkanBase>)
 
-add_executable(test main.cpp)
+
 set_property(TARGET test PROPERTY CXX_STANDARD 20)
 
 
@@ -138,7 +142,7 @@ endif(WIN32)
 
 target_link_libraries(test ${LIB_NAME})
 
-set(CMAKE_INSTALL_PREFIX ./install)
+
 install(TARGETS test ${LIB_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX})
 IF(NOT glfw_FOUND)
     IF(WIN32)

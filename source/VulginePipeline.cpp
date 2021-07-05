@@ -15,7 +15,7 @@ void Vulgine::Pipeline::createImpl() {
 
         // for now layout is completely empty
 
-        VkPipelineLayout pipelineLayout;
+        pipelineLayout;
 
         VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo =
                 initializers::pipelineLayoutCreateInfo(
@@ -26,7 +26,7 @@ void Vulgine::Pipeline::createImpl() {
 
 
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
-        VkPipelineRasterizationStateCreateInfo rasterizationState = initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE,0);
+        VkPipelineRasterizationStateCreateInfo rasterizationState = initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_CLOCKWISE,0);
         VkPipelineColorBlendAttachmentState blendAttachmentState = initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
         VkPipelineColorBlendStateCreateInfo colorBlendState = initializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
         VkPipelineDepthStencilStateCreateInfo depthStencilState = initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
@@ -62,7 +62,7 @@ void Vulgine::Pipeline::createImpl() {
 
         // binding fragment shader
 
-        const char* defaultFragmentShader = "fragDefault";
+        const char* defaultFragmentShader = "frag_default";
 
         if(vlg_instance->fragmentShaders.count(defaultFragmentShader) == 0){
             Utilities::ExitFatal(-1,"Error loading default fragment shader");
@@ -85,10 +85,20 @@ void Vulgine::Pipeline::createImpl() {
 }
 
 void Vulgine::Pipeline::destroyImpl() {
+    vkDestroyPipelineLayout(vlg_instance->device->logicalDevice, pipelineLayout, nullptr);
     vkDestroyPipeline(vlg_instance->device->logicalDevice, pipeline, nullptr);
+
+    pipeline = VK_NULL_HANDLE;
+    pipelineLayout = VK_NULL_HANDLE;
+
 }
 
 Vulgine::Pipeline::~Pipeline() {
-    if(isCreated())
+    if(isCreated()) {
+        vkDestroyPipelineLayout(vlg_instance->device->logicalDevice, pipelineLayout, nullptr);
         vkDestroyPipeline(vlg_instance->device->logicalDevice, pipeline, nullptr);
+
+        pipeline = VK_NULL_HANDLE;
+        pipelineLayout = VK_NULL_HANDLE;
+    }
 }

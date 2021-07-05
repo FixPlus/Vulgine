@@ -19,6 +19,7 @@ namespace Vulgine{
         RenderPass* renderPass;
 
         VkPipeline pipeline;
+        VkPipelineLayout pipelineLayout;
 
         Pipeline(MaterialImpl* mat, SceneImpl* scn, RenderPass* rp): material(mat), renderPass(rp), scene(scene){}
         void createImpl() override;

@@ -25,6 +25,18 @@ namespace Vulgine{
 
     }
 
+    void MeshImpl::draw(VkCommandBuffer commandBuffer, Camera *camera, RenderPass *pass) {
+        for(auto primitive: primitives){
+
+            auto& pipeline = vlg_instance->pipelines.find(std::make_tuple(dynamic_cast<MaterialImpl*>(primitive.material), dynamic_cast<SceneImpl*>(parent()), pass))->second;
+
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline);
+
+            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+        }
+
+    }
+
     void MaterialImpl::createImpl() {
 
     }
@@ -144,6 +156,8 @@ namespace Vulgine{
             ret.pVertexBindingDescriptions = vertexAttrBindingInfo;
             ret.vertexBindingDescriptionCount = (perInstanceSize == 0) ? 1 : 2;
         }
+
+        vertexInputStateCI = ret;
     }
 
     MaterialImpl::~MaterialImpl() {

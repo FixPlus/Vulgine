@@ -6,6 +6,9 @@
 #include "VulgineRenderPass.h"
 #include "Vulgine.h"
 #include "Utilities.h"
+#include "VulgineScene.h"
+
+
 Vulgine::RenderPass::~RenderPass() {
     vkDestroyRenderPass(vlg_instance->device->logicalDevice, renderPass, nullptr);
 }
@@ -37,7 +40,7 @@ void Vulgine::DefaultRenderPass::buildCmdBuffers(VkCommandBuffer buffer, Framebu
 
     //draw scene from perspective of specified camera
 
-    scene->draw(camera);
+    scene->draw(buffer, camera, this);
 
 
     vkCmdEndRenderPass(buffer);

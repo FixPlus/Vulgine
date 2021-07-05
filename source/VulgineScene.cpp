@@ -4,6 +4,7 @@
 
 #include "VulgineScene.h"
 #include "VulgineObjects.h"
+#include "VulgineRenderPass.h"
 #include "Utilities.h"
 #include <algorithm>
 
@@ -55,8 +56,9 @@ namespace Vulgine{
         lights.erase(id);
     }
 
-    void SceneImpl::draw(CameraImpl *camera) {
-
+    void SceneImpl::draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass* pass) {
+        for(auto& mesh: meshes)
+            mesh.second.draw(commandBuffer, camera, pass);
     }
 
     Camera *SceneImpl::createCamera() {

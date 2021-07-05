@@ -83,9 +83,6 @@ namespace Vulgine {
             std::unordered_map<uint32_t, MaterialImpl> container;
         } materials;
 
-        // Container for pipelines
-
-        std::map<std::tuple<MaterialImpl*, SceneImpl*, RenderPass*>, Pipeline> pipelines;
 
         // Depth buffer format (selected during Vulkan initialization)
         VkFormat depthFormat;
@@ -104,6 +101,7 @@ namespace Vulgine {
         void renderFrame();
 
         void buildRenderPasses();
+        void buildCommandBuffers();
         void createOnscreenFrameBuffers();
         void destroyOnscreenFrameBuffers();
 
@@ -113,6 +111,11 @@ namespace Vulgine {
 
         std::map<std::string, ShaderModule> vertexShaders;
         std::map<std::string, ShaderModule> fragmentShaders;
+
+        // Container for pipelines
+
+        std::map<std::tuple<MaterialImpl*, SceneImpl*, RenderPass*>, Pipeline> pipelines;
+
 
         VulkanDevice* device = nullptr;
 

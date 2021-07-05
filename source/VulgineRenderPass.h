@@ -6,7 +6,6 @@
 #define TEST_EXE_VULGINERENDERPASS_H
 
 #include "vulkan/vulkan.h"
-#include "VulgineScene.h"
 #include "VulgineFramebuffer.h"
 
 namespace Vulgine{
@@ -18,7 +17,8 @@ namespace Vulgine{
 
         virtual ~RenderPass();
     };
-
+    class SceneImpl;
+    class CameraImpl;
 
     struct DefaultRenderPass: public RenderPass{
         SceneImpl* scene;
