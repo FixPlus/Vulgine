@@ -30,9 +30,11 @@
 namespace Vulgine {
 
     struct Initializers{
-        std::optional<std::string> windowName;
-        std::optional<std::pair<uint32_t, uint32_t>> windowSize;
+        std::string windowName = "VulGineApp";
+        std::pair<uint32_t, uint32_t> windowSize = {800, 600};
         bool enableVulkanValidationLayers = false;
+        bool fullscreen = false;
+        bool vsync = true;
         std::string applicationName = "VulGineApp";
 
         void reset();

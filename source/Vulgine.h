@@ -10,6 +10,7 @@
 #include "VulgineRenderPass.h"
 #include "VulginePipeline.h"
 #include <vector>
+#include <chrono>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -22,12 +23,68 @@ namespace Vulgine {
 
         VkBool32 getSupportedDepthFormat();
     protected:
-        struct Window {
-            GLFWwindow *instance = nullptr;
+        class Window : public Creatable {
+            static std::map<GLFWwindow *, Window*> windowMap;
+
+            // callbacks
+
+            static void windowSizeChanged(GLFWwindow* window, int width, int height);
+            static void keyInput(GLFWwindow* window, int key, int scancode, int action, int mods);
+
+            GLFWwindow *instance_ = nullptr;
+
+            void createImpl() override;
+            void destroyImpl() override;
+
+            struct{
+                int xPos, yPos, width, height;
+            } cachedWindowedDimensions;
+
+        public:
+
+            const GLFWvidmode* monitorVideoModes = nullptr;
+            const GLFWvidmode* selectedVideoMode = nullptr;
+            int videoModeCount = 0;
+
             std::string name = "VulGine App";
+            std::string title = "VulGine App";
             uint32_t width = 800;
             uint32_t height = 600;
+
+            bool fullscreen = false;
+
+            bool resized = false;
+
+
+            [[nodiscard]] GLFWwindow* instance() const { return instance_;};
+
+            void goFullscreen();
+            void goWindowed();
+
+            void setWindowTitle(std::string const& title);
+
+            ~Window() override;
         } window;
+
+        struct FpsCounter{
+            int framesSinceLastTimeStamp = 0;
+            double timeSinceLastTimeStamp = 0.0f;
+        public:
+            double fps = 0;
+            double period = 1.0f; //seconds
+
+            void update(double deltaT);
+        } fpsCounter;
+        // contains actual viewport dimensions (may differ from window dimensions if window size has just changed)
+
+        struct{
+            std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<double>> tStart;
+            std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<double>> tEnd;
+        } timeMarkers;
+        struct{
+            uint32_t width;
+            uint32_t height;
+        } vieportInfo;
 
         VkInstance instance = VK_NULL_HANDLE;
 
@@ -91,6 +148,7 @@ namespace Vulgine {
         void createVulkanDevice();
         void createCommandBuffers();
         void setupDepthStencil();
+        void setupSwapChain();
         void createCommandPool();
         void createPipelineCache();
 
@@ -107,7 +165,21 @@ namespace Vulgine {
 
         void loadShaders();
         void destroyShaders();
+
+        void windowResize();
+
+
     public:
+
+        struct Settings{
+            bool vsync;
+        } settings;
+
+        // User input functions called by active window input listener functions
+
+        void keyDown(Window* window, int key);
+        void keyUp(Window* window, int key);
+
 
         std::map<std::string, ShaderModule> vertexShaders;
         std::map<std::string, ShaderModule> fragmentShaders;

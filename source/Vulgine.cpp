@@ -10,7 +10,10 @@
 #include <Utilities.h>
 #include <vector>
 
+
 namespace Vulgine{
+
+    std::map<GLFWwindow *, VulgineImpl::Window*> VulgineImpl::Window::windowMap;
 
     VulgineImpl* vlg_instance = nullptr;
     std::string err_message = "";
@@ -27,8 +30,20 @@ namespace Vulgine{
     }
 
     bool VulgineImpl::cycle() {
-        if(glfwWindowShouldClose(window.instance))
+
+        if(glfwWindowShouldClose(window.instance()))
             return false;
+
+        timeMarkers.tEnd = std::chrono::high_resolution_clock::now();
+        auto frameTime = std::chrono::duration<double, std::milli>(timeMarkers.tEnd - timeMarkers.tStart).count();
+        double deltaT = frameTime / 1000.0f;
+
+        timeMarkers.tStart = std::chrono::high_resolution_clock::now();
+
+        fpsCounter.update(deltaT);
+
+        window.setWindowTitle(window.name + " fps: " + std::to_string(fpsCounter.fps));
+
         glfwPollEvents();
 
         if(prepared)
@@ -67,7 +82,9 @@ namespace Vulgine{
 
         delete device;
         vkDestroyInstance(instance, nullptr);
-        glfwDestroyWindow(window.instance);
+
+        window.destroy();
+
         glfwTerminate();
     }
 
@@ -191,18 +208,11 @@ namespace Vulgine{
         glfwSetErrorCallback(error_callback);
 
 
-        // creating window
-
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
-        window.instance = glfwCreateWindow(window.width, window.height,
-                                       window.name.c_str(), nullptr, nullptr);
+        window.create();
 
 
         logger("GLFW: created window");
 
-
-        //TODO: vulkan instance, physical and virtual devices initialization processes
 
         createVkInstance();
 
@@ -224,7 +234,7 @@ namespace Vulgine{
 
         createCommandPool();
 
-        swapChain.create(&window.width,&window.height, true);
+        setupSwapChain();
 
         logger("Swap chain created");
 
@@ -321,15 +331,16 @@ namespace Vulgine{
 
     void VulgineImpl::initFields() {
 
-        if(initializeInfo.windowSize) {
-            auto size = initializeInfo.windowSize.value();
-            window.height = size.second;
-            window.width = size.first;
-        }
 
-        if(initializeInfo.windowName){
-            window.name = initializeInfo.windowName.value();
-        }
+        auto size = initializeInfo.windowSize;
+        window.height = size.second;
+        window.width = size.first;
+        window.name = initializeInfo.windowName;
+        window.title = initializeInfo.windowName;
+
+        settings.vsync = initializeInfo.vsync;
+        window.fullscreen = initializeInfo.fullscreen;
+
 
     }
 
@@ -378,17 +389,21 @@ namespace Vulgine{
 
         swapChain.connect(instance, device->physicalDevice, device->logicalDevice);
 
-        swapChain.initSurface(window.instance);
+        swapChain.initSurface(window.instance());
 
     }
 
     void VulgineImpl::renderFrame() {
+
+        if(window.resized)
+            windowResize();
 
         // Acquire the next image from the swap chain
         VkResult result = swapChain.acquireNextImage(&currentBuffer);
         // Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
         if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR)) {
             // TODO: recreate swap chain here as window size changed
+            windowResize();
         }
         else {
             VK_CHECK_RESULT(result);
@@ -403,6 +418,7 @@ namespace Vulgine{
         if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) {
             if (result == VK_ERROR_OUT_OF_DATE_KHR) {
                 // TODO: recreate swap chain here as window size changed
+                windowResize();
                 return;
             } else {
                 VK_CHECK_RESULT(result);
@@ -449,7 +465,7 @@ namespace Vulgine{
         imageCI.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         imageCI.imageType = VK_IMAGE_TYPE_2D;
         imageCI.format = depthFormat;
-        imageCI.extent = { window.width, window.height, 1 };
+        imageCI.extent = { vieportInfo.width, vieportInfo.height, 1 };
         imageCI.mipLevels = 1;
         imageCI.arrayLayers = 1;
         imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -683,8 +699,8 @@ namespace Vulgine{
 
         for(uint32_t i = 0; i < onScreenFramebuffers.size(); i++){
             auto& framebuffer = onScreenFramebuffers.at(i);
-            framebuffer.width = window.width;
-            framebuffer.height = window.height;
+            framebuffer.width = vieportInfo.width;
+            framebuffer.height = vieportInfo.height;
             framebuffer.attachments.push_back(swapChain.buffers[i].view);
             framebuffer.attachments.push_back(depthStencil.view);
             framebuffer.renderPass = onscreenRenderPass->renderPass;
@@ -757,6 +773,58 @@ namespace Vulgine{
         prepared = true;
     }
 
+    void VulgineImpl::setupSwapChain(){
+        swapChain.create(&vieportInfo.width, &vieportInfo.height, true);
+    }
+
+    void VulgineImpl::windowResize() {
+        if(!prepared)
+            return;
+
+        prepared = false;
+
+        // Ensure all operations on the device have been finished before destroying resources
+        vkDeviceWaitIdle(device->logicalDevice);
+
+        // Recreate swap chain
+        vieportInfo.width = window.width;
+        vieportInfo.height = window.height;
+        setupSwapChain();
+
+        // Recreate the frame buffers
+        vkDestroyImageView(device->logicalDevice, depthStencil.view, nullptr);
+        vkDestroyImage(device->logicalDevice, depthStencil.image, nullptr);
+        vkFreeMemory(device->logicalDevice, depthStencil.mem, nullptr);
+        setupDepthStencil();
+
+        destroyOnscreenFrameBuffers();
+        createOnscreenFrameBuffers();
+
+
+        // Command buffers need to be recreated as they may store
+        // references to the recreated frame buffer
+        destroyCommandBuffers();
+        createCommandBuffers();
+        buildCommandBuffers();
+
+        vkDeviceWaitIdle(device->logicalDevice);
+
+        window.resized = false;
+
+    }
+
+    void VulgineImpl::keyDown(VulgineImpl::Window *window, int key) {
+        switch(key){
+            case GLFW_KEY_ESCAPE: glfwSetWindowShouldClose(window->instance(), GLFW_TRUE); break;
+            case GLFW_KEY_E: if(window->fullscreen) window->goWindowed(); else window->goFullscreen(); break;
+            default: break;
+        }
+    }
+
+    void VulgineImpl::keyUp(VulgineImpl::Window *window, int key) {
+
+    }
+
     void disableLog(){
         logger.disable();
     }
@@ -784,4 +852,149 @@ namespace Vulgine{
     }
 
 
+    void VulgineImpl::Window::createImpl() {
+        // creating window
+
+
+
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+
+        auto monitor = fullscreen ? glfwGetPrimaryMonitor() : nullptr;
+
+        instance_ = glfwCreateWindow(width, height,
+                                           title.c_str(), monitor, nullptr);
+
+
+        windowMap.emplace(instance_, this);
+
+
+        monitorVideoModes = glfwGetVideoModes(glfwGetPrimaryMonitor(), &videoModeCount);
+
+        logger("GLFW: Supported video modes:");
+
+
+
+        for(int i = 0; i < videoModeCount; ++i){
+            logger("r" + std::to_string(monitorVideoModes[i].redBits)
+                 + "g" + std::to_string(monitorVideoModes[i].greenBits)
+                 + "b" + std::to_string(monitorVideoModes[i].blueBits)
+                 + " " + std::to_string(monitorVideoModes[i].width)
+                 + "x" + std::to_string(monitorVideoModes[i].height)
+                 + " " + std::to_string(monitorVideoModes[i].refreshRate)
+                 + "hz");
+
+            if(monitorVideoModes[i].redBits != 8 || monitorVideoModes[i].greenBits != 8 || monitorVideoModes[i].blueBits != 8)
+                continue;
+        }
+
+        for(int i = videoModeCount - 1; i > -1; --i) {
+            if(monitorVideoModes[i].redBits != 8 || monitorVideoModes[i].greenBits != 8 || monitorVideoModes[i].blueBits != 8)
+                continue;
+            selectedVideoMode = monitorVideoModes + i;
+            break;
+        }
+
+        int width_in_pixels, height_in_pixels;
+
+        glfwGetFramebufferSize(instance_, &width_in_pixels, &height_in_pixels);
+
+        width = width_in_pixels;
+        height = height_in_pixels;
+
+
+        glfwGetWindowPos(instance_, &cachedWindowedDimensions.xPos, &cachedWindowedDimensions.yPos);
+        glfwGetWindowSize(instance_, &cachedWindowedDimensions.width, &cachedWindowedDimensions.height);
+
+        glfwSetFramebufferSizeCallback(instance_, windowSizeChanged);
+        glfwSetKeyCallback(instance_, keyInput);
+
+
+    }
+
+    void VulgineImpl::Window::destroyImpl() {
+        glfwDestroyWindow(instance_);
+        windowMap.erase(instance_);
+    }
+
+    VulgineImpl::Window::~Window() {
+        if(isCreated()){
+            glfwDestroyWindow(instance_);
+            windowMap.erase(instance_);
+        }
+    }
+
+    void VulgineImpl::Window::windowSizeChanged(GLFWwindow *window, int width, int height) {
+        auto windowWrap = windowMap.find(window)->second;
+
+        windowWrap->width = width;
+        windowWrap->height = height;
+
+        windowWrap->resized = true;
+
+    }
+
+    void VulgineImpl::Window::keyInput(GLFWwindow *window, int key, int scancode, int action, int mods) {
+
+        auto* wrappedWindow = windowMap.at(window);
+
+        switch(action){
+            case GLFW_PRESS:{
+                vlg_instance->keyDown(wrappedWindow, key);
+                break;
+            }
+            case GLFW_RELEASE:{
+                vlg_instance->keyUp(wrappedWindow, key);
+                break;
+            }
+            case GLFW_REPEAT:{
+                break;
+            }
+            default: break;
+        }
+
+    }
+
+    void VulgineImpl::Window::goFullscreen() {
+        glfwGetWindowPos(instance_, &cachedWindowedDimensions.xPos, &cachedWindowedDimensions.yPos);
+        glfwGetWindowSize(instance_, &cachedWindowedDimensions.width, &cachedWindowedDimensions.height);
+
+        if(selectedVideoMode != nullptr)
+            glfwSetWindowMonitor(instance_, glfwGetPrimaryMonitor(), 0, 0, selectedVideoMode->width, selectedVideoMode->height, selectedVideoMode->refreshRate);
+        else{
+            glfwSetWindowMonitor(instance_, glfwGetPrimaryMonitor(), 0, 0, 1920, 1080, GLFW_DONT_CARE);
+        }
+        resized = true;
+        fullscreen = true;
+    }
+
+    void VulgineImpl::Window::goWindowed() {
+
+        int refreshRate = selectedVideoMode ? selectedVideoMode->refreshRate : GLFW_DONT_CARE;
+        glfwSetWindowMonitor(instance_, nullptr,
+                             cachedWindowedDimensions.xPos,
+                             cachedWindowedDimensions.yPos,
+                             cachedWindowedDimensions.width,
+                             cachedWindowedDimensions.height,
+                             refreshRate);
+
+        resized = true;
+        fullscreen = false;
+    }
+
+    void VulgineImpl::Window::setWindowTitle(std::string const& ttl) {
+        title = ttl;
+
+        glfwSetWindowTitle(instance_, title.c_str());
+    }
+
+    void VulgineImpl::FpsCounter::update(double deltaT) {
+        framesSinceLastTimeStamp++;
+        timeSinceLastTimeStamp += deltaT;
+
+        if(timeSinceLastTimeStamp >= period){
+            fps = static_cast<double>(framesSinceLastTimeStamp) / timeSinceLastTimeStamp;
+            timeSinceLastTimeStamp = 0.0;
+            framesSinceLastTimeStamp = 0;
+        }
+    }
 }
