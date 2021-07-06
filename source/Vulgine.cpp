@@ -402,7 +402,6 @@ namespace Vulgine{
         VkResult result = swapChain.acquireNextImage(&currentBuffer);
         // Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
         if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR)) {
-            // TODO: recreate swap chain here as window size changed
             windowResize();
         }
         else {
@@ -417,7 +416,6 @@ namespace Vulgine{
         result = swapChain.queuePresent(queue, currentBuffer);
         if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) {
             if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-                // TODO: recreate swap chain here as window size changed
                 windowResize();
                 return;
             } else {
