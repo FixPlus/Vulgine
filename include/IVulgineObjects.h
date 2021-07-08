@@ -95,8 +95,6 @@ namespace Vulgine{
         uint32_t id_;
     public:
 
-        VertexFormat vertexFormat;
-
         std::string vertexShader;
 
         explicit Material(uint32_t id): id_(id){}

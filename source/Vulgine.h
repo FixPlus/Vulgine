@@ -186,7 +186,20 @@ namespace Vulgine {
 
         // Container for pipelines
 
-        std::map<std::tuple<MaterialImpl*, SceneImpl*, RenderPass*>, Pipeline> pipelines;
+        struct PipelineMap{
+
+
+            std::map<PipelineKey , Pipeline> map;
+
+            void add(PipelineKey key);
+
+            void bind(PipelineKey key, VkCommandBuffer cmdBuffer);
+
+            void clear();
+
+        } pipelineMap;
+
+
 
 
         VulkanDevice* device = nullptr;

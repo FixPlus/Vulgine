@@ -13,17 +13,32 @@
 
 namespace Vulgine{
 
+    struct PipelineKey{
+        VkPipelineVertexInputStateCreateInfo vertexInputState = {};
+        MaterialImpl* material = nullptr;
+        SceneImpl* scene = nullptr;
+        RenderPass* renderPass = nullptr;
+
+        bool operator<(PipelineKey const& another) const;
+
+    };
+
     struct Pipeline: public Creatable{
         MaterialImpl* material;
         SceneImpl* scene;
         RenderPass* renderPass;
+        VkPipelineVertexInputStateCreateInfo vertexFormat;
 
-        VkPipeline pipeline;
-        VkPipelineLayout pipelineLayout;
+        VkPipeline pipeline = VK_NULL_HANDLE;
+        VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
 
-        Pipeline(MaterialImpl* mat, SceneImpl* scn, RenderPass* rp): material(mat), renderPass(rp), scene(scene){}
+        explicit Pipeline(PipelineKey key = {}):
+                            vertexFormat(key.vertexInputState), material(key.material), renderPass(key.renderPass), scene(key.scene){};
+        Pipeline& operator=(Pipeline&& another) = default;
         void createImpl() override;
         void destroyImpl() override;
+
+        void bind(VkCommandBuffer cmdBuffer) const;
 
         ~Pipeline() override;
     };

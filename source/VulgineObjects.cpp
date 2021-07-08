@@ -58,6 +58,8 @@ namespace Vulgine{
             perVertex = staticBuf;
         }
 
+        compileVertexInputState();
+
         // Vulgine allows rendering unindexed meshes
 
         if(!indices.empty())
@@ -99,25 +101,16 @@ namespace Vulgine{
         uint32_t instCount = instances.count == 0 ? 1 : instances.count;
 
         if(indices.empty()) {
+            vlg_instance->pipelineMap.bind({vertexInputStateCI, dynamic_cast<MaterialImpl *>(primitives[0].material),
+                                            dynamic_cast<SceneImpl *>(parent()), pass}, commandBuffer);
 
-                auto &pipeline = vlg_instance->pipelines.find(
-                        std::make_tuple(dynamic_cast<MaterialImpl *>(primitives[0].material),
-                                        dynamic_cast<SceneImpl *>(parent()), pass))->second;
-
-                vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline);
-
-
-
-                vkCmdDraw(commandBuffer, vertices.count, instCount, 0, 0);
+            vkCmdDraw(commandBuffer, vertices.count, instCount, 0, 0);
         }else{
             indexBuffer.bind(commandBuffer);
             for (auto primitive: primitives) {
 
-                auto &pipeline = vlg_instance->pipelines.find(
-                        std::make_tuple(dynamic_cast<MaterialImpl *>(primitive.material),
-                                        dynamic_cast<SceneImpl *>(parent()), pass))->second;
-
-                vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline);
+                vlg_instance->pipelineMap.bind({vertexInputStateCI, dynamic_cast<MaterialImpl *>(primitive.material),
+                                                dynamic_cast<SceneImpl *>(parent()), pass}, commandBuffer);
 
                 vkCmdDrawIndexed(commandBuffer, primitive.indexCount, instCount, primitive.startIdx, 0, 0);
             }
@@ -191,7 +184,7 @@ namespace Vulgine{
 
     }
 
-    void MaterialImpl::compileVertexInputState() {
+    void MeshImpl::compileVertexInputState() {
 
         uint32_t perVertexSize = 0, perInstanceSize = 0;
 

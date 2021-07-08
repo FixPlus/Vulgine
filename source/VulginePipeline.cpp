@@ -8,7 +8,6 @@
 
 void Vulgine::Pipeline::createImpl() {
 
-    material->compileVertexInputState();
 
     uint32_t renderPassSize = vlg_instance->renderPasses.size();
     for(uint32_t i = 0; i < renderPassSize; ++i){
@@ -45,7 +44,7 @@ void Vulgine::Pipeline::createImpl() {
         pipelineCI.pDynamicState = &dynamicState;
         pipelineCI.stageCount = shaderStages.size();
         pipelineCI.pStages = shaderStages.data();
-        pipelineCI.pVertexInputState = &material->vertexInputStateCI;
+        pipelineCI.pVertexInputState = &vertexFormat;
 
         // binding vertex shader
 
@@ -102,3 +101,27 @@ Vulgine::Pipeline::~Pipeline() {
         pipelineLayout = VK_NULL_HANDLE;
     }
 }
+
+void Vulgine::Pipeline::bind(VkCommandBuffer cmdBuffer) const {
+    vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+}
+
+bool Vulgine::PipelineKey::operator<(PipelineKey const& another) const {
+    if(vertexInputState.pVertexBindingDescriptions < another.vertexInputState.pVertexBindingDescriptions)
+        return true;
+    if(vertexInputState.pVertexBindingDescriptions == another.vertexInputState.pVertexBindingDescriptions) {
+        if(material < another.material)
+            return true;
+        if(material == another.material){
+            if(scene < another.scene)
+                return true;
+            if(scene == another.scene){
+                if(renderPass < another.renderPass)
+                    return true;
+            }
+        }
+    }
+
+    return false;
+}
+

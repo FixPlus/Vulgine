@@ -25,8 +25,6 @@ void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material){
     mesh->vertices.count = 4;
     mesh->indices = {0, 1, 2, 0, 2, 3};
 
-    material->vertexFormat = format;
-
     Vulgine::Mesh::Primitive primitive{};
 
     primitive.material = material;
@@ -47,6 +45,7 @@ int main(int argc, char** argv){
     Vulgine::initializeInfo.windowName = "HELLO THERE";
     Vulgine::initializeInfo.windowSize = {1200, 800};
     Vulgine::initializeInfo.enableVulkanValidationLayers = true;
+    Vulgine::initializeInfo.vsync = true;
 
     auto* vulgine = Vulgine::Vulgine::createInstance();
 
@@ -71,12 +70,10 @@ int main(int argc, char** argv){
     while(vulgine->cycle()){
         timer += vulgine->lastFrameTime();
         vertexAttributes[0].pos = {0.1 * sin(timer) - 0.5f, 0.1 * cos(timer) - 0.5f, 0.0f, 0.0f};
+        vertexAttributes[1].color = {0.5 * sin(timer) + 0.5f, 0.5 * cos(timer) + 0.5f, 0.0f, 1.0f};
         mesh->updateVertexBuffer();
     };
 
-
-
-    //vulgine->deleteScene(scene);
 
     Vulgine::Vulgine::freeInstance(vulgine);
 

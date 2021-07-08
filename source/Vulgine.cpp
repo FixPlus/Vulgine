@@ -60,7 +60,7 @@ namespace Vulgine{
         destroyShaders();
 
 
-        pipelines.clear();
+        pipelineMap.clear();
 
         debug::freeDebugCallback(instance);
         swapChain.cleanup();
@@ -683,17 +683,7 @@ namespace Vulgine{
 
         // every pipeline should be recreated here because it's state depends on render pass state
 
-        pipelines.clear();
-
-        for(auto& material: materials.container){
-            for(auto& scene: scenes.container){
-                for(auto* renderPass: renderPasses){
-                    auto it = pipelines.emplace(std::piecewise_construct, std::forward_as_tuple(&material.second, &scene.second, renderPass),
-                                                                std::forward_as_tuple(&material.second, &scene.second, renderPass));
-                    it.first->second.create();
-                }
-            }
-        }
+        pipelineMap.clear();
 
         // lastly, we build draw command buffers for each swap chain image
 
@@ -793,7 +783,7 @@ namespace Vulgine{
     }
 
     void VulgineImpl::setupSwapChain(){
-        swapChain.create(&vieportInfo.width, &vieportInfo.height, true);
+        swapChain.create(&vieportInfo.width, &vieportInfo.height, settings.vsync);
     }
 
     void VulgineImpl::windowResize() {
@@ -1023,4 +1013,28 @@ namespace Vulgine{
             framesSinceLastTimeStamp = 0;
         }
     }
+
+    void VulgineImpl::PipelineMap::add(PipelineKey key) {
+
+        auto it = map.emplace(std::make_pair(key, key));
+
+        if(it.second){
+            it.first->second.create();
+        }
+
+    }
+
+    void VulgineImpl::PipelineMap::bind(PipelineKey key, VkCommandBuffer cmdBuffer) {
+        if(!map.count(key)){
+            add(key);
+        }
+
+        map.find(key)->second.bind(cmdBuffer);
+
+    }
+
+    void VulgineImpl::PipelineMap::clear() {
+        map.clear();
+    }
+
 }

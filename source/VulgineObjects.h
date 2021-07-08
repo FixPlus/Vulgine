@@ -15,7 +15,17 @@ namespace Vulgine{
 
     struct RenderPass;
 
-    struct MeshImpl: public Mesh{
+
+    class MeshImpl: public Mesh{
+        VkVertexInputBindingDescription vertexAttrBindingInfo[2] = {};
+
+        std::vector<VkVertexInputAttributeDescription> attributesDesc{};
+
+        VkPipelineVertexInputStateCreateInfo vertexInputStateCI{};
+
+        void compileVertexInputState();
+
+    public:
         struct{
             void* pData = nullptr;
             uint32_t count = 0;
@@ -72,20 +82,7 @@ namespace Vulgine{
         ~ShaderModule() override;
     };
 
-    class MaterialImpl: public Material{
-
-        VkVertexInputBindingDescription vertexAttrBindingInfo[2] = {};
-
-        std::vector<VkVertexInputAttributeDescription> attributesDesc{};
-
-
-    public:
-
-        VkPipelineVertexInputStateCreateInfo vertexInputStateCI{};
-
-        void compileVertexInputState();
-
-        // this vector's size exactly matches count of RenderPasses in VulgineImpl instance
+    struct MaterialImpl: public Material{
 
 
         explicit MaterialImpl(uint32_t id): Material(id){}
