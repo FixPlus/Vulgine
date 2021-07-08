@@ -31,8 +31,10 @@ namespace Vulgine{
 
     bool VulgineImpl::cycle() {
 
-        if(glfwWindowShouldClose(window.instance()))
+        if(glfwWindowShouldClose(window.instance())) {
+            VK_CHECK_RESULT(vkQueueWaitIdle(queue));
             return false;
+        }
 
         timeMarkers.tEnd = std::chrono::high_resolution_clock::now();
         auto frameTime = std::chrono::duration<double, std::milli>(timeMarkers.tEnd - timeMarkers.tStart).count();
@@ -63,6 +65,9 @@ namespace Vulgine{
         pipelineMap.clear();
 
         debug::freeDebugCallback(instance);
+
+        destroySyncPrimitives();
+
         swapChain.cleanup();
 
         offScreenFramebuffers.clear();
@@ -246,6 +251,8 @@ namespace Vulgine{
 
         setupSwapChain();
 
+        createSyncPrimitives();
+
         logger("Swap chain created");
 
         createCommandBuffers();
@@ -415,8 +422,11 @@ namespace Vulgine{
         if(cmdBuffersOutdated)
             buildCommandBuffers();
 
+        vkWaitForFences(device->logicalDevice, 1, &framesSync[currentFrame].inFlightSync, VK_TRUE, UINT64_MAX);
+
+
         // Acquire the next image from the swap chain
-        VkResult result = swapChain.acquireNextImage(&currentBuffer);
+        VkResult result = swapChain.acquireNextImage(&currentBuffer, framesSync[currentFrame].presentComplete);
         // Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
         if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR)) {
             windowResize();
@@ -425,12 +435,24 @@ namespace Vulgine{
             VK_CHECK_RESULT(result);
         }
 
-        swapChain.submitInfo.commandBufferCount = 1;
-        swapChain.submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
-        VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &swapChain.submitInfo, VK_NULL_HANDLE));
+        if (swapChainFences[currentBuffer] != VK_NULL_HANDLE) {
+            vkWaitForFences(device->logicalDevice, 1, &swapChainFences[currentBuffer], VK_TRUE, UINT64_MAX);
+        }
+        // Mark the image as now being in use by this frame
+        swapChainFences[currentBuffer] = framesSync[currentFrame].inFlightSync;
+
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
+
+        submitInfo.pWaitSemaphores = &framesSync[currentFrame].presentComplete;
+        submitInfo.pSignalSemaphores = &framesSync[currentFrame].renderComplete;
+
+        vkResetFences(device->logicalDevice, 1, &framesSync[currentFrame].inFlightSync);
+
+        VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, framesSync[currentFrame].inFlightSync));
 
 
-        result = swapChain.queuePresent(queue, currentBuffer);
+        result = swapChain.queuePresent(queue, currentBuffer, framesSync[currentFrame].renderComplete);
         if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) {
             if (result == VK_ERROR_OUT_OF_DATE_KHR) {
                 windowResize();
@@ -440,9 +462,8 @@ namespace Vulgine{
             }
         }
 
-        // TODO: add support for rendering frames 'in flight' to improve graphics card resource usage
+        currentFrame = (currentFrame + 1u) % settings.framesInFlight;
 
-        VK_CHECK_RESULT(vkQueueWaitIdle(queue));
 
     }
 
@@ -836,6 +857,57 @@ namespace Vulgine{
 
     double VulgineImpl::lastFrameTime() const {
         return fpsCounter.lastFrameTime;
+    }
+
+    void VulgineImpl::createSyncPrimitives() {
+
+        assert(settings.framesInFlight <= swapChain.imageCount && "FIF count must be less or equal to number of swap chain image buffers");
+
+        framesSync.resize(settings.framesInFlight);
+
+        VkSemaphoreCreateInfo semaphoreCreateInfo = initializers::semaphoreCreateInfo();
+
+        VkFenceCreateInfo fenceCreateInfo = initializers::fenceCreateInfo();
+        fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+        for(auto& frameSync: framesSync) {
+            // Create a semaphore used to synchronize image presentation
+            // Ensures that the image is displayed before we start submitting new commands to the queue
+            VK_CHECK_RESULT(vkCreateSemaphore(device->logicalDevice, &semaphoreCreateInfo, nullptr,
+                                              &frameSync.presentComplete));
+            // Create a semaphore used to synchronize command submission
+            // Ensures that the image is not presented until all commands have been submitted and executed
+            VK_CHECK_RESULT(vkCreateSemaphore(device->logicalDevice, &semaphoreCreateInfo, nullptr,
+                                              &frameSync.renderComplete));
+
+            VK_CHECK_RESULT(vkCreateFence(device->logicalDevice, &fenceCreateInfo, nullptr,
+                                              &frameSync.inFlightSync));
+        }
+
+        currentFrame = 0;
+
+        // Set up submit info structure
+        // Semaphores will stay the same during application lifetime
+        // Command buffer submission info is set by each example
+        submitInfo = initializers::submitInfo();
+        submitInfo.pWaitDstStageMask = &submitPipelineStages;
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = &framesSync[currentFrame].presentComplete;
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = &framesSync[currentFrame].renderComplete;
+
+        swapChainFences.resize(swapChain.imageCount, VK_NULL_HANDLE);
+
+    }
+
+    void VulgineImpl::destroySyncPrimitives() {
+        for(auto& frameSync: framesSync) {
+            vkDestroySemaphore(device->logicalDevice, frameSync.presentComplete, nullptr);
+            vkDestroySemaphore(device->logicalDevice, frameSync.renderComplete, nullptr);
+            vkDestroyFence(device->logicalDevice, frameSync.inFlightSync, nullptr);
+        }
+
+        framesSync.clear();
     }
 
     void disableLog(){

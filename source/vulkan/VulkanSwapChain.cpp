@@ -31,23 +31,6 @@ namespace Vulgine {
         fpQueuePresentKHR = reinterpret_cast<PFN_vkQueuePresentKHR>(vkGetDeviceProcAddr(device, "vkQueuePresentKHR"));
 
 
-        VkSemaphoreCreateInfo semaphoreCreateInfo = initializers::semaphoreCreateInfo();
-        // Create a semaphore used to synchronize image presentation
-        // Ensures that the image is displayed before we start submitting new commands to the queue
-        VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &semaphores.presentComplete));
-        // Create a semaphore used to synchronize command submission
-        // Ensures that the image is not presented until all commands have been submitted and executed
-        VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &semaphores.renderComplete));
-
-        // Set up submit info structure
-        // Semaphores will stay the same during application lifetime
-        // Command buffer submission info is set by each example
-        submitInfo = initializers::submitInfo();
-        submitInfo.pWaitDstStageMask = &submitPipelineStages;
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = &semaphores.presentComplete;
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = &semaphores.renderComplete;
 
     }
 
@@ -174,8 +157,6 @@ namespace Vulgine {
         if(surface != VK_NULL_HANDLE)
             vkDestroySurfaceKHR(instance, surface, nullptr);
 
-        vkDestroySemaphore(device, semaphores.presentComplete, nullptr);
-        vkDestroySemaphore(device, semaphores.renderComplete, nullptr);
 
 
         swapChain = VK_NULL_HANDLE;
@@ -364,11 +345,11 @@ namespace Vulgine {
 *
 * @return VkResult of the image acquisition
 */
-    VkResult VulkanSwapChain::acquireNextImage(uint32_t *imageIndex)
+    VkResult VulkanSwapChain::acquireNextImage(uint32_t *imageIndex, VkSemaphore semaphore)
     {
         // By setting timeout to UINT64_MAX we will always wait until the next image has been acquired or an actual error is thrown
         // With that we don't have to handle VK_NOT_READY
-        return fpAcquireNextImageKHR(device, swapChain, UINT64_MAX, semaphores.presentComplete, (VkFence)nullptr, imageIndex);
+        return fpAcquireNextImageKHR(device, swapChain, UINT64_MAX, semaphore, (VkFence)nullptr, imageIndex);
     }
 
 /**
@@ -380,7 +361,7 @@ namespace Vulgine {
 *
 * @return VkResult of the queue presentation
 */
-    VkResult VulkanSwapChain::queuePresent(VkQueue queue, uint32_t imageIndex)
+    VkResult VulkanSwapChain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore semaphore)
     {
         VkPresentInfoKHR presentInfo = {};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -388,7 +369,7 @@ namespace Vulgine {
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = &swapChain;
         presentInfo.pImageIndices = &imageIndex;
-        presentInfo.pWaitSemaphores = &semaphores.renderComplete;
+        presentInfo.pWaitSemaphores = &semaphore;
         presentInfo.waitSemaphoreCount = 1;
 
         return fpQueuePresentKHR(queue, &presentInfo);

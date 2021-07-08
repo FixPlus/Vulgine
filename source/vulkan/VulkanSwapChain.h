@@ -38,21 +38,11 @@ namespace Vulgine {
         PFN_vkAcquireNextImageKHR fpAcquireNextImageKHR;
         PFN_vkQueuePresentKHR fpQueuePresentKHR;
 
-        // Synchronization semaphores
-        struct {
-            // Swap chain image presentation
-            VkSemaphore presentComplete;
-            // Command buffer submission and execution
-            VkSemaphore renderComplete;
-        } semaphores;
 
 
 
-        /** @brief Pipeline stages used to wait at for graphics queue submissions */
-        const VkPipelineStageFlags submitPipelineStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
     public:
-        VkSubmitInfo submitInfo;
         VkFormat colorFormat;
         VkColorSpaceKHR colorSpace;
         VkSwapchainKHR swapChain = VK_NULL_HANDLE;
@@ -67,9 +57,9 @@ namespace Vulgine {
 
         void create(uint32_t *width, uint32_t *height, bool vsync = false);
 
-        VkResult acquireNextImage(uint32_t *imageIndex);
+        VkResult acquireNextImage(uint32_t *imageIndex, VkSemaphore semaphore);
 
-        VkResult queuePresent(VkQueue queue, uint32_t imageIndex);
+        VkResult queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore semaphore);
 
         void cleanup();
     };

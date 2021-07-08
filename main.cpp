@@ -44,8 +44,8 @@ int main(int argc, char** argv){
 
     Vulgine::initializeInfo.windowName = "HELLO THERE";
     Vulgine::initializeInfo.windowSize = {1200, 800};
-    Vulgine::initializeInfo.enableVulkanValidationLayers = true;
-    Vulgine::initializeInfo.vsync = true;
+    Vulgine::initializeInfo.enableVulkanValidationLayers = false;
+    Vulgine::initializeInfo.vsync = false;
 
     auto* vulgine = Vulgine::Vulgine::createInstance();
 

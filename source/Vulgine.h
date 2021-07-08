@@ -102,6 +102,26 @@ namespace Vulgine {
 
         bool prepared = false;
 
+        /** @brief Pipeline stages used to wait at for graphics queue submissions */
+        const VkPipelineStageFlags submitPipelineStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+        // Synchronization for queue operations
+
+        struct FrameSyncObj {
+            // Swap chain image presentation
+            VkSemaphore presentComplete;
+            // Command buffer submission and execution
+            VkSemaphore renderComplete;
+
+            VkFence inFlightSync;
+        };
+
+        std::vector<VkFence> swapChainFences;
+        std::vector<FrameSyncObj> framesSync;
+        int currentFrame;
+
+        VkSubmitInfo submitInfo;
+
         // Command buffer pool
         VkCommandPool cmdPool;
         // Command buffers used for rendering
@@ -147,6 +167,8 @@ namespace Vulgine {
         void createVkInstance();
         void createVulkanDevice();
         void createCommandBuffers();
+        void createSyncPrimitives();
+        void destroySyncPrimitives();
         void setupDepthStencil();
         void setupSwapChain();
         void createCommandPool();
@@ -172,7 +194,8 @@ namespace Vulgine {
     public:
 
         struct Settings{
-            bool vsync;
+            bool vsync = false;
+            uint32_t framesInFlight = 1;
         } settings;
 
         // User input functions called by active window input listener functions
