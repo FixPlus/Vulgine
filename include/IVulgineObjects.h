@@ -85,6 +85,9 @@ namespace Vulgine{
     struct VertexFormat{
         std::vector<AttributeFormat> perVertexAttributes;
         std::vector<AttributeFormat> perInstanceAttributes;
+
+        uint32_t perVertexSize() const;
+        uint32_t perInstanceSize() const;
     };
 
 
@@ -130,24 +133,63 @@ namespace Vulgine{
 
         VertexFormat vertexFormat;
 
+        /**
+         * @brief vertices
+         *
+         * Contains information about mesh vertex structure
+         *
+         * @param pData
+         * Contains pointer to valid vertex data allocated and initialized by application.
+         * @param count
+         * count of vertices
+         * @param dynamic
+         * notification for Vulgine that application intends to frequently update vertex data
+         *
+         */
         struct {
-            /** non-owning pointer to valid vertex data */
             void *pData = nullptr;
             uint32_t count = 0;
+            bool dynamic = false;
         } vertices;
 
         std::vector<uint32_t> indices{0};
 
+        /**
+         * @brief instances
+         *
+         * Contains information about mesh vertex structure
+         *
+         * @param pData
+         * Contains pointer to valid instance data allocated and initialized by application.
+         * @param count
+         * count of instances
+         * @param dynamic
+         * notification for Vulgine that application intends to frequently update instance data
+         *
+         */
         struct {
-            /** non-owning pointer to valid instance data */
             void *pData = nullptr;
             uint32_t count = 0;
+            bool dynamic = true;
         } instances;
 
+        /**
+         * @brief primitive
+         *
+         * Contains information about single mesh primitive
+         *
+         * @param material
+         * Contains pointer to valid Material object allocated by Vulgine. Primitive will be rendered using this material.
+         * @param startIdx
+         * indicates index inside of vertex array to start primitive with
+         * @param indexCount
+         * number of indexes in primitive
+         *
+         */
         struct Primitive{
             Material* material = nullptr;
             uint32_t startIdx = 0;
-            uint32_t endIdx = 0;
+            uint32_t indexCount = 0;
         };
 
         std::vector<Primitive> primitives{};
@@ -160,11 +202,13 @@ namespace Vulgine{
 
         /** Updates vertex and index buffer and pushes them to video memory*/
 
-        virtual void updateVertexData() = 0;
+        virtual void updateVertexBuffer() = 0;
+
+        virtual void updateIndexBuffer() = 0;
 
         /** Updates instance buffer and pushes it to video memory*/
 
-        virtual void updateInstanceData() = 0;
+        virtual void updateInstanceBuffer() = 0;
 
         Scene* parent() const{ return parent_;};
         uint32_t id() const { return id_;}

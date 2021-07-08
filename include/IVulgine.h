@@ -57,6 +57,7 @@ namespace Vulgine {
         virtual void updateRenderTaskQueue(std::vector<RenderTask> const& renderTaskQueue) = 0;
 
         virtual bool cycle() = 0;
+        virtual double lastFrameTime() const = 0;
         static Vulgine* createInstance();
         static void freeInstance(Vulgine* instance);
     };

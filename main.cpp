@@ -3,7 +3,44 @@
 //
 
 #include "include/IVulgine.h"
+#include <glm/vec4.hpp>
+#include <cmath>
 
+struct VertexAttribute{
+    glm::vec4 pos;
+    glm::vec4 color;
+};
+
+VertexAttribute vertexAttributes[4] = {{{-0.5f, -0.5f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f, 0.0f}},
+                                       {{-0.5f, 0.5f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, 0.0f}},
+                                       {{0.5f, 0.5f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.0f, 0.0f}},
+                                       {{0.5f, -0.5f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 0.0f}}};
+
+void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material){
+    Vulgine::VertexFormat format;
+    format.perVertexAttributes = {Vulgine::AttributeFormat::RGBA32SF, Vulgine::AttributeFormat::RGBA32SF};
+
+    mesh->vertexFormat = format;
+    mesh->vertices.pData = vertexAttributes;
+    mesh->vertices.count = 4;
+    mesh->indices = {0, 1, 2, 0, 2, 3};
+
+    material->vertexFormat = format;
+
+    Vulgine::Mesh::Primitive primitive{};
+
+    primitive.material = material;
+
+    primitive.startIdx = 0;
+
+    primitive.indexCount = mesh->indices.size();
+
+    mesh->primitives.push_back(primitive);
+
+    mesh->vertices.dynamic = true;
+
+    mesh->create();
+}
 
 int main(int argc, char** argv){
 
@@ -23,17 +60,19 @@ int main(int argc, char** argv){
 
     auto* mesh = scene->createEmptyMesh();
 
-    Vulgine::Mesh::Primitive primitive;
-
-    primitive.material = material;
-
-    mesh->primitives.push_back(primitive);
+    createSampleMesh(mesh, material);
 
     Vulgine::RenderTarget renderTarget = {Vulgine::RenderTarget::COLOR, Vulgine::RenderTarget::SCREEN};
 
     vulgine->updateRenderTaskQueue({{scene, camera, {renderTarget}}});
 
-    while(vulgine->cycle());
+    double timer = 0.0f;
+
+    while(vulgine->cycle()){
+        timer += vulgine->lastFrameTime();
+        vertexAttributes[0].pos = {0.1 * sin(timer) - 0.5f, 0.1 * cos(timer) - 0.5f, 0.0f, 0.0f};
+        mesh->updateVertexBuffer();
+    };
 
 
 

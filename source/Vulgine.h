@@ -7,6 +7,7 @@
 
 #include "vulkan/VulkanDevice.h"
 #include "vulkan/VulkanSwapChain.h"
+#include "vulkan/VulkanAllocatable.h"
 #include "VulgineRenderPass.h"
 #include "VulginePipeline.h"
 #include <vector>
@@ -72,7 +73,7 @@ namespace Vulgine {
         public:
             double fps = 0;
             double period = 1.0f; //seconds
-
+            double lastFrameTime = 0.0f;
             void update(double deltaT);
         } fpsCounter;
         // contains actual viewport dimensions (may differ from window dimensions if window size has just changed)
@@ -88,6 +89,7 @@ namespace Vulgine {
 
         VkInstance instance = VK_NULL_HANDLE;
 
+
         /** @brief Set of physical device features to be enabled for this example (must be set in the derived constructor) */
         VkPhysicalDeviceFeatures enabledFeatures{};
         /** @brief Set of device extensions to be enabled for this example (must be set in the derived constructor) */
@@ -96,8 +98,6 @@ namespace Vulgine {
         /** @brief Optional pNext structure for passing extension structures to device creation */
         void* deviceCreatepNextChain = nullptr;
 
-
-        VkQueue queue = VK_NULL_HANDLE;
         VulkanSwapChain swapChain;
 
         bool prepared = false;
@@ -190,6 +190,10 @@ namespace Vulgine {
 
 
         VulkanDevice* device = nullptr;
+        VmaAllocator allocator = VK_NULL_HANDLE;
+
+        VkQueue queue = VK_NULL_HANDLE;
+        VkQueue transferQueue = VK_NULL_HANDLE;
 
         // Pipeline cache object
         VkPipelineCache pipelineCache;
@@ -201,6 +205,7 @@ namespace Vulgine {
         RenderPass* onscreenRenderPass;
 
 
+        bool cmdBuffersOutdated = false;
 
         void updateRenderTaskQueue(std::vector<RenderTask> const& renderTaskQueue) override;
 
@@ -213,7 +218,7 @@ namespace Vulgine {
         explicit VulgineImpl();
         ~VulgineImpl() override;
         bool cycle() override;
-
+        double lastFrameTime() const override;
     };
     extern VulgineImpl* vlg_instance;
 

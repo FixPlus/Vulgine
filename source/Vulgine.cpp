@@ -80,6 +80,8 @@ namespace Vulgine{
 
         vkDestroyCommandPool(device->logicalDevice, cmdPool, nullptr);
 
+        vmaDestroyAllocator(allocator);
+
         delete device;
         vkDestroyInstance(instance, nullptr);
 
@@ -230,6 +232,14 @@ namespace Vulgine{
 
         createVulkanDevice();
 
+        VmaAllocatorCreateInfo allocatorInfo = {};
+        allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_2;
+        allocatorInfo.physicalDevice = device->physicalDevice;
+        allocatorInfo.device = device->logicalDevice;
+        allocatorInfo.instance = instance;
+
+        VK_CHECK_RESULT(vmaCreateAllocator(&allocatorInfo, &allocator))
+
         logger("Vulkan Device Created");
 
         createCommandPool();
@@ -288,7 +298,7 @@ namespace Vulgine{
         appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
         appInfo.pEngineName = "VulGine";
         appInfo.engineVersion = VK_MAKE_VERSION(VULGINE_VERSION_MAJOR, VULGINE_VERSION_MINOR, VULGINE_VERSION_REVISION);
-        appInfo.apiVersion = VK_API_VERSION_1_0;
+        appInfo.apiVersion = VK_API_VERSION_1_2;
 
         VkInstanceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -387,6 +397,10 @@ namespace Vulgine{
         // Get a graphics queue from the device
         vkGetDeviceQueue(device->logicalDevice, device->queueFamilyIndices.graphics, 0, &queue);
 
+        // Get a transfer queue from the device
+
+        vkGetDeviceQueue(device->logicalDevice, device->queueFamilyIndices.transfer, 0, &transferQueue);
+
         swapChain.connect(instance, device->physicalDevice, device->logicalDevice);
 
         swapChain.initSurface(window.instance());
@@ -397,6 +411,9 @@ namespace Vulgine{
 
         if(window.resized)
             windowResize();
+
+        if(cmdBuffersOutdated)
+            buildCommandBuffers();
 
         // Acquire the next image from the swap chain
         VkResult result = swapChain.acquireNextImage(&currentBuffer);
@@ -757,6 +774,8 @@ namespace Vulgine{
     }
 
     void VulgineImpl::buildCommandBuffers() {
+
+
         VkCommandBufferBeginInfo cmdBufInfo = initializers::commandBufferBeginInfo();
         if(renderPasses.size() != 1)
             Utilities::ExitFatal(-1, "Multipasses aren't supported yet");
@@ -767,6 +786,8 @@ namespace Vulgine{
 
             VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[i]));
         }
+
+        cmdBuffersOutdated = false;
 
         prepared = true;
     }
@@ -821,6 +842,10 @@ namespace Vulgine{
 
     void VulgineImpl::keyUp(VulgineImpl::Window *window, int key) {
 
+    }
+
+    double VulgineImpl::lastFrameTime() const {
+        return fpsCounter.lastFrameTime;
     }
 
     void disableLog(){
@@ -986,6 +1011,9 @@ namespace Vulgine{
     }
 
     void VulgineImpl::FpsCounter::update(double deltaT) {
+
+        lastFrameTime = deltaT;
+
         framesSinceLastTimeStamp++;
         timeSinceLastTimeStamp += deltaT;
 

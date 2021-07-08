@@ -8,7 +8,7 @@
 #include <../include/IVulgineObjects.h>
 #include <../include/IVulgineScene.h>
 #include "Utilities.h"
-
+#include "vulkan/VulkanAllocatable.h"
 #include <map>
 
 namespace Vulgine{
@@ -16,6 +16,20 @@ namespace Vulgine{
     struct RenderPass;
 
     struct MeshImpl: public Mesh{
+        struct{
+            void* pData = nullptr;
+            uint32_t count = 0;
+        } cachedVertices;
+
+        struct{
+            void* pData = nullptr;
+            uint32_t count = 0;
+        } cachedInstances;
+
+        Memory::VertexBuffer* perVertex = nullptr;
+        Memory::VertexBuffer* perInstance = nullptr;
+
+        Memory::IndexBuffer indexBuffer;
 
         explicit MeshImpl(Scene* parent, uint32_t id): Mesh(parent, id){ logger("Mesh created");};
 
@@ -23,15 +37,16 @@ namespace Vulgine{
         void destroyImpl() override;
 
 
-        void updateVertexData() override;
+        void updateVertexBuffer() override;
 
+        void updateIndexBuffer() override;
 
-        void updateInstanceData() override;
+        void updateInstanceBuffer() override;
 
         void draw(VkCommandBuffer commandBuffer, Camera* camera, RenderPass* pass);
 
 
-        ~MeshImpl() override{ logger("Mesh destroyed");/* TODO: destruction*/};
+        ~MeshImpl() override;
     };
 
     struct LightImpl: public Light{
