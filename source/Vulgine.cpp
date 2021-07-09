@@ -9,7 +9,7 @@
 #include <sstream>
 #include <Utilities.h>
 #include <vector>
-
+#include "vulkan/VulkanInitializers.hpp"
 
 namespace Vulgine{
 

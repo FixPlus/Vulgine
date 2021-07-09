@@ -7,7 +7,7 @@
 #include "Vulgine.h"
 #include "Utilities.h"
 #include "VulgineScene.h"
-
+#include "vulkan/VulkanInitializers.hpp"
 
 Vulgine::RenderPass::~RenderPass() {
     vkDestroyRenderPass(vlg_instance->device->logicalDevice, renderPass, nullptr);

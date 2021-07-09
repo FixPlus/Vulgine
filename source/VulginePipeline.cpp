@@ -5,6 +5,7 @@
 #include "VulginePipeline.h"
 #include "Vulgine.h"
 #include "Utilities.h"
+#include "vulkan/VulkanInitializers.hpp"
 
 void Vulgine::Pipeline::createImpl() {
 

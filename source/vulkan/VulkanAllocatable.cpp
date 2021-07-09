@@ -4,6 +4,7 @@
 
 #include "VulkanAllocatable.h"
 #include "Vulgine.h"
+#include "VulkanInitializers.hpp"
 
 
 
