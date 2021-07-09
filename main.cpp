@@ -27,24 +27,18 @@ struct Camera{
         bool right = false;
         bool up = false;
         bool down = false;
-        bool a = false;
-        bool d = false;
-        bool w = false;
-        bool s = false;
     } keys;
 
     double velocity = 5.0f;
-    double rotSpeed = 90.0f;
 
+    void rotate(double dx, double dy, double dz){
+        cameraImpl->rotation.x += dx;
+        cameraImpl->rotation.y += dy;
+        cameraImpl->rotation.z += dz;
+
+        cameraImpl->update();
+    }
     void update(double deltaT){
-        if(keys.a)
-            cameraImpl->rotation.y -= rotSpeed * deltaT;
-        if(keys.d)
-            cameraImpl->rotation.y += rotSpeed * deltaT;
-        if(keys.w)
-            cameraImpl->rotation.x -= rotSpeed * deltaT;
-        if(keys.s)
-            cameraImpl->rotation.x += rotSpeed * deltaT;
 
         glm::vec3 camFront;
         camFront.x = -cos(glm::radians(cameraImpl->rotation.x)) * sin(glm::radians(cameraImpl->rotation.y));
@@ -86,7 +80,7 @@ void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material){
 
     mesh->primitives.push_back(primitive);
 
-    mesh->vertices.dynamic = false;
+    mesh->vertices.dynamic = true;
 
     mesh->create();
 }
@@ -95,8 +89,9 @@ int main(int argc, char** argv){
 
     Vulgine::initializeInfo.windowName = "HELLO THERE";
     Vulgine::initializeInfo.windowSize = {1200, 800};
-    Vulgine::initializeInfo.enableVulkanValidationLayers = true;
+    Vulgine::initializeInfo.enableVulkanValidationLayers = false;
     Vulgine::initializeInfo.vsync = false;
+    Vulgine::initializeInfo.fullscreen = false;
 
     auto* vulgine = Vulgine::Vulgine::createInstance();
 
@@ -114,39 +109,43 @@ int main(int argc, char** argv){
 
     double timer = 0.0f, deltaT = 0.0f;
 
-    vulgine->onKeyDown = [&camera](int key){
+    vulgine->keyboardState.onKeyDown = [&camera, vulgine](int key){
         switch(key){
 
-            case GLFW_KEY_A: camera.keys.a = true; break;
-            case GLFW_KEY_D: camera.keys.d = true; break;
-            case GLFW_KEY_W: camera.keys.w = true; break;
-            case GLFW_KEY_S: camera.keys.s = true; break;
+            case GLFW_KEY_W: camera.keys.up = true; break;
+            case GLFW_KEY_S: camera.keys.down = true; break;
+            case GLFW_KEY_A: camera.keys.left = true; break;
+            case GLFW_KEY_D: camera.keys.right = true; break;
+            case GLFW_KEY_C: {
+                if(vulgine->mouseState.cursor.enabled)
+                    vulgine->mouseState.disableCursor();
+                else
+                    vulgine->mouseState.enableCursor();
 
-            case GLFW_KEY_UP: camera.keys.up = true; break;
-            case GLFW_KEY_DOWN: camera.keys.down = true; break;
-            case GLFW_KEY_LEFT: camera.keys.left = true; break;
-            case GLFW_KEY_RIGHT: camera.keys.right = true; break;
+                break;
+            }
+            default: break;
+        }
+
+    };
+
+    vulgine->keyboardState.onKeyUp = [&camera](int key){
+        switch(key){
+            case GLFW_KEY_W: camera.keys.up = false; break;
+            case GLFW_KEY_S: camera.keys.down = false; break;
+            case GLFW_KEY_A: camera.keys.left = false; break;
+            case GLFW_KEY_D: camera.keys.right = false; break;
 
             default: break;
         }
 
     };
 
-    vulgine->onKeyUp = [&camera](int key){
-        switch(key){
-            case GLFW_KEY_A: camera.keys.a = false; break;
-            case GLFW_KEY_D: camera.keys.d = false; break;
-            case GLFW_KEY_W: camera.keys.w = false; break;
-            case GLFW_KEY_S: camera.keys.s = false; break;
+    const double rotSpeed = 0.1f;
 
-            case GLFW_KEY_UP: camera.keys.up = false; break;
-            case GLFW_KEY_DOWN: camera.keys.down = false; break;
-            case GLFW_KEY_LEFT: camera.keys.left = false; break;
-            case GLFW_KEY_RIGHT: camera.keys.right = false; break;
-
-            default: break;
-        }
-
+    vulgine->mouseState.onMouseMove = [&camera, vulgine, rotSpeed](double dx, double dy, double x, double y){
+        if(!vulgine->mouseState.cursor.enabled)
+            camera.rotate(-dy * rotSpeed, dx * rotSpeed, 0);
     };
 
 
@@ -163,9 +162,9 @@ int main(int argc, char** argv){
     while(vulgine->cycle()){
         deltaT = vulgine->lastFrameTime();
         timer += deltaT;
-        //vertexAttributes[0].pos = {0.1 * sin(timer) - 0.5f, 0.1 * cos(timer) - 0.5f, -10.0f, 1.0f};
-        //vertexAttributes[1].color = {0.5 * sin(timer) + 0.5f, 0.5 * cos(timer) + 0.5f, 0.0f, 1.0f};
-        //mesh->updateVertexBuffer();
+        vertexAttributes[0].pos = {0.1 * sin(timer) - 0.5f, 0.1 * cos(timer) - 0.5f, -10.0f, 1.0f};
+        vertexAttributes[1].color = {0.5 * sin(timer) + 0.5f, 0.5 * cos(timer) + 0.5f, 0.0f, 1.0f};
+        mesh->updateVertexBuffer();
         camera.update(deltaT);
         //std::cout << "rot.x: " << camera->rotation.x << "; rot.y: " << camera->rotation.y << std::endl;
     };

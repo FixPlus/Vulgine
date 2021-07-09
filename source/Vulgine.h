@@ -31,6 +31,7 @@ namespace Vulgine {
 
             static void windowSizeChanged(GLFWwindow* window, int width, int height);
             static void keyInput(GLFWwindow* window, int key, int scancode, int action, int mods);
+            static void cursorPosition(GLFWwindow* window, double xPos, double yPos);
 
             GLFWwindow *instance_ = nullptr;
 
@@ -203,7 +204,10 @@ namespace Vulgine {
         void keyDown(Window* window, int key);
         void keyPressed(Window* window, int key);
         void keyUp(Window* window, int key);
+        void mouseMoved(Window* window, double xPos, double yPos);
 
+        void disableCursor();
+        void enableCursor();
 
         std::map<std::string, ShaderModule> vertexShaders;
         std::map<std::string, ShaderModule> fragmentShaders;

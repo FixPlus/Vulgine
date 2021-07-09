@@ -217,6 +217,7 @@ namespace Vulgine{
 
         window.create();
 
+        glfwGetCursorPos(window.instance(), &mouseState.cursor.posX, &mouseState.cursor.posY);
 
         logger("GLFW: created window");
 
@@ -280,7 +281,7 @@ namespace Vulgine{
         VkCommandPoolCreateInfo cmdPoolInfo = {};
         cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         cmdPoolInfo.queueFamilyIndex = swapChain.queueNodeIndex;
-        cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
         VK_CHECK_RESULT(vkCreateCommandPool(device->logicalDevice, &cmdPoolInfo, nullptr, &cmdPool));
     }
 
@@ -854,11 +855,11 @@ namespace Vulgine{
             default: break;
         }
 
-        onKeyDown(key);
+        keyboardState.onKeyDown(key);
     }
 
     void VulgineImpl::keyUp(VulgineImpl::Window *window, int key) {
-        onKeyUp(key);
+        keyboardState.onKeyUp(key);
     }
 
     double VulgineImpl::lastFrameTime() const {
@@ -917,7 +918,28 @@ namespace Vulgine{
     }
 
     void VulgineImpl::keyPressed(VulgineImpl::Window *window, int key) {
-        onKeyPressed(key);
+        keyboardState.onKeyPressed(key);
+    }
+
+    void VulgineImpl::mouseMoved(VulgineImpl::Window *window, double xPos, double yPos) {
+        double dx = xPos - mouseState.cursor.posX;
+        double dy = yPos - mouseState.cursor.posY;
+
+        mouseState.cursor.posX = xPos;
+        mouseState.cursor.posY = yPos;
+
+        mouseState.onMouseMove(dx, dy, xPos, yPos);
+    }
+
+    void VulgineImpl::disableCursor() {
+        glfwSetInputMode(window.instance(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        mouseState.cursor.enabled = false;
+    }
+
+    void VulgineImpl::enableCursor() {
+        glfwSetInputMode(window.instance(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        mouseState.cursor.enabled = true;
+
     }
 
     void disableLog(){
@@ -954,11 +976,13 @@ namespace Vulgine{
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-        auto monitor = fullscreen ? glfwGetPrimaryMonitor() : nullptr;
 
         instance_ = glfwCreateWindow(width, height,
-                                           title.c_str(), monitor, nullptr);
+                                           title.c_str(), nullptr, nullptr);
 
+
+        if(fullscreen)
+            goFullscreen();
 
         windowMap.emplace(instance_, this);
 
@@ -1002,6 +1026,7 @@ namespace Vulgine{
 
         glfwSetFramebufferSizeCallback(instance_, windowSizeChanged);
         glfwSetKeyCallback(instance_, keyInput);
+        glfwSetCursorPosCallback(instance_, cursorPosition);
 
 
     }
@@ -1083,6 +1108,11 @@ namespace Vulgine{
         glfwSetWindowTitle(instance_, title.c_str());
     }
 
+    void VulgineImpl::Window::cursorPosition(GLFWwindow* window, double xPos, double yPos) {
+        auto* wrappedWindow = windowMap.at(window);
+        vlg_instance->mouseMoved(wrappedWindow, xPos, yPos);
+    }
+
     void VulgineImpl::FpsCounter::update(double deltaT) {
 
         lastFrameTime = deltaT;
@@ -1120,6 +1150,14 @@ namespace Vulgine{
 
     void VulgineImpl::PipelineMap::clear() {
         map.clear();
+    }
+
+    void Vulgine::MouseState::disableCursor() {
+        vlg_instance->disableCursor();
+    }
+
+    void Vulgine::MouseState::enableCursor() {
+        vlg_instance->enableCursor();
     }
 
 }

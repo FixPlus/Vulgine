@@ -49,9 +49,29 @@ namespace Vulgine {
         virtual ~Vulgine() = default;
     public:
 
-        std::function<void(int)> onKeyPressed = [](int key){};
-        std::function<void(int)> onKeyDown = [](int key){};
-        std::function<void(int)> onKeyUp = [](int key){};
+        struct {
+            std::function<void(int)> onKeyPressed = [](int key) {};
+            std::function<void(int)> onKeyDown = [](int key) {};
+            std::function<void(int)> onKeyUp = [](int key) {};
+        } keyboardState;
+
+        struct MouseState{
+            struct{
+                bool left = false;
+                bool right = false;
+                bool middle = false;
+            } keys;
+
+            std::function<void(double, double, double, double)> onMouseMove = [](double dx, double dy, double x, double y) {};
+
+            struct {
+                double posX, posY;
+                bool enabled = true;
+            } cursor;
+
+            void disableCursor();
+            void enableCursor();
+        } mouseState;
 
         virtual Scene* initNewScene() = 0;
         virtual void deleteScene(Scene* scene) = 0;
