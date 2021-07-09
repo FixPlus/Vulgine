@@ -20,6 +20,7 @@
 
 #include <string>
 #include <map>
+#include <functional>
 #include "IVulgineScene.h"
 
 #define VULGINE_VERSION_MAJOR    0
@@ -47,6 +48,10 @@ namespace Vulgine {
         explicit Vulgine() = default;
         virtual ~Vulgine() = default;
     public:
+
+        std::function<void(int)> onKeyPressed = [](int key){};
+        std::function<void(int)> onKeyDown = [](int key){};
+        std::function<void(int)> onKeyUp = [](int key){};
 
         virtual Scene* initNewScene() = 0;
         virtual void deleteScene(Scene* scene) = 0;

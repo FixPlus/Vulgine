@@ -181,7 +181,7 @@ namespace Vulgine {
         void renderFrame();
 
         void buildRenderPasses();
-        void buildCommandBuffers();
+        void buildCommandBuffers(int imageIndex);
         void createOnscreenFrameBuffers();
         void destroyOnscreenFrameBuffers();
 
@@ -201,6 +201,7 @@ namespace Vulgine {
         // User input functions called by active window input listener functions
 
         void keyDown(Window* window, int key);
+        void keyPressed(Window* window, int key);
         void keyUp(Window* window, int key);
 
 
@@ -216,7 +217,7 @@ namespace Vulgine {
 
             void add(PipelineKey key);
 
-            void bind(PipelineKey key, VkCommandBuffer cmdBuffer);
+            Pipeline const& bind(PipelineKey key, VkCommandBuffer cmdBuffer);
 
             void clear();
 

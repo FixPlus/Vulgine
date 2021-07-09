@@ -31,7 +31,7 @@ namespace Vulgine{
 
     bool VulgineImpl::cycle() {
 
-        if(glfwWindowShouldClose(window.instance())) {
+        if (glfwWindowShouldClose(window.instance())) {
             VK_CHECK_RESULT(vkQueueWaitIdle(queue));
             return false;
         }
@@ -48,7 +48,7 @@ namespace Vulgine{
 
         glfwPollEvents();
 
-        if(prepared)
+        if (prepared)
             renderFrame();
 
         return true;
@@ -419,8 +419,6 @@ namespace Vulgine{
         if(window.resized)
             windowResize();
 
-        if(cmdBuffersOutdated)
-            buildCommandBuffers();
 
         vkWaitForFences(device->logicalDevice, 1, &framesSync[currentFrame].inFlightSync, VK_TRUE, UINT64_MAX);
 
@@ -448,6 +446,9 @@ namespace Vulgine{
         submitInfo.pSignalSemaphores = &framesSync[currentFrame].renderComplete;
 
         vkResetFences(device->logicalDevice, 1, &framesSync[currentFrame].inFlightSync);
+
+        if(cmdBuffersOutdated)
+            buildCommandBuffers(currentBuffer);
 
         VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, framesSync[currentFrame].inFlightSync));
 
@@ -708,7 +709,8 @@ namespace Vulgine{
 
         // lastly, we build draw command buffers for each swap chain image
 
-        buildCommandBuffers();
+        for(int i = 0; i < swapChain.imageCount; i++)
+            buildCommandBuffers(i);
 
     }
 
@@ -784,19 +786,20 @@ namespace Vulgine{
         fragmentShaders.clear();
     }
 
-    void VulgineImpl::buildCommandBuffers() {
+    void VulgineImpl::buildCommandBuffers(int imageIndex) {
 
 
         VkCommandBufferBeginInfo cmdBufInfo = initializers::commandBufferBeginInfo();
         if(renderPasses.size() != 1)
-            Utilities::ExitFatal(-1, "Multipasses aren't supported yet");
-        for(int i = 0; i < onScreenFramebuffers.size(); i++){
-            VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[i], &cmdBufInfo))
 
-            renderPasses[0]->buildCmdBuffers(drawCmdBuffers[i], &onScreenFramebuffers[i]);
+        Utilities::ExitFatal(-1, "Multipasses aren't supported yet");
 
-            VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[i]));
-        }
+        VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[imageIndex], &cmdBufInfo))
+
+        renderPasses[0]->buildCmdBuffers(drawCmdBuffers[imageIndex], &onScreenFramebuffers[imageIndex]);
+
+        VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[imageIndex]));
+
 
         cmdBuffersOutdated = false;
 
@@ -835,7 +838,8 @@ namespace Vulgine{
         // references to the recreated frame buffer
         destroyCommandBuffers();
         createCommandBuffers();
-        buildCommandBuffers();
+        for(int i = 0; i < swapChain.imageCount; ++i)
+            buildCommandBuffers(i);
 
         vkDeviceWaitIdle(device->logicalDevice);
 
@@ -849,10 +853,12 @@ namespace Vulgine{
             case GLFW_KEY_E: if(window->fullscreen) window->goWindowed(); else window->goFullscreen(); break;
             default: break;
         }
+
+        onKeyDown(key);
     }
 
     void VulgineImpl::keyUp(VulgineImpl::Window *window, int key) {
-
+        onKeyUp(key);
     }
 
     double VulgineImpl::lastFrameTime() const {
@@ -908,6 +914,10 @@ namespace Vulgine{
         }
 
         framesSync.clear();
+    }
+
+    void VulgineImpl::keyPressed(VulgineImpl::Window *window, int key) {
+        onKeyPressed(key);
     }
 
     void disableLog(){
@@ -1032,6 +1042,7 @@ namespace Vulgine{
                 break;
             }
             case GLFW_REPEAT:{
+                vlg_instance->keyPressed(wrappedWindow, key);
                 break;
             }
             default: break;
@@ -1096,13 +1107,15 @@ namespace Vulgine{
 
     }
 
-    void VulgineImpl::PipelineMap::bind(PipelineKey key, VkCommandBuffer cmdBuffer) {
+    Pipeline const& VulgineImpl::PipelineMap::bind(PipelineKey key, VkCommandBuffer cmdBuffer) {
         if(!map.count(key)){
             add(key);
         }
+        Pipeline& pipeline = map.find(key)->second;
 
-        map.find(key)->second.bind(cmdBuffer);
+        pipeline.bind(cmdBuffer);
 
+        return pipeline;
     }
 
     void VulgineImpl::PipelineMap::clear() {

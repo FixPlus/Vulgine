@@ -93,7 +93,7 @@ namespace Vulgine{
             indexBuffer.free();
     }
 
-    void MeshImpl::draw(VkCommandBuffer commandBuffer, Camera *camera, RenderPass *pass) {
+    void MeshImpl::draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass *pass) {
         perVertex->bind(commandBuffer);
 
         if(perInstance)
@@ -101,17 +101,19 @@ namespace Vulgine{
         uint32_t instCount = instances.count == 0 ? 1 : instances.count;
 
         if(indices.empty()) {
-            vlg_instance->pipelineMap.bind({vertexInputStateCI, dynamic_cast<MaterialImpl *>(primitives[0].material),
+            auto& boundPipeline = vlg_instance->pipelineMap.bind({vertexInputStateCI, dynamic_cast<MaterialImpl *>(primitives[0].material),
                                             dynamic_cast<SceneImpl *>(parent()), pass}, commandBuffer);
 
+            vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &(camera->viewMatrix));
             vkCmdDraw(commandBuffer, vertices.count, instCount, 0, 0);
         }else{
             indexBuffer.bind(commandBuffer);
             for (auto primitive: primitives) {
 
-                vlg_instance->pipelineMap.bind({vertexInputStateCI, dynamic_cast<MaterialImpl *>(primitive.material),
+                auto& boundPipeline = vlg_instance->pipelineMap.bind({vertexInputStateCI, dynamic_cast<MaterialImpl *>(primitive.material),
                                                 dynamic_cast<SceneImpl *>(parent()), pass}, commandBuffer);
 
+                vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &(camera->viewMatrix));
                 vkCmdDrawIndexed(commandBuffer, primitive.indexCount, instCount, primitive.startIdx, 0, 0);
             }
         }
@@ -138,6 +140,7 @@ namespace Vulgine{
             }
         }
         else{
+            vkQueueWaitIdle(vlg_instance->queue);
             perVertex->free();
             auto* statVert = dynamic_cast<Memory::StaticVertexBuffer*>(perVertex);
             statVert->create(vertices.pData, vertices.count * vertexFormat.perVertexSize());
@@ -167,6 +170,7 @@ namespace Vulgine{
             }
         }
         else{
+            vkQueueWaitIdle(vlg_instance->queue);
             perInstance->free();
             auto* statVert = dynamic_cast<Memory::StaticVertexBuffer*>(perInstance);
             statVert->create(instances.pData, instances.count * vertexFormat.perInstanceSize());
@@ -330,5 +334,22 @@ namespace Vulgine{
 
     void CameraImpl::destroyImpl() {
 
+    }
+
+    void CameraImpl::update() {
+        glm::mat4 rotM = glm::mat4(1.0f);
+        glm::mat4 transM;
+
+        rotM = glm::rotate(rotM, glm::radians(rotation.x * ( 1.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
+        rotM = glm::rotate(rotM, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+        rotM = glm::rotate(rotM, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+
+        glm::vec3 translation = position;
+
+        transM = glm::translate(glm::mat4(1.0f), translation);
+
+        viewMatrix = projection * rotM * transM;
+
+        vlg_instance->cmdBuffersOutdated = true;
     }
 }

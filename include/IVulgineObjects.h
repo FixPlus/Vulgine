@@ -7,7 +7,14 @@
 
 #include <vector>
 #include <cstdint>
+
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+
 #include <glm/vec3.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/gtx/transform.hpp>
+
 #include <string>
 
 namespace Vulgine{
@@ -54,9 +61,11 @@ namespace Vulgine{
     public:
 
         Camera(Scene* parent, uint32_t id): parent_(parent), id_(id){}
-        glm::vec3 position;
-        glm::vec3 rotation;
+        glm::vec3 position = glm::vec3{0.0f};
+        glm::vec3 rotation = glm::vec3{0.0f, 0.0f, 0.0f};
+        glm::mat4 projection = glm::perspective(glm::radians(60.0f), 16.0f / 9.0f, 0.1f, 100.0f);
 
+        virtual void update() = 0;
         Scene* parent() const{ return parent_;};
         uint32_t id() const { return id_;}
 

@@ -16,6 +16,8 @@ namespace Vulgine{
     struct RenderPass;
 
 
+    struct CameraImpl;
+
     class MeshImpl: public Mesh{
         VkVertexInputBindingDescription vertexAttrBindingInfo[2] = {};
 
@@ -53,7 +55,7 @@ namespace Vulgine{
 
         void updateInstanceBuffer() override;
 
-        void draw(VkCommandBuffer commandBuffer, Camera* camera, RenderPass* pass);
+        void draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass* pass);
 
 
         ~MeshImpl() override;
@@ -93,6 +95,10 @@ namespace Vulgine{
     };
 
     struct CameraImpl: public Camera{
+
+        glm::mat4 viewMatrix{};
+
+        void update() override;
 
         CameraImpl(Scene* parent, uint32_t id): Camera(parent, id){logger("Camera created");}
         void createImpl() override;

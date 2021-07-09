@@ -11,15 +11,24 @@ void Vulgine::Pipeline::createImpl() {
 
     uint32_t renderPassSize = vlg_instance->renderPasses.size();
     for(uint32_t i = 0; i < renderPassSize; ++i){
-
-        // for now layout is completely empty
-
-        pipelineLayout;
-
+        
         VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo =
                 initializers::pipelineLayoutCreateInfo(
                         nullptr,
                         0);
+
+        // setting up arbitrary push constant range containing view Matrix of a camera
+
+        VkPushConstantRange push_constant;
+        //this push constant range starts at the beginning
+        push_constant.offset = 0;
+        //this push constant range takes up the size of a 4x4 matrix
+        push_constant.size = sizeof(glm::mat4);
+        //this push constant range is accessible only in the vertex shader
+        push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+        pPipelineLayoutCreateInfo.pPushConstantRanges = &push_constant;
+        pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
 
         VK_CHECK_RESULT(vkCreatePipelineLayout(vlg_instance->device->logicalDevice, &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout));
 
