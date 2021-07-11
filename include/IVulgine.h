@@ -79,6 +79,9 @@ namespace Vulgine {
         virtual Material* initNewMaterial() = 0;
         virtual void deleteMaterial(Material* scene) = 0;
 
+        virtual Image* initNewImage() = 0;
+        virtual void deleteImage(Image* image) = 0;
+
         virtual void updateRenderTaskQueue(std::vector<RenderTask> const& renderTaskQueue) = 0;
 
         virtual bool cycle() = 0;

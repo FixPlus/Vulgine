@@ -34,6 +34,7 @@ namespace Vulgine::Memory{
 
     struct Image: public Allocatable{
         VkImage image;
+        VkImageCreateInfo imageInfo;
 
         void allocate(VkImageCreateInfo imageCI, VmaMemoryUsage memoryUsageFlags,
                       VmaAllocationCreateFlags allocFlags = 0,
@@ -42,9 +43,25 @@ namespace Vulgine::Memory{
 
         void free();
 
+        void transitImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout);
+
+        void copyFromBuffer(VkBuffer buffer, uint32_t width, uint32_t height, uint32_t depth = 1);
+
+        virtual VkImageView createImageView() const;
+
         ~Image() override;
     };
 
+    class StagingBuffer final: public Buffer{
+        void* mapped = nullptr;
+        uint32_t size = 0;
+    public:
+        void create(uint32_t size);
+
+        void fill(const void* data);
+
+        ~StagingBuffer() override;
+    };
 
     /**
      *

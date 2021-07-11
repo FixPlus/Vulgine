@@ -58,6 +58,7 @@ namespace Vulgine{
 
         scenes.container.clear();
         materials.container.clear();
+        images.container.clear();
 
         destroyShaders();
 
@@ -76,6 +77,8 @@ namespace Vulgine{
         vkDestroyImageView(device->logicalDevice, depthStencil.view, nullptr);
         vkDestroyImage(device->logicalDevice, depthStencil.image, nullptr);
         vkFreeMemory(device->logicalDevice, depthStencil.mem, nullptr);
+
+        destroyDescriptorPools();
 
         destroyCommandBuffers();
 
@@ -267,6 +270,8 @@ namespace Vulgine{
         logger("Created pipeline cache");
 
         loadShaders();
+
+        setupDescriptorPools();
 
         logger("default shader pack loaded");
 
@@ -584,7 +589,7 @@ namespace Vulgine{
         if(id != materials.container.size() - 1)
             materials.freeIds.push(id);
 
-        scenes.container.erase(id);
+        materials.container.erase(id);
     }
 
     void VulgineImpl::updateRenderTaskQueue(const std::vector<RenderTask> &renderTaskQueue) {
@@ -780,6 +785,12 @@ namespace Vulgine{
         vertexShaders.emplace(std::piecewise_construct, std::forward_as_tuple("vert_default"), std::forward_as_tuple(shader, "vert_default"));
         shader = loadShader("default.frag.spv", device->logicalDevice);
         fragmentShaders.emplace(std::piecewise_construct, std::forward_as_tuple("frag_default"), std::forward_as_tuple(shader, "frag_default"));
+
+        shader = loadShader("color.vert.spv", device->logicalDevice);
+        vertexShaders.emplace(std::piecewise_construct, std::forward_as_tuple("vert_color"), std::forward_as_tuple(shader, "vert_color"));
+        shader = loadShader("color.frag.spv", device->logicalDevice);
+        fragmentShaders.emplace(std::piecewise_construct, std::forward_as_tuple("frag_color"), std::forward_as_tuple(shader, "frag_color"));
+
     }
 
     void VulgineImpl::destroyShaders() {
@@ -939,6 +950,48 @@ namespace Vulgine{
     void VulgineImpl::enableCursor() {
         glfwSetInputMode(window.instance(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
         mouseState.cursor.enabled = true;
+
+    }
+
+    void VulgineImpl::setupDescriptorPools() {
+
+        // TODO: determine number of sets and per-type distribution dynamically
+
+        perMaterialPool.maxSets = 1024;
+
+        std::map<VkDescriptorType, uint32_t> types;
+
+        types[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER] = 1 * 1024;
+        types[VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER] = 1 * 1024;
+
+        perMaterialPool.descriptorsCapacity = std::move(types);
+
+    }
+
+    void VulgineImpl::destroyDescriptorPools() {
+        perMaterialPool.clear();
+        perScenePool.clear();
+    }
+
+    Image *VulgineImpl::initNewImage() {
+        uint32_t id;
+        if(!images.freeIds.empty()) {
+            id = images.freeIds.top();
+            images.freeIds.pop();
+        } else{
+            id = images.container.size();
+        }
+
+        return &((images.container.emplace(std::piecewise_construct,std::forward_as_tuple(id), std::forward_as_tuple(id)).first)->second);
+    }
+
+    void VulgineImpl::deleteImage(Image *image) {
+        auto id = image->id();
+
+        if(id != images.container.size() - 1)
+            images.freeIds.push(id);
+
+        images.container.erase(id);
 
     }
 

@@ -10,6 +10,8 @@
 #include "vulkan/VulkanAllocatable.h"
 #include "VulgineRenderPass.h"
 #include "VulginePipeline.h"
+#include "vulkan/VulkanDescriptorPool.h"
+#include "VulgineImage.h"
 #include <vector>
 #include <chrono>
 
@@ -161,6 +163,11 @@ namespace Vulgine {
             std::unordered_map<uint32_t, MaterialImpl> container;
         } materials;
 
+        struct {
+            std::stack<uint32_t> freeIds;
+            std::unordered_map<uint32_t, ImageImpl> container;
+        } images;
+
 
         // Depth buffer format (selected during Vulkan initialization)
         VkFormat depthFormat;
@@ -172,6 +179,8 @@ namespace Vulgine {
         void destroySyncPrimitives();
         void setupDepthStencil();
         void setupSwapChain();
+        void setupDescriptorPools();
+        void destroyDescriptorPools();
         void createCommandPool();
         void createPipelineCache();
 
@@ -211,6 +220,9 @@ namespace Vulgine {
 
         std::map<std::string, ShaderModule> vertexShaders;
         std::map<std::string, ShaderModule> fragmentShaders;
+
+        DescriptorPool perScenePool;    // set 0
+        DescriptorPool perMaterialPool; // set 1
 
         // Container for pipelines
 
@@ -255,6 +267,8 @@ namespace Vulgine {
 
         Material* initNewMaterial() override;
         void deleteMaterial(Material* scene) override;
+        Image* initNewImage() override;
+        void deleteImage(Image* image) override;
         bool initialize();
         explicit VulgineImpl();
         ~VulgineImpl() override;

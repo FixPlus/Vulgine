@@ -4,6 +4,7 @@
 
 #include "include/IVulgine.h"
 #include <glm/vec4.hpp>
+#include <glm/vec2.hpp>
 #include <GLFW/glfw3.h>
 #include <cmath>
 #include <iostream>
@@ -11,12 +12,13 @@
 struct VertexAttribute{
     glm::vec4 pos;
     glm::vec4 color;
+    glm::vec2 uv;
 };
 
-VertexAttribute vertexAttributes[4] = {{{-0.5f, -0.5f, -10.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 0.0f}},
-                                       {{-0.5f, 0.5f, -10.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 0.0f}},
-                                       {{0.5f, 0.5f, -10.0f, 1.0f}, {1.0f, 1.0f, 0.0f, 0.0f}},
-                                       {{0.5f, -0.5f, -10.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 0.0f}}};
+VertexAttribute vertexAttributes[4] = {{{-0.5f, -0.5f, -10.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+                                       {{-0.5f, 0.5f, -10.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+                                       {{0.5f, 0.5f, -10.0f, 1.0f}, {1.0f, 1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
+                                       {{0.5f, -0.5f, -10.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}}};
 
 struct Camera{
     Vulgine::Camera* cameraImpl;
@@ -63,7 +65,7 @@ struct Camera{
 
 void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material){
     Vulgine::VertexFormat format;
-    format.perVertexAttributes = {Vulgine::AttributeFormat::RGBA32SF, Vulgine::AttributeFormat::RGBA32SF};
+    format.perVertexAttributes = {Vulgine::AttributeFormat::RGBA32SF, Vulgine::AttributeFormat::RGBA32SF, Vulgine::AttributeFormat::RG32SF};
 
     mesh->vertexFormat = format;
     mesh->vertices.pData = vertexAttributes;
@@ -99,7 +101,14 @@ int main(int argc, char** argv){
 
     auto* material = vulgine->initNewMaterial();
 
-    material->vertexShader = "vert_default";
+    auto* texture = vulgine->initNewImage();
+
+    texture->loadFromFile("image.jpg", Vulgine::Image::FILE_FORMAT_JPEG);
+
+    material->texture.colorMap = texture;
+    material->vertexShader = "vert_color";
+
+    material->create();
 
     Camera camera;
 

@@ -9,6 +9,7 @@
 #include <../include/IVulgineScene.h>
 #include "Utilities.h"
 #include "vulkan/VulkanAllocatable.h"
+#include "vulkan/VulkanDescriptable.h"
 #include <map>
 
 namespace Vulgine{
@@ -85,6 +86,13 @@ namespace Vulgine{
     };
 
     struct MaterialImpl: public Material{
+        uint32_t descriptorSet;
+        bool hasDescriptorSet = false;
+        struct TextureSampler{
+            VkDescriptorImageInfo descriptor;
+            Sampler sampler;
+        } colorMapSampled, normalMapSampled;
+
 
 
         explicit MaterialImpl(uint32_t id): Material(id){}

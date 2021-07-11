@@ -6,17 +6,20 @@
 #include "Vulgine.h"
 #include "Utilities.h"
 #include "vulkan/VulkanInitializers.hpp"
+#include <vector>
 
 void Vulgine::Pipeline::createImpl() {
 
 
-    uint32_t renderPassSize = vlg_instance->renderPasses.size();
-    for(uint32_t i = 0; i < renderPassSize; ++i){
-        
+        std::vector<VkDescriptorSetLayout> layouts;
+
+        if(material->hasDescriptorSet)
+            layouts.push_back(vlg_instance->perMaterialPool.getLayout(material->descriptorSet));
+
         VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo =
                 initializers::pipelineLayoutCreateInfo(
-                        nullptr,
-                        0);
+                layouts.empty() ? nullptr : layouts.data(),
+                        layouts.size());
 
         // setting up arbitrary push constant range containing view Matrix of a camera
 
@@ -44,7 +47,7 @@ void Vulgine::Pipeline::createImpl() {
         std::vector<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
         VkPipelineDynamicStateCreateInfo dynamicState = initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables, 0);
         std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages {};
-        VkGraphicsPipelineCreateInfo pipelineCI = initializers::pipelineCreateInfo(pipelineLayout, vlg_instance->renderPasses[i]->renderPass, 0);
+        VkGraphicsPipelineCreateInfo pipelineCI = initializers::pipelineCreateInfo(pipelineLayout, renderPass->renderPass, 0);
         pipelineCI.pInputAssemblyState = &inputAssemblyState;
         pipelineCI.pRasterizationState = &rasterizationState;
         pipelineCI.pColorBlendState = &colorBlendState;
@@ -71,7 +74,19 @@ void Vulgine::Pipeline::createImpl() {
 
         // binding fragment shader
 
-        const char* defaultFragmentShader = "frag_default";
+        const char* defaultFragmentShader;
+
+        if(material->texture.colorMap){
+            if(material->texture.normalMap){
+                defaultFragmentShader = "frag_color_normal";
+            }else{
+                defaultFragmentShader = "frag_color";
+            }
+        }
+        else{
+            defaultFragmentShader = "frag_default";
+        }
+
 
         if(vlg_instance->fragmentShaders.count(defaultFragmentShader) == 0){
             Utilities::ExitFatal(-1,"Error loading default fragment shader");
@@ -88,7 +103,6 @@ void Vulgine::Pipeline::createImpl() {
         VK_CHECK_RESULT(
                 vkCreateGraphicsPipelines(vlg_instance->device->logicalDevice, vlg_instance->pipelineCache, 1, &pipelineCI, nullptr, &pipeline));
 
-    }
 
 
 }

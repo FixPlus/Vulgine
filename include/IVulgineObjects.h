@@ -52,6 +52,19 @@ namespace Vulgine{
         virtual ~Creatable() = default;
     };
 
+    struct Image{
+        uint32_t id_;
+    public:
+        enum FileFormat{FILE_FORMAT_PNG, FILE_FORMAT_JPEG, FILE_FORMAT_KTX};
+        enum Format{FORMAT_R8G8B8A8_UNORM, FORMAT_R8G8B8A8_SRGB};
+
+        virtual void loadFromFile(const char* filename, FileFormat fileFormat) = 0;
+        virtual void load(const unsigned char* data, uint32_t len, FileFormat fileFormat) = 0;
+        explicit Image(uint32_t id): id_(id){}
+        uint32_t id() const { return id_;}
+        virtual ~Image() = default;
+    };
+
     struct Scene;
 
     struct Camera: public Creatable{
@@ -103,6 +116,11 @@ namespace Vulgine{
     class Material: public Creatable{
         uint32_t id_;
     public:
+
+        struct{
+            ::Vulgine::Image* colorMap = nullptr;
+            ::Vulgine::Image* normalMap = nullptr;
+        } texture;
 
         std::string vertexShader;
 

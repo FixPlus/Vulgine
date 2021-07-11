@@ -44,7 +44,7 @@ void Vulgine::Memory::Image::allocate(VkImageCreateInfo imageCI, VmaMemoryUsage 
     if(allocated){
         vmaDestroyImage(vlg_instance->allocator, image, allocation);
     }
-
+    imageInfo = imageCI;
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = memoryUsageFlags;
     allocInfo.preferredFlags = prefFlags;
@@ -71,6 +71,95 @@ Vulgine::Memory::Image::~Image() {
     if(allocated){
         vmaDestroyImage(vlg_instance->allocator, image, allocation);
     }
+}
+
+VkImageView Vulgine::Memory::Image::createImageView() const {
+    VkImageView view;
+    VkImageViewCreateInfo viewCreateInfo = {};
+    viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    switch (imageInfo.imageType) {
+        case VK_IMAGE_TYPE_1D: viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_1D; break;
+        case VK_IMAGE_TYPE_2D: viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D; break;
+        case VK_IMAGE_TYPE_3D: viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_3D; break;
+        default: assert(0 && "Image Info is broken");
+    }
+
+    viewCreateInfo.format = imageInfo.format;
+    viewCreateInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
+    viewCreateInfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+    // Linear tiling usually won't support mip maps
+    // Only set mip map count if optimal tiling is used
+    viewCreateInfo.subresourceRange.levelCount = 1;
+    viewCreateInfo.image = image;
+    VK_CHECK_RESULT(vkCreateImageView(vlg_instance->device->logicalDevice, &viewCreateInfo, nullptr, &view));
+
+    return view;
+}
+
+void Vulgine::Memory::Image::transitImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout) {
+    VkCommandBuffer transitCmd = vlg_instance->device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = oldLayout;
+    barrier.newLayout = newLayout;
+
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+
+    barrier.srcAccessMask = 0; // TODO
+    barrier.dstAccessMask = 0; // TODO
+
+    vkCmdPipelineBarrier(
+            transitCmd,
+            0 /* TODO */, 0 /* TODO */,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier
+    );
+
+    vlg_instance->device->flushCommandBuffer(transitCmd, vlg_instance->transferQueue, true);
+
+}
+
+void Vulgine::Memory::Image::copyFromBuffer(VkBuffer buffer, uint32_t width, uint32_t height, uint32_t depth) {
+    VkCommandBuffer copyCmd = vlg_instance->device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+
+    VkBufferImageCopy region{};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+
+    region.imageOffset = {0, 0, 0};
+    region.imageExtent = {
+            width,
+            height,
+            depth
+    };
+
+    vkCmdCopyBufferToImage(
+            copyCmd,
+            buffer,
+            image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1,
+            &region
+    );
+
+    vlg_instance->device->flushCommandBuffer(copyCmd, vlg_instance->transferQueue, true);
+
 }
 
 void Vulgine::Memory::ImmutableBuffer::create(void *pData, size_t size, VkBufferUsageFlagBits usage) {
@@ -116,10 +205,6 @@ void Vulgine::Memory::ImmutableBuffer::create(void *pData, size_t size, VkBuffer
     vkCmdCopyBuffer(copyCmd, stagingBuffer.buffer, buffer, 1, &copyRegion);
 
     vlg_instance->device->flushCommandBuffer(copyCmd, vlg_instance->transferQueue, true);
-
-    vkQueueWaitIdle(vlg_instance->transferQueue);
-
-
 
 }
 
@@ -186,4 +271,27 @@ void Vulgine::Memory::IndexBuffer::free() {
 
 void Vulgine::Memory::IndexBuffer::bind(VkCommandBuffer cmdBuffer) {
     vkCmdBindIndexBuffer(cmdBuffer, buffer, 0, VK_INDEX_TYPE_UINT32);
+}
+
+void Vulgine::Memory::StagingBuffer::create(uint32_t size) {
+    this->size = size;
+    VkBufferCreateInfo bufferCI = initializers::bufferCreateInfo(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, size);
+    bufferCI.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    allocate(bufferCI, VMA_MEMORY_USAGE_CPU_ONLY);
+
+    vmaMapMemory(vlg_instance->allocator, allocation, &mapped);
+}
+
+void Vulgine::Memory::StagingBuffer::fill(const void *data) {
+
+
+    memcpy(mapped, data, size);
+
+
+}
+
+Vulgine::Memory::StagingBuffer::~StagingBuffer() {
+    if(allocated)
+        vmaUnmapMemory(vlg_instance->allocator, allocation);
 }

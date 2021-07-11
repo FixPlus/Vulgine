@@ -5,6 +5,8 @@
 #include <glm/glm.hpp>
 #include "VulgineObjects.h"
 #include "Vulgine.h"
+#include "VulgineImage.h"
+#include "vulkan/VulkanInitializers.hpp"
 
 namespace Vulgine{
 
@@ -101,18 +103,21 @@ namespace Vulgine{
         uint32_t instCount = instances.count == 0 ? 1 : instances.count;
 
         if(indices.empty()) {
+            auto* material = dynamic_cast<MaterialImpl *>(primitives[0].material);
             auto& boundPipeline = vlg_instance->pipelineMap.bind({vertexInputStateCI, dynamic_cast<MaterialImpl *>(primitives[0].material),
                                             dynamic_cast<SceneImpl *>(parent()), pass}, commandBuffer);
-
+            if(material->hasDescriptorSet)
+                vlg_instance->perMaterialPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 0,material->descriptorSet);
             vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &(camera->viewMatrix));
             vkCmdDraw(commandBuffer, vertices.count, instCount, 0, 0);
         }else{
             indexBuffer.bind(commandBuffer);
             for (auto primitive: primitives) {
-
-                auto& boundPipeline = vlg_instance->pipelineMap.bind({vertexInputStateCI, dynamic_cast<MaterialImpl *>(primitive.material),
+                auto* material = dynamic_cast<MaterialImpl *>(primitive.material);
+                auto& boundPipeline = vlg_instance->pipelineMap.bind({vertexInputStateCI, material,
                                                 dynamic_cast<SceneImpl *>(parent()), pass}, commandBuffer);
-
+                if(material->hasDescriptorSet)
+                    vlg_instance->perMaterialPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 0,material->descriptorSet);
                 vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &(camera->viewMatrix));
                 vkCmdDrawIndexed(commandBuffer, primitive.indexCount, instCount, primitive.startIdx, 0, 0);
             }
@@ -181,11 +186,66 @@ namespace Vulgine{
     }
 
     void MaterialImpl::createImpl() {
+        assert(!texture.normalMap || (texture.colorMap && texture.normalMap) && "Standalone normal maps aren't supported");
+
+        std::vector<VkDescriptorSetLayoutBinding> bindings;
+        std::vector<VkWriteDescriptorSet> writes;
+
+        if(texture.colorMap){
+
+            VkDescriptorSetLayoutBinding binding;
+            binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            binding.binding = 0;
+            binding.descriptorCount = 1;
+            binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+            binding.pImmutableSamplers = nullptr;
+            bindings.push_back(binding);
+
+            auto& colorImage = dynamic_cast<ImageImpl*>(texture.colorMap)->image;
+            colorMapSampled.descriptor.imageView = colorImage.createImageView();
+            colorMapSampled.sampler.create();
+            colorMapSampled.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            colorMapSampled.descriptor.sampler = colorMapSampled.sampler.sampler;
+
+            VkWriteDescriptorSet write = initializers::writeDescriptorSet(nullptr, binding.descriptorType, 0, &colorMapSampled.descriptor);
+            writes.push_back(write);
+        }
+        if(texture.normalMap){
+
+            VkDescriptorSetLayoutBinding binding;
+            binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            binding.binding = 1;
+            binding.descriptorCount = 1;
+            binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+            binding.pImmutableSamplers = nullptr;
+            bindings.push_back(binding);
+
+            auto& colorImage = dynamic_cast<ImageImpl*>(texture.colorMap)->image;
+            normalMapSampled.descriptor.imageView = colorImage.createImageView();
+            normalMapSampled.sampler.create();
+            normalMapSampled.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            normalMapSampled.descriptor.sampler = normalMapSampled.sampler.sampler;
+            VkWriteDescriptorSet write = initializers::writeDescriptorSet(nullptr, binding.descriptorType, 1, &colorMapSampled.descriptor);
+            writes.push_back(write);
+        }
+
+        if(texture.colorMap) {
+            descriptorSet = vlg_instance->perMaterialPool.allocateSet(bindings.data(), bindings.size());
+            vlg_instance->perMaterialPool.updateDescriptor(descriptorSet, writes);
+            hasDescriptorSet = true;
+        }
+
 
     }
 
     void MaterialImpl::destroyImpl() {
+        if(texture.colorMap){
+            vkDestroyImageView(vlg_instance->device->logicalDevice, colorMapSampled.descriptor.imageView, nullptr);
+        }
 
+        if(texture.normalMap){
+            vkDestroyImageView(vlg_instance->device->logicalDevice, normalMapSampled.descriptor.imageView, nullptr);
+        }
     }
 
     void MeshImpl::compileVertexInputState() {
@@ -304,6 +364,18 @@ namespace Vulgine{
     }
 
     MaterialImpl::~MaterialImpl() {
+        if(isCreated()){
+            if(texture.colorMap){
+                vkDestroyImageView(vlg_instance->device->logicalDevice, colorMapSampled.descriptor.imageView, nullptr);
+                colorMapSampled.sampler.destroy();
+
+            }
+
+            if(texture.normalMap){
+                vkDestroyImageView(vlg_instance->device->logicalDevice, normalMapSampled.descriptor.imageView, nullptr);
+                colorMapSampled.sampler.destroy();
+            }
+        }
 
     }
 
