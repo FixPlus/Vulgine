@@ -104,7 +104,10 @@ namespace Vulgine{
 
     struct CameraImpl: public Camera{
 
-        glm::mat4 viewMatrix{};
+        struct {
+            glm::mat4 viewMatrix{};
+            glm::vec3 position{};
+        }matrices;
 
         void update() override;
 

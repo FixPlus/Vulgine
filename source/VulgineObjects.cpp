@@ -19,6 +19,7 @@ namespace Vulgine{
                 case AttributeFormat::RG32SF: ret += sizeof(glm::vec2); break;
                 case AttributeFormat::RGB32SF: ret += sizeof(glm::vec3); break;
                 case AttributeFormat::RGBA32SF: ret += sizeof (glm::vec4); break;
+                case AttributeFormat::MAT4F: ret+= sizeof (glm::mat4); break;
             }
         }
         return ret;
@@ -32,6 +33,7 @@ namespace Vulgine{
                 case AttributeFormat::RG32SF: ret += sizeof(glm::vec2); break;
                 case AttributeFormat::RGB32SF: ret += sizeof(glm::vec3); break;
                 case AttributeFormat::RGBA32SF: ret += sizeof (glm::vec4); break;
+                case AttributeFormat::MAT4F: ret+= sizeof (glm::mat4); break;
             }
         }
         return ret;
@@ -108,7 +110,7 @@ namespace Vulgine{
                                             dynamic_cast<SceneImpl *>(parent()), pass}, commandBuffer);
             if(material->hasDescriptorSet)
                 vlg_instance->perMaterialPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 0,material->descriptorSet);
-            vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &(camera->viewMatrix));
+            vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(camera->matrices), &(camera->matrices));
             vkCmdDraw(commandBuffer, vertices.count, instCount, 0, 0);
         }else{
             indexBuffer.bind(commandBuffer);
@@ -118,7 +120,7 @@ namespace Vulgine{
                                                 dynamic_cast<SceneImpl *>(parent()), pass}, commandBuffer);
                 if(material->hasDescriptorSet)
                     vlg_instance->perMaterialPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 0,material->descriptorSet);
-                vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &(camera->viewMatrix));
+                vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(camera->matrices), &(camera->matrices));
                 vkCmdDrawIndexed(commandBuffer, primitive.indexCount, instCount, primitive.startIdx, 0, 0);
             }
         }
@@ -256,6 +258,8 @@ namespace Vulgine{
 
         auto& format = vertexFormat;
 
+        int adjustment = 0;
+
         for(auto attr: format.perVertexAttributes){
             switch(attr){
                 case AttributeFormat::R32SF:
@@ -289,6 +293,16 @@ namespace Vulgine{
                              VK_FORMAT_R32G32B32A32_SFLOAT,
                              perVertexSize}));
                     perVertexSize += sizeof(glm::vec4);
+                    break;
+                case AttributeFormat::MAT4F:
+                    for(int i = 0; i < 4; ++i) {
+                        attributesDesc.push_back(VkVertexInputAttributeDescription(
+                                {static_cast<uint32_t>(attributesDesc.size()),
+                                 0,
+                                 VK_FORMAT_R32G32B32A32_SFLOAT,
+                                 perVertexSize}));
+                        perVertexSize += sizeof(glm::vec4);
+                    }
                     break;
             }
         }
@@ -327,6 +341,16 @@ namespace Vulgine{
                              VK_FORMAT_R32G32B32A32_SFLOAT,
                              perInstanceSize}));
                     perInstanceSize += sizeof(glm::vec4);
+                    break;
+                case AttributeFormat::MAT4F:
+                    for(int i = 0; i < 4; ++i) {
+                        attributesDesc.push_back(VkVertexInputAttributeDescription(
+                                {static_cast<uint32_t>(attributesDesc.size()),
+                                 1,
+                                 VK_FORMAT_R32G32B32A32_SFLOAT,
+                                 perInstanceSize}));
+                        perInstanceSize += sizeof(glm::vec4);
+                    }
                     break;
             }
         }
@@ -412,15 +436,17 @@ namespace Vulgine{
         glm::mat4 rotM = glm::mat4(1.0f);
         glm::mat4 transM;
 
-        rotM = glm::rotate(rotM, glm::radians(rotation.x * ( 1.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
-        rotM = glm::rotate(rotM, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-        rotM = glm::rotate(rotM, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+        rotM = glm::rotate(rotM, glm::radians(-rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+        rotM = glm::rotate(rotM, glm::radians(-rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+        rotM = glm::rotate(rotM, glm::radians(-rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
 
-        glm::vec3 translation = position;
+        glm::vec3 translation = -position;
+        //translation.y = translation.y * -1.0f;
 
         transM = glm::translate(glm::mat4(1.0f), translation);
 
-        viewMatrix = projection * rotM * transM;
+        matrices.viewMatrix = projection * rotM * transM;
+        matrices.position = position;
 
         vlg_instance->cmdBuffersOutdated = true;
     }

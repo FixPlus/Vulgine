@@ -3,22 +3,64 @@
 //
 
 #include "include/IVulgine.h"
-#include <glm/vec4.hpp>
+#include <glm/vec3.hpp>
 #include <glm/vec2.hpp>
 #include <GLFW/glfw3.h>
 #include <cmath>
 #include <iostream>
 
 struct VertexAttribute{
-    glm::vec4 pos;
-    glm::vec4 color;
+    glm::vec3 pos;
+    glm::vec3 normal;
     glm::vec2 uv;
 };
 
-VertexAttribute vertexAttributes[4] = {{{-0.5f, -0.5f, -10.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-                                       {{-0.5f, 0.5f, -10.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-                                       {{0.5f, 0.5f, -10.0f, 1.0f}, {1.0f, 1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
-                                       {{0.5f, -0.5f, -10.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}}};
+struct InstanceAttribute{
+    glm::mat4 transform;
+};
+
+InstanceAttribute instancesAttributes[10] = {
+        {glm::mat4(1.0f)}
+};
+
+VertexAttribute vertexAttributes[24] = {
+
+        // upper face
+        {{-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+        {{-0.5f, 0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}},
+        {{0.5f, 0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},
+        {{0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+
+        // lower face
+        {{-0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}},
+        {{-0.5f, -0.5f, 0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},
+        {{0.5f, -0.5f, 0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},
+        {{0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}},
+
+        // east face
+        {{-0.5f, 0.5f, 0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+        {{-0.5f, 0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+        {{-0.5f, -0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
+        {{-0.5f, -0.5f, 0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+
+        // west face
+        {{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+        {{0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+        {{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
+        {{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+
+        // north face
+        {{0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+        {{-0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+        {{-0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+        {{0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+
+        // south face
+        {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}},
+        {{-0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}},
+        {{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}},
+        {{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}},
+                                       };
 
 struct Camera{
     Vulgine::Camera* cameraImpl;
@@ -38,15 +80,19 @@ struct Camera{
         cameraImpl->rotation.y += dy;
         cameraImpl->rotation.z += dz;
 
+        if(cameraImpl->rotation.x > 90.0f)
+            cameraImpl->rotation.x = 90.0f;
+        if(cameraImpl->rotation.x < -90.0f)
+            cameraImpl->rotation.x = -90.0f;
         cameraImpl->update();
     }
     void update(double deltaT){
 
         glm::vec3 camFront;
-        camFront.x = -cos(glm::radians(cameraImpl->rotation.x)) * sin(glm::radians(cameraImpl->rotation.y));
-        camFront.y = sin(glm::radians(cameraImpl->rotation.x));
+        camFront.x = cos(glm::radians(cameraImpl->rotation.x)) * sin(glm::radians(cameraImpl->rotation.y));
+        camFront.y = -sin(glm::radians(cameraImpl->rotation.x));
         camFront.z = cos(glm::radians(cameraImpl->rotation.x)) * cos(glm::radians(cameraImpl->rotation.y));
-        camFront = glm::normalize(camFront);
+        camFront = glm::normalize(-camFront);
 
         float moveSpeed = deltaT * velocity;
 
@@ -65,12 +111,17 @@ struct Camera{
 
 void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material){
     Vulgine::VertexFormat format;
-    format.perVertexAttributes = {Vulgine::AttributeFormat::RGBA32SF, Vulgine::AttributeFormat::RGBA32SF, Vulgine::AttributeFormat::RG32SF};
+    format.perVertexAttributes = {Vulgine::AttributeFormat::RGB32SF, Vulgine::AttributeFormat::RGB32SF, Vulgine::AttributeFormat::RG32SF};
+    format.perInstanceAttributes = {Vulgine::AttributeFormat::MAT4F};
 
     mesh->vertexFormat = format;
     mesh->vertices.pData = vertexAttributes;
-    mesh->vertices.count = 4;
-    mesh->indices = {0, 1, 2, 0, 2, 3};
+    mesh->vertices.count = sizeof(vertexAttributes) / sizeof(VertexAttribute);
+    mesh->instances.pData = instancesAttributes;
+    mesh->instances.count = sizeof(instancesAttributes) / sizeof(InstanceAttribute);
+    mesh->indices = {0, 1, 2, 0, 2, 3, 6, 5, 4, 7, 6, 4,
+                     8, 9, 10, 8, 10, 11, 12, 14, 13, 12, 15, 14,
+                     16, 17, 18, 16, 18, 19, 20, 23, 22, 20, 22, 21};
 
     Vulgine::Mesh::Primitive primitive{};
 
@@ -82,7 +133,8 @@ void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material){
 
     mesh->primitives.push_back(primitive);
 
-    mesh->vertices.dynamic = true;
+    mesh->vertices.dynamic = false;
+    mesh->instances.dynamic = true;
 
     mesh->create();
 }
@@ -114,7 +166,8 @@ int main(int argc, char** argv){
 
     camera.cameraImpl = scene->createCamera();
 
-
+    for(int i = 0; i < sizeof(instancesAttributes) / sizeof(InstanceAttribute); i++)
+        instancesAttributes[i].transform = glm::translate(glm::vec3{i * 2.0f, 0.0f, 0.0f});
 
     double timer = 0.0f, deltaT = 0.0f;
 
@@ -154,7 +207,7 @@ int main(int argc, char** argv){
 
     vulgine->mouseState.onMouseMove = [&camera, vulgine, rotSpeed](double dx, double dy, double x, double y){
         if(!vulgine->mouseState.cursor.enabled)
-            camera.rotate(-dy * rotSpeed, dx * rotSpeed, 0);
+            camera.rotate(-dy * rotSpeed, -dx * rotSpeed, 0);
     };
 
 
@@ -166,16 +219,21 @@ int main(int argc, char** argv){
 
     vulgine->updateRenderTaskQueue({{scene, camera.cameraImpl, {renderTarget}}});
 
-
-
+    bool skip = true;
     while(vulgine->cycle()){
-        deltaT = vulgine->lastFrameTime();
+        if(skip)
+            skip = false;
+        else
+            deltaT = vulgine->lastFrameTime();
         timer += deltaT;
-        vertexAttributes[0].pos = {0.1 * sin(timer) - 0.5f, 0.1 * cos(timer) - 0.5f, -10.0f, 1.0f};
-        vertexAttributes[1].color = {0.5 * sin(timer) + 0.5f, 0.5 * cos(timer) + 0.5f, 0.0f, 1.0f};
-        mesh->updateVertexBuffer();
+        //vertexAttributes[0].pos = {0.1 * sin(timer) - 0.5f, 0.1 * cos(timer) - 0.5f, -10.0f, 1.0f};
+        //vertexAttributes[1].color = {0.5 * sin(timer) + 0.5f, 0.5 * cos(timer) + 0.5f, 0.0f, 1.0f};
+        instancesAttributes[0].transform = glm::rotate(instancesAttributes[0].transform, (float)deltaT, glm::vec3{1.0f, 1.0f, 0.0f});
+        //mesh->updateVertexBuffer();
+        mesh->updateInstanceBuffer();
         camera.update(deltaT);
-        //std::cout << "rot.x: " << camera->rotation.x << "; rot.y: " << camera->rotation.y << std::endl;
+        //std::cout << "x" << camera.cameraImpl->position.x << "y" << camera.cameraImpl->position.y << "z" << camera.cameraImpl->position.z<< std::endl;
+
     };
 
     Vulgine::Vulgine::freeInstance(vulgine);

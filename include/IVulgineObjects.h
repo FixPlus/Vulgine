@@ -73,7 +73,7 @@ namespace Vulgine{
         uint32_t id_;
     public:
 
-        Camera(Scene* parent, uint32_t id): parent_(parent), id_(id){}
+        Camera(Scene* parent, uint32_t id): parent_(parent), id_(id){ projection[1][1] *= -1; }
         glm::vec3 position = glm::vec3{0.0f};
         glm::vec3 rotation = glm::vec3{0.0f, 0.0f, 0.0f};
         glm::mat4 projection = glm::perspective(glm::radians(60.0f), 16.0f / 9.0f, 0.1f, 100.0f);
@@ -99,10 +99,11 @@ namespace Vulgine{
  *  RGB32SF  -->  glm::vec3
  *  RG32SF   -->  glm::vec2
  *  R32SF    -->  glm::vec1(32-bit float)
+ *  MAT4F    -->  glm::mat4
  *
  * */
 
-    enum class AttributeFormat{RGBA32SF, RGB32SF, RG32SF, R32SF};
+    enum class AttributeFormat{RGBA32SF, RGB32SF, RG32SF, R32SF, MAT4F};
 
     struct VertexFormat{
         std::vector<AttributeFormat> perVertexAttributes;
