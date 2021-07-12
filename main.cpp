@@ -19,7 +19,7 @@ struct InstanceAttribute{
     glm::mat4 transform;
 };
 
-InstanceAttribute instancesAttributes[10] = {
+InstanceAttribute instancesAttributes[1000] = {
         {glm::mat4(1.0f)}
 };
 
@@ -80,10 +80,10 @@ struct Camera{
         cameraImpl->rotation.y += dy;
         cameraImpl->rotation.z += dz;
 
-        if(cameraImpl->rotation.x > 90.0f)
-            cameraImpl->rotation.x = 90.0f;
-        if(cameraImpl->rotation.x < -90.0f)
-            cameraImpl->rotation.x = -90.0f;
+        if(cameraImpl->rotation.x > 89.0f)
+            cameraImpl->rotation.x = 89.0f;
+        if(cameraImpl->rotation.x < -89.0f)
+            cameraImpl->rotation.x = -89.0f;
         cameraImpl->update();
     }
     void update(double deltaT){
@@ -155,7 +155,10 @@ int main(int argc, char** argv){
 
     auto* texture = vulgine->initNewImage();
 
-    texture->loadFromFile("image.jpg", Vulgine::Image::FILE_FORMAT_JPEG);
+    if(!texture->loadFromFile("image.jpg", Vulgine::Image::FILE_FORMAT_JPEG)){
+        Vulgine::Vulgine::freeInstance(vulgine);
+        return 0;
+    }
 
     material->texture.colorMap = texture;
     material->vertexShader = "vert_color";
@@ -166,8 +169,10 @@ int main(int argc, char** argv){
 
     camera.cameraImpl = scene->createCamera();
 
-    for(int i = 0; i < sizeof(instancesAttributes) / sizeof(InstanceAttribute); i++)
-        instancesAttributes[i].transform = glm::translate(glm::vec3{i * 2.0f, 0.0f, 0.0f});
+    for(int i = 0; i < 10; i++)
+        for(int j = 0; j < 10; j++)
+            for(int k = 0; k < 10; k++)
+                instancesAttributes[i * 100 + j * 10 + k].transform = glm::translate(glm::vec3{i * 2.0f, j * 2.0f, k * 2.0f});
 
     double timer = 0.0f, deltaT = 0.0f;
 
@@ -228,7 +233,16 @@ int main(int argc, char** argv){
         timer += deltaT;
         //vertexAttributes[0].pos = {0.1 * sin(timer) - 0.5f, 0.1 * cos(timer) - 0.5f, -10.0f, 1.0f};
         //vertexAttributes[1].color = {0.5 * sin(timer) + 0.5f, 0.5 * cos(timer) + 0.5f, 0.0f, 1.0f};
-        instancesAttributes[0].transform = glm::rotate(instancesAttributes[0].transform, (float)deltaT, glm::vec3{1.0f, 1.0f, 0.0f});
+
+        for(int i = 0; i < 10; i++){
+            glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), (float)deltaT * (((i * 3 + 11) % 5) + 1),
+                                           glm::normalize(glm::vec3{1.0f, (i * 7 + 19) % 13, (i * 23 + 5) % 37}));
+            for(int j = 0; j < 100; j++)
+            instancesAttributes[j * 10 + i ].transform = instancesAttributes[j * 10 + i].transform * rotate;
+
+        }
+
+        //instancesAttributes[0].transform =
         //mesh->updateVertexBuffer();
         mesh->updateInstanceBuffer();
         camera.update(deltaT);

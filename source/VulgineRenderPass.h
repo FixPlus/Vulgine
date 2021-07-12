@@ -13,7 +13,11 @@ namespace Vulgine{
     struct RenderPass{
         VkRenderPass renderPass = VK_NULL_HANDLE;
 
+        void begin(VkCommandBuffer buffer, Framebuffer* framebuffer);
+
         virtual void buildCmdBuffers(VkCommandBuffer buffer, Framebuffer* framebuffer) = 0;
+
+        void end(VkCommandBuffer buffer);
 
         virtual ~RenderPass();
     };

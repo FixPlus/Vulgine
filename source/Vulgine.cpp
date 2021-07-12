@@ -10,6 +10,7 @@
 #include <Utilities.h>
 #include <vector>
 #include "vulkan/VulkanInitializers.hpp"
+#include "imgui/imgui.h"
 
 namespace Vulgine{
 
@@ -48,6 +49,8 @@ namespace Vulgine{
 
         glfwPollEvents();
 
+        updateGUI();
+
         if (prepared)
             renderFrame();
 
@@ -59,6 +62,8 @@ namespace Vulgine{
         scenes.container.clear();
         materials.container.clear();
         images.container.clear();
+
+        gui.destroy();
 
         destroyShaders();
 
@@ -271,9 +276,15 @@ namespace Vulgine{
 
         loadShaders();
 
+        logger("default shader pack loaded");
+
         setupDescriptorPools();
 
-        logger("default shader pack loaded");
+        gui.init(swapChain.imageCount);
+
+        gui.windowResized(window.width, window.height);
+
+
 
         logger("Initialization of VulGine completed successfully");
 
@@ -452,6 +463,9 @@ namespace Vulgine{
         submitInfo.pSignalSemaphores = &framesSync[currentFrame].renderComplete;
 
         vkResetFences(device->logicalDevice, 1, &framesSync[currentFrame].inFlightSync);
+
+        if(gui.update(currentBuffer))
+            cmdBuffersOutdated = true;
 
         if(cmdBuffersOutdated)
             buildCommandBuffers(currentBuffer);
@@ -713,6 +727,8 @@ namespace Vulgine{
 
         pipelineMap.clear();
 
+        gui.preparePipeline(onscreenRenderPass->renderPass);
+
         // lastly, we build draw command buffers for each swap chain image
 
         for(int i = 0; i < swapChain.imageCount; i++)
@@ -791,6 +807,11 @@ namespace Vulgine{
         shader = loadShader("color.frag.spv", device->logicalDevice);
         fragmentShaders.emplace(std::piecewise_construct, std::forward_as_tuple("frag_color"), std::forward_as_tuple(shader, "frag_color"));
 
+        shader = loadShader("uioverlay.vert.spv", device->logicalDevice);
+        vertexShaders.emplace(std::piecewise_construct, std::forward_as_tuple("vert_imgui"), std::forward_as_tuple(shader, "vert_imgui"));
+        shader = loadShader("uioverlay.frag.spv", device->logicalDevice);
+        fragmentShaders.emplace(std::piecewise_construct, std::forward_as_tuple("frag_imgui"), std::forward_as_tuple(shader, "frag_imgui"));
+
     }
 
     void VulgineImpl::destroyShaders() {
@@ -808,7 +829,13 @@ namespace Vulgine{
 
         VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[imageIndex], &cmdBufInfo))
 
+        renderPasses[0]->begin(drawCmdBuffers[imageIndex], &onScreenFramebuffers[imageIndex]);
+
         renderPasses[0]->buildCmdBuffers(drawCmdBuffers[imageIndex], &onScreenFramebuffers[imageIndex]);
+
+        gui.draw(drawCmdBuffers[imageIndex], imageIndex);
+
+        renderPasses[0]->end(drawCmdBuffers[imageIndex]);
 
         VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[imageIndex]));
 
@@ -855,6 +882,8 @@ namespace Vulgine{
 
         vkDeviceWaitIdle(device->logicalDevice);
 
+        gui.windowResized(window.width, window.height);
+
         window.resized = false;
 
     }
@@ -866,10 +895,12 @@ namespace Vulgine{
             default: break;
         }
 
+        keyboardState.keysPressed.emplace(key, 0);
         keyboardState.onKeyDown(key);
     }
 
     void VulgineImpl::keyUp(VulgineImpl::Window *window, int key) {
+        keyboardState.keysPressed.erase(key);
         keyboardState.onKeyUp(key);
     }
 
@@ -995,6 +1026,99 @@ namespace Vulgine{
 
     }
 
+    void VulgineImpl::updateGUI() {
+
+        ImGuiIO& io = ImGui::GetIO();
+
+        io.DisplaySize = ImVec2((float)vieportInfo.width, (float)vieportInfo.height);
+        if(fpsCounter.lastFrameTime > 0.0)
+            io.DeltaTime = fpsCounter.lastFrameTime;
+
+        // If cursor is hidden, we tell ImGui not to track it
+
+        if (!mouseState.cursor.enabled)
+            io.MousePos = ImVec2(-FLT_MAX, -FLT_MAX);
+        else
+            io.MousePos = ImVec2(mouseState.cursor.posX, mouseState.cursor.posY);
+
+        io.MouseDown[0] = mouseState.keys.left;
+        io.MouseDown[1] = mouseState.keys.right;
+        io.MouseDown[2] = mouseState.keys.middle;
+
+        //TODO: io.MouseWheel = mouseButtons.scroll;
+
+        io.KeyCtrl = keyboardState.keysPressed.count(GLFW_KEY_LEFT_CONTROL) ||
+                     keyboardState.keysPressed.count(GLFW_KEY_RIGHT_CONTROL);
+
+        io.KeyShift = keyboardState.keysPressed.count(GLFW_KEY_LEFT_SHIFT) ||
+                      keyboardState.keysPressed.count(GLFW_KEY_RIGHT_SHIFT);
+        io.KeyAlt = keyboardState.keysPressed.count(GLFW_KEY_LEFT_ALT) ||
+                    keyboardState.keysPressed.count(GLFW_KEY_RIGHT_ALT);
+
+        memset(io.KeysDown, '\0', sizeof(decltype(io.KeysDown)));
+        for (auto& key : keyboardState.keysPressed)
+            io.KeysDown[key.first] = true;
+
+        ImGui::NewFrame();
+
+        // TODO: actual ui here
+
+        // Create a window called "My First Tool", with a menu bar.
+        ImGui::Begin("My First Tool", nullptr, ImGuiWindowFlags_MenuBar);
+        if (ImGui::BeginMenuBar())
+        {
+            if (ImGui::BeginMenu("File"))
+            {
+                if (ImGui::MenuItem("Open..", "Ctrl+O")) { /* Do stuff */ }
+                if (ImGui::MenuItem("Save", "Ctrl+S"))   { /* Do stuff */ }
+                if (ImGui::MenuItem("Close", "Ctrl+W"))  {  }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
+        }
+
+        glm::vec3 my_color = {0.0f, 0.5f, 0.7f};
+// Edit a color (stored as ~4 floats)
+        ImGui::ColorEdit4("Color", reinterpret_cast<float*>(&my_color));
+
+// Plot some values
+        const float my_values[] = { 0.2f, 0.1f, 1.0f, 0.5f, 0.9f, 2.2f };
+        ImGui::PlotLines("Frame Times", my_values, IM_ARRAYSIZE(my_values));
+
+// Display contents in a scrolling region
+        ImGui::TextColored(ImVec4(1,1,0,1), "Important Stuff");
+        ImGui::BeginChild("Scrolling");
+        for (int n = 0; n < 50; n++)
+            ImGui::Text("%04d: Some text", n);
+        ImGui::EndChild();
+        ImGui::End();
+
+        ImGui::Render();
+
+    }
+
+    void VulgineImpl::mouseBtnDown(VulgineImpl::Window *window, int button) {
+        switch (button) {
+            case GLFW_MOUSE_BUTTON_LEFT: mouseState.keys.left = true;
+            case GLFW_MOUSE_BUTTON_MIDDLE: mouseState.keys.middle = true;
+            case GLFW_MOUSE_BUTTON_RIGHT: mouseState.keys.right = true;
+            default: ;
+        }
+
+        mouseState.onMouseButtonDown(button);
+    }
+
+    void VulgineImpl::mouseBtnUp(VulgineImpl::Window *window, int button) {
+        switch (button) {
+            case GLFW_MOUSE_BUTTON_LEFT: mouseState.keys.left = false;
+            case GLFW_MOUSE_BUTTON_MIDDLE: mouseState.keys.middle = false;
+            case GLFW_MOUSE_BUTTON_RIGHT: mouseState.keys.right = false;
+            default: ;
+        }
+
+        mouseState.onMouseButtonUp(button);
+    }
+
     void disableLog(){
         logger.disable();
     }
@@ -1080,6 +1204,7 @@ namespace Vulgine{
         glfwSetFramebufferSizeCallback(instance_, windowSizeChanged);
         glfwSetKeyCallback(instance_, keyInput);
         glfwSetCursorPosCallback(instance_, cursorPosition);
+        glfwSetMouseButtonCallback(instance_, mouseInput);
 
 
     }
@@ -1164,6 +1289,17 @@ namespace Vulgine{
     void VulgineImpl::Window::cursorPosition(GLFWwindow* window, double xPos, double yPos) {
         auto* wrappedWindow = windowMap.at(window);
         vlg_instance->mouseMoved(wrappedWindow, xPos, yPos);
+    }
+
+    void VulgineImpl::Window::mouseInput(GLFWwindow *window, int button, int action, int mods) {
+        auto* wrappedWindow = windowMap.at(window);
+        if(action == GLFW_PRESS){
+            vlg_instance->mouseBtnDown(wrappedWindow, button);
+        } else {
+            vlg_instance->mouseBtnUp(wrappedWindow, button);
+        }
+
+
     }
 
     void VulgineImpl::FpsCounter::update(double deltaT) {

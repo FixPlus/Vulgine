@@ -53,7 +53,7 @@ namespace Vulgine{
 
         if(vertices.dynamic){
             auto* dynamicBuf = new Memory::DynamicVertexBuffer{};
-            dynamicBuf->create(vertices.pData, vertices.count * vertexFormat.perVertexSize());
+            dynamicBuf->create(vertices.count * vertexFormat.perVertexSize());
             perVertex = dynamicBuf;
         }
         else{
@@ -76,7 +76,7 @@ namespace Vulgine{
         if(instances.count > 0) {
             if (instances.dynamic) {
                 auto *dynamicBuf = new Memory::DynamicVertexBuffer{};
-                dynamicBuf->create(instances.pData, instances.count * vertexFormat.perInstanceSize());
+                dynamicBuf->create(instances.count * vertexFormat.perInstanceSize());
                 perInstance = dynamicBuf;
             } else {
                 auto *staticBuf = new Memory::StaticVertexBuffer{};
@@ -138,11 +138,11 @@ namespace Vulgine{
             auto* dynVert = dynamic_cast<Memory::DynamicVertexBuffer*>(perVertex);
             if(cachedVertices.pData != vertices.pData || cachedVertices.count != vertices.count) {
                 dynVert->free();
-                dynVert->create(vertices.pData, vertices.count);
+                dynVert->create(vertices.count * vertexFormat.perVertexSize());
                 cachedVertices.pData = vertices.pData;
                 cachedVertices.count = vertices.count;
             } else{
-                dynVert->push();
+                dynVert->push(vertices.pData);
                 return;
             }
         }
@@ -168,11 +168,11 @@ namespace Vulgine{
             auto* dynVert = dynamic_cast<Memory::DynamicVertexBuffer*>(perInstance);
             if(cachedInstances.pData != instances.pData || cachedInstances.count != instances.count) {
                 dynVert->free();
-                dynVert->create(instances.pData, instances.count);
+                dynVert->create(instances.count * vertexFormat.perInstanceSize());
                 cachedInstances.pData = instances.pData;
                 cachedInstances.count = instances.count;
             } else{
-                dynVert->push();
+                dynVert->push(instances.pData);
                 return;
             }
         }

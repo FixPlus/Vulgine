@@ -50,6 +50,7 @@ namespace Vulgine {
     public:
 
         struct {
+            std::map<int, int> keysPressed;
             std::function<void(int)> onKeyPressed = [](int key) {};
             std::function<void(int)> onKeyDown = [](int key) {};
             std::function<void(int)> onKeyUp = [](int key) {};
@@ -61,6 +62,9 @@ namespace Vulgine {
                 bool right = false;
                 bool middle = false;
             } keys;
+
+            std::function<void(int)> onMouseButtonDown = [](int){};
+            std::function<void(int)> onMouseButtonUp = [](int){};
 
             std::function<void(double, double, double, double)> onMouseMove = [](double dx, double dy, double x, double y) {};
 

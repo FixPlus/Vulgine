@@ -76,6 +76,8 @@ namespace Vulgine::Memory{
     struct ImmutableBuffer: virtual public Buffer{
     protected:
         void create(void* pData, size_t size, VkBufferUsageFlagBits usage);
+    public:
+        void free() override;
     };
 
     /**
@@ -91,14 +93,13 @@ namespace Vulgine::Memory{
     class DynamicBuffer: virtual public Buffer{
         void* mapped = nullptr;
 
-        void* data = nullptr;
 
         size_t dataSize = 0;
     protected:
-        void create(void* pData, size_t size, VkBufferUsageFlagBits usage);
+        void create(size_t size, VkBufferUsageFlagBits usage);
     public:
 
-        void push();
+        void push(void* data, size_t size = 0, size_t offset = 0);
 
         void free() override;
 
@@ -110,6 +111,12 @@ namespace Vulgine::Memory{
         void bind(VkCommandBuffer cmdBuffer);
     };
 
+    struct IndexBuffer: virtual public Buffer{
+
+        void bind(VkCommandBuffer cmdBuffer);
+
+    };
+
     struct StaticVertexBuffer: public ImmutableBuffer, public VertexBuffer{
 
         void create(void* pData, size_t size);
@@ -118,17 +125,20 @@ namespace Vulgine::Memory{
 
     struct DynamicVertexBuffer: public DynamicBuffer, public VertexBuffer{
 
-        void create(void* pData, size_t size);
+        void create(size_t size);
 
     };
 
-    struct IndexBuffer: public ImmutableBuffer{
+    struct StaticIndexBuffer: public IndexBuffer, public ImmutableBuffer{
 
         void create(uint32_t * pData, size_t size);
 
-        void free() override;
 
-        void bind(VkCommandBuffer cmdBuffer);
+    };
+
+    struct DynamicIndexBuffer: public IndexBuffer, public DynamicBuffer{
+
+        void create(size_t size);
 
     };
 

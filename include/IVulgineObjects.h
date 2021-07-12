@@ -58,8 +58,8 @@ namespace Vulgine{
         enum FileFormat{FILE_FORMAT_PNG, FILE_FORMAT_JPEG, FILE_FORMAT_KTX};
         enum Format{FORMAT_R8G8B8A8_UNORM, FORMAT_R8G8B8A8_SRGB};
 
-        virtual void loadFromFile(const char* filename, FileFormat fileFormat) = 0;
-        virtual void load(const unsigned char* data, uint32_t len, FileFormat fileFormat) = 0;
+        virtual bool loadFromFile(const char* filename, FileFormat fileFormat) = 0;
+        virtual bool load(const unsigned char* data, uint32_t len, FileFormat fileFormat) = 0;
         explicit Image(uint32_t id): id_(id){}
         uint32_t id() const { return id_;}
         virtual ~Image() = default;

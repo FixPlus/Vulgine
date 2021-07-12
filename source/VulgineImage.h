@@ -14,9 +14,9 @@ namespace Vulgine{
         Memory::Image image;
 
         explicit ImageImpl(uint32_t id): Image(id){}
-        void loadFromPixelData(const unsigned char* data, int texWidth, int texHeight, FileFormat fileFormat);
-        void loadFromFile(const char* filename, FileFormat fileFormat) override;
-        void load(const unsigned char* data, uint32_t len, FileFormat fileFormat) override;
+        bool loadFromPixelData(const unsigned char* data, int texWidth, int texHeight, FileFormat fileFormat);
+        bool loadFromFile(const char* filename, FileFormat fileFormat) override;
+        bool load(const unsigned char* data, uint32_t len, FileFormat fileFormat) override;
 
         ~ImageImpl() override;
     };

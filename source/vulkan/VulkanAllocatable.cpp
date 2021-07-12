@@ -225,6 +225,10 @@ void Vulgine::Memory::ImmutableBuffer::create(void *pData, size_t size, VkBuffer
 
 }
 
+void Vulgine::Memory::ImmutableBuffer::free() {
+    Buffer::free();
+}
+
 void Vulgine::Memory::VertexBuffer::bind(VkCommandBuffer cmdBuffer) {
 
     assert(allocated && "Trying to bind unallocated vertex buffer");
@@ -235,16 +239,15 @@ void Vulgine::Memory::VertexBuffer::bind(VkCommandBuffer cmdBuffer) {
 }
 
 
-void Vulgine::Memory::DynamicBuffer::create(void *pData, size_t size, VkBufferUsageFlagBits usage) {
+void Vulgine::Memory::DynamicBuffer::create(size_t size, VkBufferUsageFlagBits usage) {
 
-    assert(pData && size && "Invalid data description");
+    assert(size && "Invalid data description");
 
     if(allocated) {
         vmaUnmapMemory(vlg_instance->allocator, allocation);
         free();
     }
 
-    data = pData;
     dataSize = size;
 
     VkBufferCreateInfo bufferCI = initializers::bufferCreateInfo(usage, size);
@@ -260,9 +263,15 @@ Vulgine::Memory::DynamicBuffer::~DynamicBuffer() {
         vmaUnmapMemory(vlg_instance->allocator, allocation);
 }
 
-void Vulgine::Memory::DynamicBuffer::push() {
+void Vulgine::Memory::DynamicBuffer::push(void* data, size_t size, size_t offset) {
     assert(allocated && "Memory not allocated for this buffer yet");
-    memcpy(mapped, data, dataSize);
+    if(size + offset > dataSize)
+        Utilities::ExitFatal(-1, "Memcpy off bounds of mapped gpu memory");
+
+    if(size == 0)
+        size = dataSize;
+
+    memcpy((char*)mapped + offset, data, size);
 }
 
 void Vulgine::Memory::DynamicBuffer::free() {
@@ -274,17 +283,18 @@ void Vulgine::Memory::StaticVertexBuffer::create(void *pData, size_t size) {
     ImmutableBuffer::create(pData, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 }
 
-void Vulgine::Memory::DynamicVertexBuffer::create(void *pData, size_t size) {
-    DynamicBuffer::create(pData, size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+void Vulgine::Memory::DynamicVertexBuffer::create(size_t size) {
+    DynamicBuffer::create(size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 }
 
-void Vulgine::Memory::IndexBuffer::create(uint32_t *pData, size_t size) {
+void Vulgine::Memory::StaticIndexBuffer::create(uint32_t *pData, size_t size) {
     ImmutableBuffer::create((void*)pData, size * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 }
 
-void Vulgine::Memory::IndexBuffer::free() {
-    Buffer::free();
+void Vulgine::Memory::DynamicIndexBuffer::create(size_t size) {
+    DynamicBuffer::create(size * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 }
+
 
 void Vulgine::Memory::IndexBuffer::bind(VkCommandBuffer cmdBuffer) {
     vkCmdBindIndexBuffer(cmdBuffer, buffer, 0, VK_INDEX_TYPE_UINT32);

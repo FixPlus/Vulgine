@@ -42,7 +42,7 @@ namespace Vulgine{
         Memory::VertexBuffer* perVertex = nullptr;
         Memory::VertexBuffer* perInstance = nullptr;
 
-        Memory::IndexBuffer indexBuffer;
+        Memory::StaticIndexBuffer indexBuffer;
 
         explicit MeshImpl(Scene* parent, uint32_t id): Mesh(parent, id){ logger("Mesh created");};
 

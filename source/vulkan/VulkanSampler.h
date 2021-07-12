@@ -13,7 +13,7 @@ namespace Vulgine{
         VkSampler sampler;
 
 
-        void create();
+        void create(VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
         void destroy();
     };
 }

@@ -13,8 +13,7 @@ Vulgine::RenderPass::~RenderPass() {
     vkDestroyRenderPass(vlg_instance->device->logicalDevice, renderPass, nullptr);
 }
 
-void Vulgine::DefaultRenderPass::buildCmdBuffers(VkCommandBuffer buffer, Framebuffer *framebuffer) {
-
+void Vulgine::RenderPass::begin(VkCommandBuffer buffer, Framebuffer *framebuffer) {
     VkClearValue clearValues[2];
     clearValues[0].color = { { 0.025f, 0.025f, 0.025f, 1.0f } };
     clearValues[1].depthStencil = { 1.0f, 0 };
@@ -31,6 +30,16 @@ void Vulgine::DefaultRenderPass::buildCmdBuffers(VkCommandBuffer buffer, Framebu
 
     vkCmdBeginRenderPass(buffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
+}
+
+void Vulgine::RenderPass::end(VkCommandBuffer buffer) {
+    vkCmdEndRenderPass(buffer);
+
+}
+
+void Vulgine::DefaultRenderPass::buildCmdBuffers(VkCommandBuffer buffer, Framebuffer *framebuffer) {
+
+
     VkViewport viewport = initializers::viewport((float)framebuffer->width, (float)framebuffer->height, 0.0f, 1.0f);
     vkCmdSetViewport(buffer, 0, 1, &viewport);
 
@@ -43,6 +52,5 @@ void Vulgine::DefaultRenderPass::buildCmdBuffers(VkCommandBuffer buffer, Framebu
     scene->draw(buffer, camera, this);
 
 
-    vkCmdEndRenderPass(buffer);
 
 }

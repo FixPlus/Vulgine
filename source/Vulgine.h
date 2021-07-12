@@ -14,6 +14,7 @@
 #include "VulgineImage.h"
 #include <vector>
 #include <chrono>
+#include <vulkan/VulkanImGui.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -34,6 +35,7 @@ namespace Vulgine {
             static void windowSizeChanged(GLFWwindow* window, int width, int height);
             static void keyInput(GLFWwindow* window, int key, int scancode, int action, int mods);
             static void cursorPosition(GLFWwindow* window, double xPos, double yPos);
+            static void mouseInput(GLFWwindow* window, int button, int action, int mods);
 
             GLFWwindow *instance_ = nullptr;
 
@@ -79,12 +81,15 @@ namespace Vulgine {
             double lastFrameTime = 0.0f;
             void update(double deltaT);
         } fpsCounter;
-        // contains actual viewport dimensions (may differ from window dimensions if window size has just changed)
+
 
         struct{
             std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<double>> tStart;
             std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<double>> tEnd;
         } timeMarkers;
+
+        // contains actual viewport dimensions (may differ from window dimensions if window size has just changed)
+
         struct{
             uint32_t width;
             uint32_t height;
@@ -200,12 +205,13 @@ namespace Vulgine {
 
         void windowResize();
 
+        void updateGUI();
 
     public:
 
         struct Settings{
             bool vsync = false;
-            uint32_t framesInFlight = 1;
+            uint32_t framesInFlight = 2;
         } settings;
 
         // User input functions called by active window input listener functions
@@ -214,6 +220,8 @@ namespace Vulgine {
         void keyPressed(Window* window, int key);
         void keyUp(Window* window, int key);
         void mouseMoved(Window* window, double xPos, double yPos);
+        void mouseBtnDown(Window* window, int button);
+        void mouseBtnUp(Window* window, int button);
 
         void disableCursor();
         void enableCursor();
@@ -257,6 +265,7 @@ namespace Vulgine {
 
         RenderPass* onscreenRenderPass;
 
+        GUI gui;
 
         bool cmdBuffersOutdated = false;
 
