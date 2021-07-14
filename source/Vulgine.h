@@ -126,7 +126,7 @@ namespace Vulgine {
 
         std::vector<VkFence> swapChainFences;
         std::vector<FrameSyncObj> framesSync;
-        int currentFrame;
+
 
         VkSubmitInfo submitInfo;
 
@@ -136,7 +136,6 @@ namespace Vulgine {
         std::vector<VkCommandBuffer> drawCmdBuffers;
         // Active frame buffer index
         uint32_t currentBuffer = 0;
-        uint32_t lastBuffer = -1;
 
         // Onscreen frame buffers (one per each swap chain image)
 
@@ -212,7 +211,7 @@ namespace Vulgine {
 
         struct Settings{
             bool vsync = false;
-            uint32_t framesInFlight = 1;
+            uint32_t framesInFlight = 2;
         } settings;
 
         // User input functions called by active window input listener functions
@@ -249,6 +248,8 @@ namespace Vulgine {
         } pipelineMap;
 
         VulkanSwapChain swapChain;
+
+        int currentFrame;
 
 
 

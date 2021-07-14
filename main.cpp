@@ -245,7 +245,6 @@ int main(int argc, char** argv){
     auto* mesh = scene->createEmptyMesh();
 
     createSampleMesh(mesh, material);
-    mesh->updateInstanceBuffer();
 
 
     Vulgine::RenderTarget renderTarget = {Vulgine::RenderTarget::COLOR, Vulgine::RenderTarget::SCREEN};
@@ -271,6 +270,7 @@ int main(int argc, char** argv){
         }
 
         mesh->updateInstanceBuffer();
+
 
         camera.update(deltaT);
 

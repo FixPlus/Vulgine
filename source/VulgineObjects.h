@@ -39,8 +39,8 @@ namespace Vulgine{
             uint32_t count = 0;
         } cachedInstances;
 
-        std::vector<Memory::VertexBuffer*> perVertex;
-        std::vector<Memory::VertexBuffer*> perInstance;
+        std::vector<std::pair<Memory::VertexBuffer*, bool>> perVertex;
+        std::vector<std::pair<Memory::VertexBuffer*, bool>> perInstance;
 
         Memory::StaticIndexBuffer indexBuffer;
 
@@ -49,6 +49,8 @@ namespace Vulgine{
         void createImpl() override;
         void destroyImpl() override;
 
+        void pushVertexBuffer(int id);
+        void pushInstanceBuffer(int id);
 
         void updateVertexBuffer() override;
 

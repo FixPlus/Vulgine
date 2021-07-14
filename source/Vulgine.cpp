@@ -459,6 +459,7 @@ namespace Vulgine{
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
 
+        submitInfo.waitSemaphoreCount = 1;
         submitInfo.pWaitSemaphores = &framesSync[currentFrame].presentComplete;
         submitInfo.pSignalSemaphores = &framesSync[currentFrame].renderComplete;
 
@@ -485,10 +486,9 @@ namespace Vulgine{
             }
         //}
 
-        lastBuffer = currentBuffer;
 
 
-        currentFrame = (currentFrame + 1u) % settings.framesInFlight;
+        currentFrame = (currentFrame + 1) % settings.framesInFlight;
 
 
 
