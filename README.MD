@@ -1,5 +1,4 @@
 # Vulgine
-## General
 
 Vulkan-API based 3D rendering engine. Focused to be easy-to-use along being as flexible as possible.
 
@@ -28,7 +27,7 @@ Project uses following open-source licensed libraries:
 * GLM: https://github.com/g-truc/glm
 * stb: https://github.com/nothings/stb
 
-##Platforms
+## Platforms
 
 Up to this moment the project has been only built and tested under Windows 10 MinGW environment but is supposed to be supported by GNU/Linux and MacOS in future as well.
 
