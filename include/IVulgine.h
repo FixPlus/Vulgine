@@ -77,6 +77,10 @@ namespace Vulgine {
             void enableCursor();
         } mouseState;
 
+        struct{
+            std::function<void(void)> customGUI = [](){};
+        } imgui;
+
         virtual Scene* initNewScene() = 0;
         virtual void deleteScene(Scene* scene) = 0;
 

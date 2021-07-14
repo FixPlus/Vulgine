@@ -8,6 +8,7 @@
 #include <GLFW/glfw3.h>
 #include <cmath>
 #include <iostream>
+#include <imgui/imgui.h>
 
 struct VertexAttribute{
     glm::vec3 pos;
@@ -19,7 +20,9 @@ struct InstanceAttribute{
     glm::mat4 transform;
 };
 
-InstanceAttribute instancesAttributes[1000] = {
+constexpr const int metaCubesize = 10;
+
+InstanceAttribute instancesAttributes[metaCubesize * metaCubesize * metaCubesize] = {
         {glm::mat4(1.0f)}
 };
 
@@ -73,7 +76,11 @@ struct Camera{
         bool down = false;
     } keys;
 
-    double velocity = 5.0f;
+
+    glm::vec3 velocity = glm::vec3{0.0f};
+    double inertia = 0.1f;
+    double actingForce = 20.0f;
+    double speed = 5.0f;
 
     void rotate(double dx, double dy, double dz){
         cameraImpl->rotation.x += dx;
@@ -88,22 +95,33 @@ struct Camera{
     }
     void update(double deltaT){
 
+        float currentSpeed = glm::length(velocity);
+
+        if(currentSpeed < 0.1f)
+            velocity *= 0.0f;
+        else
+            velocity *= 1.0f - (1.5f) * deltaT / inertia;
+
         glm::vec3 camFront;
         camFront.x = cos(glm::radians(cameraImpl->rotation.x)) * sin(glm::radians(cameraImpl->rotation.y));
         camFront.y = -sin(glm::radians(cameraImpl->rotation.x));
         camFront.z = cos(glm::radians(cameraImpl->rotation.x)) * cos(glm::radians(cameraImpl->rotation.y));
         camFront = glm::normalize(-camFront);
 
-        float moveSpeed = deltaT * velocity;
+        float acceleration = actingForce * deltaT / inertia;
+
+
 
         if (keys.up)
-            cameraImpl->position += camFront * moveSpeed;
+            velocity += camFront * acceleration;
         if (keys.down)
-            cameraImpl->position -= camFront * moveSpeed;
+            velocity -= camFront * acceleration;
         if (keys.left)
-            cameraImpl->position -= glm::normalize(glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f))) * moveSpeed;
+            velocity -= glm::normalize(glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f))) * acceleration;
         if (keys.right)
-            cameraImpl->position += glm::normalize(glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f))) * moveSpeed;
+            velocity += glm::normalize(glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f))) * acceleration;
+
+        cameraImpl->position += velocity * (float)deltaT;
 
         cameraImpl->update();
     };
@@ -134,7 +152,7 @@ void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material){
     mesh->primitives.push_back(primitive);
 
     mesh->vertices.dynamic = false;
-    mesh->instances.dynamic = true;
+    mesh->instances.dynamic = false;
 
     mesh->create();
 }
@@ -169,10 +187,10 @@ int main(int argc, char** argv){
 
     camera.cameraImpl = scene->createCamera();
 
-    for(int i = 0; i < 10; i++)
-        for(int j = 0; j < 10; j++)
-            for(int k = 0; k < 10; k++)
-                instancesAttributes[i * 100 + j * 10 + k].transform = glm::translate(glm::vec3{i * 2.0f, j * 2.0f, k * 2.0f});
+    for(int i = 0; i < metaCubesize; i++)
+        for(int j = 0; j < metaCubesize; j++)
+            for(int k = 0; k < metaCubesize; k++)
+                instancesAttributes[i * metaCubesize * metaCubesize + j * metaCubesize + k].transform = glm::translate(glm::vec3{i * 2.0f, j * 2.0f, k * 2.0f});
 
     double timer = 0.0f, deltaT = 0.0f;
 
@@ -208,6 +226,14 @@ int main(int argc, char** argv){
 
     };
 
+    vulgine->imgui.customGUI = [&camera](){
+        ImGui::Begin("Camera State", nullptr);
+        ImGui::Text("Velocity: %f", glm::length(camera.velocity));
+        auto const& pos = camera.cameraImpl->position;
+        ImGui::Text("Position: x:%.2f y:%.2f z:%.2f",pos.x, pos.y, pos.z);
+        ImGui::End();
+    };
+
     const double rotSpeed = 0.1f;
 
     vulgine->mouseState.onMouseMove = [&camera, vulgine, rotSpeed](double dx, double dy, double x, double y){
@@ -219,6 +245,8 @@ int main(int argc, char** argv){
     auto* mesh = scene->createEmptyMesh();
 
     createSampleMesh(mesh, material);
+    mesh->updateInstanceBuffer();
+
 
     Vulgine::RenderTarget renderTarget = {Vulgine::RenderTarget::COLOR, Vulgine::RenderTarget::SCREEN};
 
@@ -233,18 +261,19 @@ int main(int argc, char** argv){
         timer += deltaT;
         //vertexAttributes[0].pos = {0.1 * sin(timer) - 0.5f, 0.1 * cos(timer) - 0.5f, -10.0f, 1.0f};
         //vertexAttributes[1].color = {0.5 * sin(timer) + 0.5f, 0.5 * cos(timer) + 0.5f, 0.0f, 1.0f};
-
-        for(int i = 0; i < 10; i++){
+#if 0
+        for(int i = 0; i < metaCubesize; i++){
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), (float)deltaT * (((i * 3 + 11) % 5) + 1),
                                            glm::normalize(glm::vec3{1.0f, (i * 7 + 19) % 13, (i * 23 + 5) % 37}));
-            for(int j = 0; j < 100; j++)
-            instancesAttributes[j * 10 + i ].transform = instancesAttributes[j * 10 + i].transform * rotate;
+            for(int j = 0; j < metaCubesize * metaCubesize; j++)
+            instancesAttributes[j * metaCubesize + i ].transform = instancesAttributes[j * metaCubesize + i].transform * rotate;
 
         }
 
         //instancesAttributes[0].transform =
         //mesh->updateVertexBuffer();
         mesh->updateInstanceBuffer();
+#endif
         camera.update(deltaT);
         //std::cout << "x" << camera.cameraImpl->position.x << "y" << camera.cameraImpl->position.y << "z" << camera.cameraImpl->position.z<< std::endl;
 

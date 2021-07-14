@@ -211,7 +211,7 @@ namespace Vulgine {
 
         struct Settings{
             bool vsync = false;
-            uint32_t framesInFlight = 2;
+            uint32_t framesInFlight = 1;
         } settings;
 
         // User input functions called by active window input listener functions
