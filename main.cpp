@@ -152,7 +152,7 @@ void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material){
     mesh->primitives.push_back(primitive);
 
     mesh->vertices.dynamic = false;
-    mesh->instances.dynamic = false;
+    mesh->instances.dynamic = true;
 
     mesh->create();
 }
@@ -253,31 +253,30 @@ int main(int argc, char** argv){
     vulgine->updateRenderTaskQueue({{scene, camera.cameraImpl, {renderTarget}}});
 
     bool skip = true;
-    while(vulgine->cycle()){
+
+    vulgine->onCycle = [&skip, &timer, &deltaT, vulgine, mesh, &camera](){
         if(skip)
             skip = false;
         else
             deltaT = vulgine->lastFrameTime();
         timer += deltaT;
-        //vertexAttributes[0].pos = {0.1 * sin(timer) - 0.5f, 0.1 * cos(timer) - 0.5f, -10.0f, 1.0f};
-        //vertexAttributes[1].color = {0.5 * sin(timer) + 0.5f, 0.5 * cos(timer) + 0.5f, 0.0f, 1.0f};
-#if 0
+
+
         for(int i = 0; i < metaCubesize; i++){
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), (float)deltaT * (((i * 3 + 11) % 5) + 1),
                                            glm::normalize(glm::vec3{1.0f, (i * 7 + 19) % 13, (i * 23 + 5) % 37}));
             for(int j = 0; j < metaCubesize * metaCubesize; j++)
-            instancesAttributes[j * metaCubesize + i ].transform = instancesAttributes[j * metaCubesize + i].transform * rotate;
+                instancesAttributes[j * metaCubesize + i ].transform = instancesAttributes[j * metaCubesize + i].transform * rotate;
 
         }
 
-        //instancesAttributes[0].transform =
-        //mesh->updateVertexBuffer();
         mesh->updateInstanceBuffer();
-#endif
+
         camera.update(deltaT);
-        //std::cout << "x" << camera.cameraImpl->position.x << "y" << camera.cameraImpl->position.y << "z" << camera.cameraImpl->position.z<< std::endl;
 
     };
+
+    while(vulgine->cycle());
 
     Vulgine::Vulgine::freeInstance(vulgine);
 

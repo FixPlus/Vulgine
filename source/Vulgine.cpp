@@ -11,6 +11,7 @@
 #include <vector>
 #include "vulkan/VulkanInitializers.hpp"
 #include "imgui/imgui.h"
+#include <thread>
 
 namespace Vulgine{
 
@@ -430,7 +431,6 @@ namespace Vulgine{
     }
 
     void VulgineImpl::renderFrame() {
-
         if(window.resized)
             windowResize();
 
@@ -447,6 +447,8 @@ namespace Vulgine{
         else {
             VK_CHECK_RESULT(result);
         }
+
+        onCycle();
 
         if (swapChainFences[currentBuffer] != VK_NULL_HANDLE) {
             vkWaitForFences(device->logicalDevice, 1, &swapChainFences[currentBuffer], VK_TRUE, UINT64_MAX);
@@ -471,17 +473,23 @@ namespace Vulgine{
         VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, framesSync[currentFrame].inFlightSync));
 
 
-        result = swapChain.queuePresent(queue, currentBuffer, framesSync[currentFrame].renderComplete);
-        if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) {
-            if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-                windowResize();
-                return;
-            } else {
-                VK_CHECK_RESULT(result);
+        //if(lastBuffer != -1) {
+            result = swapChain.queuePresent(queue, currentBuffer, framesSync[currentFrame].renderComplete);
+            if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) {
+                if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+                    windowResize();
+                    return;
+                } else {
+                    VK_CHECK_RESULT(result);
+                }
             }
-        }
+        //}
+
+        lastBuffer = currentBuffer;
+
 
         currentFrame = (currentFrame + 1u) % settings.framesInFlight;
+
 
 
     }

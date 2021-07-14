@@ -51,15 +51,23 @@ namespace Vulgine{
         cachedVertices.pData = vertices.pData;
         cachedVertices.count = vertices.count;
 
+        int framebufferCount = vlg_instance->swapChain.imageCount;
+
         if(vertices.dynamic){
-            auto* dynamicBuf = new Memory::DynamicVertexBuffer{};
-            dynamicBuf->create(vertices.count * vertexFormat.perVertexSize());
-            perVertex = dynamicBuf;
+
+            for(int i = 0; i < framebufferCount; ++i) {
+                auto* dynamicBuf = new Memory::DynamicVertexBuffer{};
+                dynamicBuf->create(vertices.count * vertexFormat.perVertexSize());
+                dynamicBuf->binding = 0;
+                perVertex.push_back(dynamicBuf);
+            }
+
         }
         else{
             auto* staticBuf = new Memory::StaticVertexBuffer{};
             staticBuf->create(vertices.pData, vertices.count * vertexFormat.perVertexSize());
-            perVertex = staticBuf;
+            staticBuf->binding = 0;
+            perVertex.push_back(staticBuf);
         }
 
         compileVertexInputState();
@@ -69,39 +77,51 @@ namespace Vulgine{
         if(!indices.empty())
             indexBuffer.create(indices.data(), indices.size());
 
-        perVertex->binding = 0;
 
         // we will use instance buffer if we actually have multiple instances
 
         if(instances.count > 0) {
             if (instances.dynamic) {
-                auto *dynamicBuf = new Memory::DynamicVertexBuffer{};
-                dynamicBuf->create(instances.count * vertexFormat.perInstanceSize());
-                perInstance = dynamicBuf;
+
+                for(int i = 0; i < framebufferCount; ++i) {
+                    auto *dynamicBuf = new Memory::DynamicVertexBuffer{};
+                    dynamicBuf->create(instances.count * vertexFormat.perInstanceSize());
+                    dynamicBuf->binding = 1;
+                    perInstance.push_back(dynamicBuf);
+                }
+
             } else {
                 auto *staticBuf = new Memory::StaticVertexBuffer{};
                 staticBuf->create(instances.pData, instances.count * vertexFormat.perInstanceSize());
-                perInstance = staticBuf;
+                staticBuf->binding = 1;
+                perInstance.push_back(staticBuf);
             }
 
-            perInstance->binding = 1;
         }
     }
 
     void MeshImpl::destroyImpl() {
-        delete perVertex;
-        delete perInstance;
-        perVertex = nullptr;
-        perInstance = nullptr;
+        for(auto* buf: perVertex)
+            delete buf;
+        for(auto* buf: perInstance)
+            delete buf;
+
+        perVertex.clear();
+        perInstance.clear();
+
         if(indexBuffer.allocated)
             indexBuffer.free();
     }
 
     void MeshImpl::draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass *pass) {
-        perVertex->bind(commandBuffer);
+        int currentFrame = 0;
+        int vertBufId = vertices.dynamic ? currentFrame : 0;
+        int instanceBufId = instances.dynamic ? currentFrame : 0;
 
-        if(perInstance)
-            perInstance->bind(commandBuffer);
+        perVertex.at(vertBufId)->bind(commandBuffer);
+
+        if(!perInstance.empty())
+            perInstance.at(instanceBufId)->bind(commandBuffer);
         uint32_t instCount = instances.count == 0 ? 1 : instances.count;
 
         if(indices.empty()) {
@@ -129,13 +149,16 @@ namespace Vulgine{
 
     MeshImpl::~MeshImpl() {
         logger("Mesh destroyed");
-        delete perVertex;
-        delete perInstance;
+        for(auto* buf: perVertex)
+            delete buf;
+        for(auto* buf: perInstance)
+            delete buf;
     }
 
     void MeshImpl::updateVertexBuffer() {
         if(vertices.dynamic){
-            auto* dynVert = dynamic_cast<Memory::DynamicVertexBuffer*>(perVertex);
+            int currentFrame = 0;
+            auto* dynVert = dynamic_cast<Memory::DynamicVertexBuffer*>(perVertex.at(currentFrame));
             if(cachedVertices.pData != vertices.pData || cachedVertices.count != vertices.count) {
                 dynVert->free();
                 dynVert->create(vertices.count * vertexFormat.perVertexSize());
@@ -148,8 +171,8 @@ namespace Vulgine{
         }
         else{
             vkQueueWaitIdle(vlg_instance->queue);
-            perVertex->free();
-            auto* statVert = dynamic_cast<Memory::StaticVertexBuffer*>(perVertex);
+            perVertex.at(0)->free();
+            auto* statVert = dynamic_cast<Memory::StaticVertexBuffer*>(perVertex.at(0));
             statVert->create(vertices.pData, vertices.count * vertexFormat.perVertexSize());
         }
 
@@ -165,7 +188,8 @@ namespace Vulgine{
 
     void MeshImpl::updateInstanceBuffer() {
         if(instances.dynamic){
-            auto* dynVert = dynamic_cast<Memory::DynamicVertexBuffer*>(perInstance);
+            int currentFrame = 0;
+            auto* dynVert = dynamic_cast<Memory::DynamicVertexBuffer*>(perInstance.at(currentFrame));
             if(cachedInstances.pData != instances.pData || cachedInstances.count != instances.count) {
                 dynVert->free();
                 dynVert->create(instances.count * vertexFormat.perInstanceSize());
@@ -178,8 +202,8 @@ namespace Vulgine{
         }
         else{
             vkQueueWaitIdle(vlg_instance->queue);
-            perInstance->free();
-            auto* statVert = dynamic_cast<Memory::StaticVertexBuffer*>(perInstance);
+            perInstance.at(0)->free();
+            auto* statVert = dynamic_cast<Memory::StaticVertexBuffer*>(perInstance.at(0));
             statVert->create(instances.pData, instances.count * vertexFormat.perInstanceSize());
         }
 

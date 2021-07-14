@@ -106,7 +106,7 @@ namespace Vulgine {
         /** @brief Optional pNext structure for passing extension structures to device creation */
         void* deviceCreatepNextChain = nullptr;
 
-        VulkanSwapChain swapChain;
+
 
         bool prepared = false;
 
@@ -136,6 +136,7 @@ namespace Vulgine {
         std::vector<VkCommandBuffer> drawCmdBuffers;
         // Active frame buffer index
         uint32_t currentBuffer = 0;
+        uint32_t lastBuffer = -1;
 
         // Onscreen frame buffers (one per each swap chain image)
 
@@ -247,6 +248,7 @@ namespace Vulgine {
 
         } pipelineMap;
 
+        VulkanSwapChain swapChain;
 
 
 

@@ -39,8 +39,8 @@ namespace Vulgine{
             uint32_t count = 0;
         } cachedInstances;
 
-        Memory::VertexBuffer* perVertex = nullptr;
-        Memory::VertexBuffer* perInstance = nullptr;
+        std::vector<Memory::VertexBuffer*> perVertex;
+        std::vector<Memory::VertexBuffer*> perInstance;
 
         Memory::StaticIndexBuffer indexBuffer;
 
