@@ -19,6 +19,21 @@ namespace Vulgine{
 
     struct CameraImpl;
 
+    class UniformBufferImpl: public UniformBuffer{
+    public:
+        std::vector<Memory::Buffer*> buffers{};
+        std::vector<bool> updated{};
+        explicit UniformBufferImpl(uint32_t id);
+
+        void update() override;
+        void sync();
+
+        void createImpl() override;
+        void destroyImpl() override;
+
+        ~UniformBufferImpl() override;
+    };
+
     class MeshImpl: public Mesh{
         VkVertexInputBindingDescription vertexAttrBindingInfo[2] = {};
 
@@ -28,9 +43,9 @@ namespace Vulgine{
 
     public:
 
-        uint32_t descriptorSet = UINT32_MAX;
+        std::vector<uint32_t> descriptorSets;
 
-        std::vector<Descriptable*> descriptors;
+        std::vector<std::vector<Descriptable*>> descriptors;
 
         VkPipelineVertexInputStateCreateInfo vertexInputStateCI{};
 

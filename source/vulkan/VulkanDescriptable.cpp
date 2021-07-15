@@ -28,3 +28,22 @@ VkWriteDescriptorSet Vulgine::CombinedImageSampler::write(int binding) {
     VkWriteDescriptorSet ret = initializers::writeDescriptorSet(nullptr, descriptorType, binding, &descriptor);
     return ret;
 }
+
+Vulgine::DUniformBuffer::DUniformBuffer(Memory::Buffer* buf): buffer(buf), Descriptable(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
+
+}
+
+void Vulgine::DUniformBuffer::setupDescriptor() {
+    descriptor.buffer = buffer->buffer;
+    descriptor.offset = 0;
+    descriptor.range = VK_WHOLE_SIZE;
+}
+
+void Vulgine::DUniformBuffer::destroyDescriptor() {
+
+}
+
+VkWriteDescriptorSet Vulgine::DUniformBuffer::write(int binding) {
+    VkWriteDescriptorSet ret = initializers::writeDescriptorSet(nullptr, descriptorType, binding, &descriptor);
+    return ret;
+}

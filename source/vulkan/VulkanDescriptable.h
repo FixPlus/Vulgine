@@ -39,9 +39,14 @@ namespace Vulgine{
         ~CombinedImageSampler() override;
     };
 
-    struct DBuffer: public virtual Descriptable, public virtual Memory::Buffer{
+    struct DUniformBuffer: public Descriptable{
+        Memory::Buffer* buffer;
         VkDescriptorBufferInfo descriptor{};
+        explicit DUniformBuffer(Memory::Buffer* buf);
+        VkWriteDescriptorSet write(int binding) override;
         void setupDescriptor() override;
+        void destroyDescriptor() override;
     };
+
 }
 #endif //TEST_EXE_VULKANDESCRIPTABLE_H

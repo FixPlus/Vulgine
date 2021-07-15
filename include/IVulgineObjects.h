@@ -19,6 +19,13 @@
 
 namespace Vulgine{
 
+    class Identifiable{
+        uint32_t id_;
+    public:
+        explicit Identifiable(uint32_t id): id_(id){}
+        uint32_t id() const { return id_;}
+        virtual ~Identifiable() = default;
+    };
     class Creatable{
         bool created = false;
     protected:
@@ -52,35 +59,42 @@ namespace Vulgine{
         virtual ~Creatable() = default;
     };
 
-    struct Image{
-        uint32_t id_;
-    public:
+    struct Image: public Identifiable{
+
         enum FileFormat{FILE_FORMAT_PNG, FILE_FORMAT_JPEG, FILE_FORMAT_KTX};
         enum Format{FORMAT_R8G8B8A8_UNORM, FORMAT_R8G8B8A8_SRGB};
 
         virtual bool loadFromFile(const char* filename, FileFormat fileFormat) = 0;
         virtual bool load(const unsigned char* data, uint32_t len, FileFormat fileFormat) = 0;
-        explicit Image(uint32_t id): id_(id){}
-        uint32_t id() const { return id_;}
-        virtual ~Image() = default;
+        explicit Image(uint32_t id): Identifiable(id){}
+    };
+
+    struct UniformBuffer: public Creatable, public Identifiable{
+
+        void* pData = nullptr;
+        uint32_t size = 0;
+
+        bool dynamic = true;
+
+        explicit UniformBuffer(uint32_t id): Identifiable(id){};
+
+        virtual void update() = 0;
     };
 
     struct Scene;
 
-    struct Camera: public Creatable{
+    struct Camera: public Creatable, public Identifiable{
     protected:
         Scene* parent_;
-        uint32_t id_;
     public:
 
-        Camera(Scene* parent, uint32_t id): parent_(parent), id_(id){ projection[1][1] *= -1; }
+        Camera(Scene* parent, uint32_t id): parent_(parent), Identifiable(id){ projection[1][1] *= -1; }
         glm::vec3 position = glm::vec3{0.0f};
         glm::vec3 rotation = glm::vec3{0.0f, 0.0f, 0.0f};
         glm::mat4 projection = glm::perspective(glm::radians(60.0f), 16.0f / 9.0f, 0.1f, 100.0f);
 
         virtual void update() = 0;
         Scene* parent() const{ return parent_;};
-        uint32_t id() const { return id_;}
 
     };
 
@@ -88,6 +102,7 @@ namespace Vulgine{
         enum class Type{ UNIFORM_BUFFER, COMBINED_IMAGE_SAMPLER} type;
         int binding;
         Image* image = nullptr;
+        UniformBuffer* ubo = nullptr;
     };
 
 
@@ -120,9 +135,8 @@ namespace Vulgine{
     };
 
 
-    class Material: public Creatable{
-        uint32_t id_;
-    public:
+    struct Material: public Creatable, public Identifiable{
+
 
         struct{
             ::Vulgine::Image* colorMap = nullptr;
@@ -130,21 +144,19 @@ namespace Vulgine{
         } texture;
 
 
-        explicit Material(uint32_t id): id_(id){}
-        uint32_t id() const { return id_;}
+        explicit Material(uint32_t id): Identifiable(id){}
+
     };
 
 
 
-    class Light: public Creatable{
+    class Light: public Creatable, public Identifiable{
     protected:
         Scene* parent_;
-        uint32_t id_;
     public:
-        Light(Scene* parent, uint32_t id): parent_(parent), id_(id){}
+        Light(Scene* parent, uint32_t id): parent_(parent), Identifiable(id){}
         glm::vec3 direction;
         Scene* parent() const{ return parent_;};
-        uint32_t id() const { return id_;}
     };
 
 
@@ -154,13 +166,12 @@ namespace Vulgine{
         std::vector<RenderTarget> renderTargets;
     };
 
-    class Mesh: public Creatable{
+    class Mesh: public Creatable, public Identifiable{
     protected:
         Scene* parent_;
-        uint32_t id_;
     public:
 
-        Mesh(Scene* parent, uint32_t id): parent_(parent), id_(id){}
+        Mesh(Scene* parent, uint32_t id): parent_(parent), Identifiable(id){}
 
         struct {
             VertexFormat vertexFormat{};
@@ -246,7 +257,6 @@ namespace Vulgine{
         virtual void updateInstanceBuffer() = 0;
 
         Scene* parent() const{ return parent_;};
-        uint32_t id() const { return id_;}
 
 
 

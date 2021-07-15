@@ -20,7 +20,7 @@ struct InstanceAttribute{
     glm::mat4 transform;
 };
 
-constexpr const int metaCubesize = 50;
+constexpr const int metaCubesize = 10;
 
 InstanceAttribute instancesAttributes[metaCubesize * metaCubesize * metaCubesize] = {
         {glm::mat4(1.0f)}
@@ -133,7 +133,7 @@ struct Camera{
     };
 };
 
-void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material){
+void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material, Vulgine::UniformBuffer* ubo){
     Vulgine::VertexFormat format;
     format.perVertexAttributes = {Vulgine::AttributeFormat::RGB32SF, Vulgine::AttributeFormat::RGB32SF, Vulgine::AttributeFormat::RG32SF};
     format.perInstanceAttributes = {Vulgine::AttributeFormat::MAT4F};
@@ -166,6 +166,13 @@ void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material){
 
     mesh->vertexStageInfo.descriptors.push_back(info);
 
+    info.binding = 1;
+    info.image = nullptr;
+    info.ubo = ubo;
+    info.type = Vulgine::DescriptorInfo::Type::UNIFORM_BUFFER;
+
+    mesh->vertexStageInfo.descriptors.push_back(info);
+
     mesh->vertices.dynamic = false;
     mesh->instances.dynamic = false;
 
@@ -176,9 +183,11 @@ int main(int argc, char** argv){
 
     Vulgine::initializeInfo.windowName = "HELLO THERE";
     Vulgine::initializeInfo.windowSize = {1200, 800};
-    Vulgine::initializeInfo.enableVulkanValidationLayers = false;
+    Vulgine::initializeInfo.enableVulkanValidationLayers = true;
     Vulgine::initializeInfo.vsync = false;
     Vulgine::initializeInfo.fullscreen = false;
+
+    glm::vec4 shift;
 
     auto* vulgine = Vulgine::Vulgine::createInstance();
 
@@ -187,6 +196,13 @@ int main(int argc, char** argv){
     auto* material = vulgine->initNewMaterial();
 
     auto* texture = vulgine->initNewImage();
+
+    auto* ubo = vulgine->initNewUniformBuffer();
+
+    ubo->dynamic = true;
+    ubo->pData = &shift;
+    ubo->size = sizeof(shift);
+    ubo->create();
 
     if(!texture->loadFromFile("image.jpg", Vulgine::Image::FILE_FORMAT_JPEG)){
         Vulgine::Vulgine::freeInstance(vulgine);
@@ -264,7 +280,7 @@ int main(int argc, char** argv){
 
     auto* mesh = scene->createEmptyMesh();
 
-    createSampleMesh(mesh, material);
+    createSampleMesh(mesh, material, ubo);
 
 
     Vulgine::RenderTarget renderTarget = {Vulgine::RenderTarget::COLOR, Vulgine::RenderTarget::SCREEN};
@@ -273,13 +289,14 @@ int main(int argc, char** argv){
 
     bool skip = true;
 
-    vulgine->onCycle = [&skip, &timer, &deltaT, vulgine, mesh, &camera](){
+    vulgine->onCycle = [&skip, &timer, &deltaT, vulgine, mesh, &camera, &shift, ubo](){
         if(skip)
             skip = false;
         else
             deltaT = vulgine->lastFrameTime();
         timer += deltaT;
-
+        shift += glm::vec4(1.0f, 0.0f, 0.0f, 0.0f) * (float)deltaT;
+        ubo->update();
 #if 0
         for(int i = 0; i < metaCubesize; i++){
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), (float)deltaT * (((i * 3 + 11) % 5) + 1),

@@ -74,9 +74,7 @@ namespace Vulgine::Memory{
      */
 
     struct ImmutableBuffer: virtual public Buffer{
-    protected:
         void create(void* pData, size_t size, VkBufferUsageFlagBits usage);
-    public:
         void free() override;
     };
 
@@ -95,9 +93,8 @@ namespace Vulgine::Memory{
 
 
         size_t dataSize = 0;
-    protected:
-        void create(size_t size, VkBufferUsageFlagBits usage);
     public:
+        void create(size_t size, VkBufferUsageFlagBits usage);
 
         void push(void* data, size_t size = 0, size_t offset = 0);
 

@@ -16,7 +16,7 @@ void Vulgine::Pipeline::createImpl() {
         if(material->hasDescriptorSet)
             layouts.push_back(vlg_instance->perMaterialPool.getLayout(material->descriptorSet));
         if(!mesh->descriptors.empty())
-            layouts.push_back(vlg_instance->perMeshPool.getLayout(mesh->descriptorSet));
+            layouts.push_back(vlg_instance->perMeshPool.getLayout(mesh->descriptorSets.at(0)));
 
         VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo =
                 initializers::pipelineLayoutCreateInfo(

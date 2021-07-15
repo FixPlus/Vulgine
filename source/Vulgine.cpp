@@ -58,9 +58,10 @@ namespace Vulgine{
 
     VulgineImpl::~VulgineImpl() {
 
-        scenes.container.clear();
-        materials.container.clear();
-        images.container.clear();
+        scenes.clear();
+        materials.clear();
+        images.clear();
+        uniformBuffers.clear();
 
         gui.destroy();
 
@@ -453,6 +454,10 @@ namespace Vulgine{
         if(gui.update(currentBuffer))
             cmdBuffersOutdated = true;
 
+        // synchronize dynamic buffers data
+
+        uniformBuffers.iterate([](UniformBufferImpl& buffer){ buffer.sync();});
+
         if(cmdBuffersOutdated)
             buildCommandBuffers(currentBuffer);
 
@@ -572,45 +577,19 @@ namespace Vulgine{
     }
 
     Scene *VulgineImpl::initNewScene() {
-        uint32_t id;
-        if(!scenes.freeIds.empty()) {
-            id = scenes.freeIds.top();
-            scenes.freeIds.pop();
-        } else{
-            id = scenes.container.size();
-        }
-
-        return &((scenes.container.emplace(std::piecewise_construct,std::forward_as_tuple(id), std::forward_as_tuple(id)).first)->second);
+        return scenes.emplace();
     }
 
     void VulgineImpl::deleteScene(Scene *scene) {
-        auto id = scene->id();
-
-        if(id != scenes.container.size() - 1)
-            scenes.freeIds.push(id);
-
-        scenes.container.erase(id);
+        scenes.free(dynamic_cast<SceneImpl*>(scene));
     }
 
     Material *VulgineImpl::initNewMaterial() {
-        uint32_t id;
-        if(!materials.freeIds.empty()) {
-            id = materials.freeIds.top();
-            materials.freeIds.pop();
-        } else{
-            id = materials.container.size();
-        }
-
-        return &((materials.container.emplace(std::piecewise_construct,std::forward_as_tuple(id), std::forward_as_tuple(id)).first)->second);
+        return materials.emplace();
     }
 
     void VulgineImpl::deleteMaterial(Material *material) {
-        auto id = material->id();
-
-        if(id != materials.container.size() - 1)
-            materials.freeIds.push(id);
-
-        materials.container.erase(id);
+       materials.free(dynamic_cast<MaterialImpl*>(material));
     }
 
     void VulgineImpl::updateRenderTaskQueue(const std::vector<RenderTask> &renderTaskQueue) {
@@ -1023,25 +1002,11 @@ namespace Vulgine{
     }
 
     Image *VulgineImpl::initNewImage() {
-        uint32_t id;
-        if(!images.freeIds.empty()) {
-            id = images.freeIds.top();
-            images.freeIds.pop();
-        } else{
-            id = images.container.size();
-        }
-
-        return &((images.container.emplace(std::piecewise_construct,std::forward_as_tuple(id), std::forward_as_tuple(id)).first)->second);
+        return images.emplace();
     }
 
     void VulgineImpl::deleteImage(Image *image) {
-        auto id = image->id();
-
-        if(id != images.container.size() - 1)
-            images.freeIds.push(id);
-
-        images.container.erase(id);
-
+        images.free(dynamic_cast<ImageImpl*>(image));
     }
 
     void VulgineImpl::updateGUI() {
@@ -1112,6 +1077,14 @@ namespace Vulgine{
         }
 
         mouseState.onMouseButtonUp(button);
+    }
+
+    UniformBuffer *VulgineImpl::initNewUniformBuffer() {
+        return uniformBuffers.emplace();
+    }
+
+    void VulgineImpl::deleteUniformBuffer(UniformBuffer *buffer) {
+        uniformBuffers.free(dynamic_cast<UniformBufferImpl*>(buffer));
     }
 
     void disableLog(){

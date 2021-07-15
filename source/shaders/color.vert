@@ -18,10 +18,14 @@ layout(push_constant) uniform constants{
 
 layout(binding = 0, set = 1) uniform sampler2D someMap;
 
+layout(binding = 1, set = 1) uniform UBO
+{
+    vec4 shift;
+} ubo;
 
 void main() {
     //mat4 model = mat4(1.0);
-    vec4 temp = (model * vec4(inPos, 1.0f));
+    vec4 temp = (model * vec4(inPos, 1.0f)) + ubo.shift;
 
     vec2 UV = vec2(temp.z, 100.0f - temp.y) / 100.0;
 

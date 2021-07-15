@@ -90,6 +90,9 @@ namespace Vulgine {
         virtual Image* initNewImage() = 0;
         virtual void deleteImage(Image* image) = 0;
 
+        virtual UniformBuffer* initNewUniformBuffer() = 0;
+        virtual void deleteUniformBuffer(UniformBuffer* buffer) = 0;
+
         virtual void updateRenderTaskQueue(std::vector<RenderTask> const& renderTaskQueue) = 0;
 
         std::function<void(void)> onCycle = [](){};

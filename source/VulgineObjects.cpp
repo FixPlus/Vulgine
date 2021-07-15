@@ -99,12 +99,19 @@ namespace Vulgine{
 
         }
 
-        std::vector<VkDescriptorSetLayoutBinding> bindings;
-        std::vector<VkWriteDescriptorSet> writes;
 
-        for(auto it = vertexStageInfo.descriptors.begin(), end = vertexStageInfo.descriptors.end(); it != end; ++it){
+
+        std::vector<std::vector<VkDescriptorSetLayoutBinding>> bindings;
+        std::vector<std::vector<VkWriteDescriptorSet>> writes;
+        bindings.resize(framebufferCount);
+        writes.resize(framebufferCount);
+
+        for (auto it = vertexStageInfo.descriptors.begin(), end = vertexStageInfo.descriptors.end();
+             it != end; ++it) {
             switch (it->type) {
-                case DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER:{
+                case DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER: {
+
+                    // for now assuming that image is static
 
                     VkDescriptorSetLayoutBinding binding;
                     binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -112,29 +119,66 @@ namespace Vulgine{
                     binding.descriptorCount = 1;
                     binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
                     binding.pImmutableSamplers = nullptr;
-                    bindings.push_back(binding);
 
-                    auto* image = dynamic_cast<ImageImpl*>(it->image);
-                    auto* combImageSampler = new CombinedImageSampler{&image->image};
+                    auto *image = dynamic_cast<ImageImpl *>(it->image);
+                    auto *combImageSampler = new CombinedImageSampler{&image->image};
 
                     combImageSampler->setupDescriptor();
 
-                    descriptors.emplace_back(combImageSampler);
+                    descriptors.emplace_back(std::vector<Descriptable *>{combImageSampler});
 
-                    writes.emplace_back(combImageSampler->write(it->binding));
+                    for(int i = 0; i < framebufferCount; i++) {
+
+                        bindings[i].push_back(binding);
+                        writes[i].emplace_back(combImageSampler->write(it->binding));
+
+                    }
                     break;
                 }
-                case DescriptorInfo::Type::UNIFORM_BUFFER:{
-                    assert(0 && "Not supported yet");
+                case DescriptorInfo::Type::UNIFORM_BUFFER: {
+                    VkDescriptorSetLayoutBinding binding;
+                    binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                    binding.binding = it->binding;
+                    binding.descriptorCount = 1;
+                    binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+                    binding.pImmutableSamplers = nullptr;
+                    descriptors.emplace_back();
+                    if(it->ubo->dynamic){
+                        for(int i = 0; i < framebufferCount; i++){
+                            auto* buffer = dynamic_cast<UniformBufferImpl*>(it->ubo);
+                            auto* ubo = new DUniformBuffer{buffer->buffers.at(i)};
+                            ubo->setupDescriptor();
+                            descriptors.back().emplace_back(ubo);
+
+                            bindings[i].push_back(binding);
+                            writes[i].emplace_back(ubo->write(it->binding));
+
+                        }
+                    } else{
+                        auto* buffer = dynamic_cast<UniformBufferImpl*>(it->ubo);
+                        auto* ubo = new DUniformBuffer{buffer->buffers.at(0)};
+                        ubo->setupDescriptor();
+                        descriptors.back().emplace_back(ubo);
+
+                        for(int i = 0; i < framebufferCount; i++) {
+
+                            bindings[i].push_back(binding);
+                            writes[i].emplace_back(ubo->write(it->binding));
+
+                        }
+                    }
                     break;
                 }
-                default: assert(0 && "Invalid descriptor type");
+                default:
+                    assert(0 && "Invalid descriptor type");
             }
         }
 
-        if(!writes.empty()) {
-            descriptorSet = vlg_instance->perMeshPool.allocateSet(bindings.data(), bindings.size());
-            vlg_instance->perMeshPool.updateDescriptor(descriptorSet, writes);
+        if (!writes.at(0).empty()) {
+            for(int i = 0; i < framebufferCount; i++) {
+                descriptorSets.push_back(vlg_instance->perMeshPool.allocateSet(bindings[i].data(), bindings[i].size()));
+                vlg_instance->perMeshPool.updateDescriptor(descriptorSets.back(), writes[i]);
+            }
         }
 
 
@@ -145,9 +189,11 @@ namespace Vulgine{
             delete buf.first;
         for(auto buf: perInstance)
             delete buf.first;
-        for(auto desc: descriptors) {
-            desc->destroyDescriptor();
-            delete desc;
+        for(auto const& desc: descriptors) {
+            for(auto perFrame: desc){
+                perFrame->destroyDescriptor();
+                delete perFrame;
+            }
         }
 
         perVertex.clear();
@@ -187,7 +233,7 @@ namespace Vulgine{
             auto& boundPipeline = vlg_instance->pipelineMap.bind({this, dynamic_cast<MaterialImpl *>(primitives[0].material),
                                             dynamic_cast<SceneImpl *>(parent()), pass}, commandBuffer);
             if(hasMeshDescriptors)
-                vlg_instance->perMeshPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 1,descriptorSet);
+                vlg_instance->perMeshPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 1,descriptorSets.at(currentFrame));
             if(material->hasDescriptorSet)
                 vlg_instance->perMaterialPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 0,material->descriptorSet);
             vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(camera->matrices), &(camera->matrices));
@@ -199,7 +245,7 @@ namespace Vulgine{
                 auto& boundPipeline = vlg_instance->pipelineMap.bind({this, material,
                                                 dynamic_cast<SceneImpl *>(parent()), pass}, commandBuffer);
                 if(hasMeshDescriptors)
-                    vlg_instance->perMeshPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 1,descriptorSet);
+                    vlg_instance->perMeshPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 1,descriptorSets.at(currentFrame));
                 if(material->hasDescriptorSet)
                     vlg_instance->perMaterialPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 0,material->descriptorSet);
                 vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(camera->matrices), &(camera->matrices));
@@ -215,9 +261,11 @@ namespace Vulgine{
             delete buf.first;
         for(auto buf: perInstance)
             delete buf.first;
-        for(auto desc: descriptors) {
-            desc->destroyDescriptor();
-            delete desc;
+        for(auto const& desc: descriptors) {
+            for(auto perFrame: desc){
+                perFrame->destroyDescriptor();
+                delete perFrame;
+            }
         }
     }
 
@@ -546,5 +594,62 @@ namespace Vulgine{
         matrices.position = position;
 
         vlg_instance->cmdBuffersOutdated = true;
+    }
+
+    void UniformBufferImpl::createImpl() {
+        if(dynamic){
+            int imageCount = vlg_instance->settings.framesInFlight;
+            for(int i = 0; i < imageCount; i++) {
+                auto *dynBuffer = new Memory::DynamicBuffer{};
+                dynBuffer->create(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+                buffers.emplace_back(dynBuffer);
+            }
+        } else{
+            auto* staticBuffer = new Memory::ImmutableBuffer{};
+            staticBuffer->create(pData, size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+            buffers.emplace_back(staticBuffer);
+        }
+
+        updated.resize(buffers.size(), false);
+    }
+
+    void UniformBufferImpl::destroyImpl() {
+        for(auto* buf: buffers)
+            delete buf;
+
+        buffers.clear();
+        updated.clear();
+    }
+
+    UniformBufferImpl::~UniformBufferImpl() {
+        for(auto* buf: buffers)
+            delete buf;
+    }
+
+    void UniformBufferImpl::update() {
+        if(dynamic) {
+            int updSize = updated.size();
+            for (int i = 0; i < updSize; ++i)
+                updated.at(i) = true;
+        } else{
+            assert(0 && "Update of static ubo is not implemented yet");
+        }
+    }
+
+    void UniformBufferImpl::sync() {
+        if(!dynamic)
+            return;
+
+        int curFrame = vlg_instance->currentFrame;
+
+        if(updated.at(curFrame)){
+             auto* buf = dynamic_cast<Memory::DynamicBuffer*>(buffers.at(curFrame));
+             buf->push(pData);
+            updated.at(curFrame) = false;
+        }
+    }
+
+    UniformBufferImpl::UniformBufferImpl(uint32_t id) : UniformBuffer(id) {
+
     }
 }

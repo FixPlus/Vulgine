@@ -21,6 +21,44 @@
 
 namespace Vulgine {
 
+    template<typename T>
+    class IdentifiableContainer{
+        std::stack<uint32_t> freeIds;
+        std::unordered_map<uint32_t, T> container;
+    public:
+        T* emplace(){
+            uint32_t id;
+            if(!freeIds.empty()) {
+                id = freeIds.top();
+                freeIds.pop();
+            } else{
+                id = container.size();
+            }
+
+            return &((container.emplace(std::piecewise_construct,std::forward_as_tuple(id), std::forward_as_tuple(id)).first)->second);
+        };
+        void free(T* obj){
+            auto id = obj->id();
+
+            if(id != container.size() - 1)
+                freeIds.push(id);
+
+            container.erase(id);
+        }
+
+        void iterate(std::function<void(T&)> operation){
+            for(auto& obj: container)
+                operation(obj.second);
+        }
+
+        void clear(){
+            while(!freeIds.empty())
+                freeIds.pop();
+
+            container.clear();
+        }
+    };
+
 
     class VulgineImpl: public Vulgine{
         static std::vector<const char*> getRequiredExtensionsList();
@@ -154,24 +192,11 @@ namespace Vulgine {
         } depthStencil;
 
         std::vector<RenderTask> taskQueue;
-        // Container for scene objects
 
-        struct {
-            std::stack<uint32_t> freeIds;
-            std::unordered_map<uint32_t, SceneImpl> container;
-        } scenes;
-
-        // Container for materials
-
-        struct {
-            std::stack<uint32_t> freeIds;
-            std::unordered_map<uint32_t, MaterialImpl> container;
-        } materials;
-
-        struct {
-            std::stack<uint32_t> freeIds;
-            std::unordered_map<uint32_t, ImageImpl> container;
-        } images;
+        IdentifiableContainer<SceneImpl> scenes;
+        IdentifiableContainer<MaterialImpl> materials;
+        IdentifiableContainer<ImageImpl> images;
+        IdentifiableContainer<UniformBufferImpl> uniformBuffers;
 
 
         // Depth buffer format (selected during Vulkan initialization)
@@ -280,8 +305,13 @@ namespace Vulgine {
 
         Material* initNewMaterial() override;
         void deleteMaterial(Material* scene) override;
+
         Image* initNewImage() override;
         void deleteImage(Image* image) override;
+
+        UniformBuffer* initNewUniformBuffer() override;
+        void deleteUniformBuffer(UniformBuffer* buffer) override;
+
         bool initialize();
         explicit VulgineImpl();
         ~VulgineImpl() override;
