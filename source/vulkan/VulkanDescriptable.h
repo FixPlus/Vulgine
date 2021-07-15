@@ -15,25 +15,28 @@ namespace Vulgine{
     struct Descriptable{
         VkDescriptorType descriptorType;
         explicit Descriptable(VkDescriptorType type = VK_DESCRIPTOR_TYPE_MAX_ENUM): descriptorType(type){}
+        virtual VkWriteDescriptorSet write(int binding) = 0;
         virtual void setupDescriptor() = 0;
         virtual void destroyDescriptor() = 0;
         virtual ~Descriptable() = default;
     };
 
     struct DImage: public virtual Descriptable{
-        Memory::Image* image = nullptr;
+        Memory::Image* image;
         VkImageLayout claimedLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         VkDescriptorImageInfo descriptor{};
-        DImage() = default;
+        explicit DImage(Memory::Image* img): image(img) { };
     };
 
 
 
     struct CombinedImageSampler: public DImage{
-        Sampler* sampler = nullptr;
-        CombinedImageSampler(): Descriptable(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER){}
+        Sampler sampler{};
+        explicit CombinedImageSampler(Memory::Image* img);
+        VkWriteDescriptorSet write(int binding) override;
         void setupDescriptor() override;
         void destroyDescriptor() override;
+        ~CombinedImageSampler() override;
     };
 
     struct DBuffer: public virtual Descriptable, public virtual Memory::Buffer{

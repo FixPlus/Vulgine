@@ -57,7 +57,7 @@ namespace Vulgine{
 
             for(int i = 0; i < framebufferCount; ++i) {
                 auto* dynamicBuf = new Memory::DynamicVertexBuffer{};
-                dynamicBuf->create(vertices.count * vertexFormat.perVertexSize());
+                dynamicBuf->create(vertices.count * vertexStageInfo.vertexFormat.perVertexSize());
                 dynamicBuf->binding = 0;
                 perVertex.emplace_back(dynamicBuf, false);
             }
@@ -65,7 +65,7 @@ namespace Vulgine{
         }
         else{
             auto* staticBuf = new Memory::StaticVertexBuffer{};
-            staticBuf->create(vertices.pData, vertices.count * vertexFormat.perVertexSize());
+            staticBuf->create(vertices.pData, vertices.count * vertexStageInfo.vertexFormat.perVertexSize());
             staticBuf->binding = 0;
             perVertex.emplace_back(staticBuf, false);
         }
@@ -85,19 +85,59 @@ namespace Vulgine{
 
                 for(int i = 0; i < framebufferCount; ++i) {
                     auto *dynamicBuf = new Memory::DynamicVertexBuffer{};
-                    dynamicBuf->create(instances.count * vertexFormat.perInstanceSize());
+                    dynamicBuf->create(instances.count * vertexStageInfo.vertexFormat.perInstanceSize());
                     dynamicBuf->binding = 1;
                     perInstance.emplace_back(dynamicBuf, false);
                 }
 
             } else {
                 auto *staticBuf = new Memory::StaticVertexBuffer{};
-                staticBuf->create(instances.pData, instances.count * vertexFormat.perInstanceSize());
+                staticBuf->create(instances.pData, instances.count * vertexStageInfo.vertexFormat.perInstanceSize());
                 staticBuf->binding = 1;
                 perInstance.emplace_back(staticBuf, false);
             }
 
         }
+
+        std::vector<VkDescriptorSetLayoutBinding> bindings;
+        std::vector<VkWriteDescriptorSet> writes;
+
+        for(auto it = vertexStageInfo.descriptors.begin(), end = vertexStageInfo.descriptors.end(); it != end; ++it){
+            switch (it->type) {
+                case DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER:{
+
+                    VkDescriptorSetLayoutBinding binding;
+                    binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                    binding.binding = it->binding;
+                    binding.descriptorCount = 1;
+                    binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+                    binding.pImmutableSamplers = nullptr;
+                    bindings.push_back(binding);
+
+                    auto* image = dynamic_cast<ImageImpl*>(it->image);
+                    auto* combImageSampler = new CombinedImageSampler{&image->image};
+
+                    combImageSampler->setupDescriptor();
+
+                    descriptors.emplace_back(combImageSampler);
+
+                    writes.emplace_back(combImageSampler->write(it->binding));
+                    break;
+                }
+                case DescriptorInfo::Type::UNIFORM_BUFFER:{
+                    assert(0 && "Not supported yet");
+                    break;
+                }
+                default: assert(0 && "Invalid descriptor type");
+            }
+        }
+
+        if(!writes.empty()) {
+            descriptorSet = vlg_instance->perMeshPool.allocateSet(bindings.data(), bindings.size());
+            vlg_instance->perMeshPool.updateDescriptor(descriptorSet, writes);
+        }
+
+
     }
 
     void MeshImpl::destroyImpl() {
@@ -105,9 +145,14 @@ namespace Vulgine{
             delete buf.first;
         for(auto buf: perInstance)
             delete buf.first;
+        for(auto desc: descriptors) {
+            desc->destroyDescriptor();
+            delete desc;
+        }
 
         perVertex.clear();
         perInstance.clear();
+        descriptors.clear();
 
         if(indexBuffer.allocated)
             indexBuffer.free();
@@ -131,14 +176,18 @@ namespace Vulgine{
 
         vertexBuf.first->bind(commandBuffer);
 
+        bool hasMeshDescriptors = !descriptors.empty();
+
         if(!perInstance.empty())
             instanceBuf.first->bind(commandBuffer);
         uint32_t instCount = instances.count == 0 ? 1 : instances.count;
 
         if(indices.empty()) {
             auto* material = dynamic_cast<MaterialImpl *>(primitives[0].material);
-            auto& boundPipeline = vlg_instance->pipelineMap.bind({vertexInputStateCI, dynamic_cast<MaterialImpl *>(primitives[0].material),
+            auto& boundPipeline = vlg_instance->pipelineMap.bind({this, dynamic_cast<MaterialImpl *>(primitives[0].material),
                                             dynamic_cast<SceneImpl *>(parent()), pass}, commandBuffer);
+            if(hasMeshDescriptors)
+                vlg_instance->perMeshPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 1,descriptorSet);
             if(material->hasDescriptorSet)
                 vlg_instance->perMaterialPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 0,material->descriptorSet);
             vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(camera->matrices), &(camera->matrices));
@@ -147,8 +196,10 @@ namespace Vulgine{
             indexBuffer.bind(commandBuffer);
             for (auto primitive: primitives) {
                 auto* material = dynamic_cast<MaterialImpl *>(primitive.material);
-                auto& boundPipeline = vlg_instance->pipelineMap.bind({vertexInputStateCI, material,
+                auto& boundPipeline = vlg_instance->pipelineMap.bind({this, material,
                                                 dynamic_cast<SceneImpl *>(parent()), pass}, commandBuffer);
+                if(hasMeshDescriptors)
+                    vlg_instance->perMeshPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 1,descriptorSet);
                 if(material->hasDescriptorSet)
                     vlg_instance->perMaterialPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 0,material->descriptorSet);
                 vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(camera->matrices), &(camera->matrices));
@@ -164,6 +215,10 @@ namespace Vulgine{
             delete buf.first;
         for(auto buf: perInstance)
             delete buf.first;
+        for(auto desc: descriptors) {
+            desc->destroyDescriptor();
+            delete desc;
+        }
     }
 
     void MeshImpl::updateVertexBuffer() {
@@ -175,7 +230,7 @@ namespace Vulgine{
             vkQueueWaitIdle(vlg_instance->queue);
             perVertex.at(0).first->free();
             auto* statVert = dynamic_cast<Memory::StaticVertexBuffer*>(perVertex.at(0).first);
-            statVert->create(vertices.pData, vertices.count * vertexFormat.perVertexSize());
+            statVert->create(vertices.pData, vertices.count * vertexStageInfo.vertexFormat.perVertexSize());
         }
 
         vlg_instance->cmdBuffersOutdated = true;
@@ -197,7 +252,7 @@ namespace Vulgine{
             vkQueueWaitIdle(vlg_instance->queue);
             perInstance.at(0).first->free();
             auto* statVert = dynamic_cast<Memory::StaticVertexBuffer*>(perInstance.at(0).first);
-            statVert->create(instances.pData, instances.count * vertexFormat.perInstanceSize());
+            statVert->create(instances.pData, instances.count * vertexStageInfo.vertexFormat.perInstanceSize());
         }
 
         vlg_instance->cmdBuffersOutdated = true;
@@ -273,9 +328,8 @@ namespace Vulgine{
 
         attributesDesc.clear();
 
-        auto& format = vertexFormat;
+        auto& format = vertexStageInfo.vertexFormat;
 
-        int adjustment = 0;
 
         for(auto attr: format.perVertexAttributes){
             switch(attr){
@@ -408,7 +462,7 @@ namespace Vulgine{
         auto* dynVert = dynamic_cast<Memory::DynamicVertexBuffer*>(perVertex.at(id).first);
         if(cachedVertices.pData != vertices.pData || cachedVertices.count != vertices.count) {
             dynVert->free();
-            dynVert->create(vertices.count * vertexFormat.perVertexSize());
+            dynVert->create(vertices.count * vertexStageInfo.vertexFormat.perVertexSize());
             cachedVertices.pData = vertices.pData;
             cachedVertices.count = vertices.count;
         } else{
@@ -421,7 +475,7 @@ namespace Vulgine{
         auto* dynVert = dynamic_cast<Memory::DynamicVertexBuffer*>(perInstance.at(id).first);
         if(cachedInstances.pData != instances.pData || cachedInstances.count != instances.count) {
             dynVert->free();
-            dynVert->create(instances.count * vertexFormat.perInstanceSize());
+            dynVert->create(instances.count * vertexStageInfo.vertexFormat.perInstanceSize());
             cachedInstances.pData = instances.pData;
             cachedInstances.count = instances.count;
         } else{

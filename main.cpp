@@ -20,7 +20,7 @@ struct InstanceAttribute{
     glm::mat4 transform;
 };
 
-constexpr const int metaCubesize = 10;
+constexpr const int metaCubesize = 50;
 
 InstanceAttribute instancesAttributes[metaCubesize * metaCubesize * metaCubesize] = {
         {glm::mat4(1.0f)}
@@ -74,6 +74,8 @@ struct Camera{
         bool right = false;
         bool up = false;
         bool down = false;
+        bool space = false;
+        bool shift = false;
     } keys;
 
 
@@ -120,6 +122,10 @@ struct Camera{
             velocity -= glm::normalize(glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f))) * acceleration;
         if (keys.right)
             velocity += glm::normalize(glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f))) * acceleration;
+        if (keys.space)
+            velocity += glm::vec3(0.0f, 1.0f, 0.0f) * acceleration;
+        if (keys.shift)
+            velocity -= glm::vec3(0.0f, 1.0f, 0.0f) * acceleration;
 
         cameraImpl->position += velocity * (float)deltaT;
 
@@ -132,7 +138,8 @@ void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material){
     format.perVertexAttributes = {Vulgine::AttributeFormat::RGB32SF, Vulgine::AttributeFormat::RGB32SF, Vulgine::AttributeFormat::RG32SF};
     format.perInstanceAttributes = {Vulgine::AttributeFormat::MAT4F};
 
-    mesh->vertexFormat = format;
+    mesh->vertexStageInfo.vertexFormat = format;
+    mesh->vertexStageInfo.vertexShader = "vert_color";
     mesh->vertices.pData = vertexAttributes;
     mesh->vertices.count = sizeof(vertexAttributes) / sizeof(VertexAttribute);
     mesh->instances.pData = instancesAttributes;
@@ -151,8 +158,16 @@ void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material){
 
     mesh->primitives.push_back(primitive);
 
+    Vulgine::DescriptorInfo info{};
+
+    info.binding = 0;
+    info.image = material->texture.colorMap;
+    info.type = Vulgine::DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER;
+
+    mesh->vertexStageInfo.descriptors.push_back(info);
+
     mesh->vertices.dynamic = false;
-    mesh->instances.dynamic = true;
+    mesh->instances.dynamic = false;
 
     mesh->create();
 }
@@ -179,7 +194,6 @@ int main(int argc, char** argv){
     }
 
     material->texture.colorMap = texture;
-    material->vertexShader = "vert_color";
 
     material->create();
 
@@ -201,6 +215,9 @@ int main(int argc, char** argv){
             case GLFW_KEY_S: camera.keys.down = true; break;
             case GLFW_KEY_A: camera.keys.left = true; break;
             case GLFW_KEY_D: camera.keys.right = true; break;
+            case GLFW_KEY_SPACE: camera.keys.space = true; break;
+            case GLFW_KEY_LEFT_SHIFT:
+            case GLFW_KEY_RIGHT_SHIFT: camera.keys.shift = true; break;
             case GLFW_KEY_C: {
                 if(vulgine->mouseState.cursor.enabled)
                     vulgine->mouseState.disableCursor();
@@ -220,6 +237,9 @@ int main(int argc, char** argv){
             case GLFW_KEY_S: camera.keys.down = false; break;
             case GLFW_KEY_A: camera.keys.left = false; break;
             case GLFW_KEY_D: camera.keys.right = false; break;
+            case GLFW_KEY_SPACE: camera.keys.space = false; break;
+            case GLFW_KEY_LEFT_SHIFT:
+            case GLFW_KEY_RIGHT_SHIFT: camera.keys.shift = false; break;
 
             default: break;
         }
@@ -260,7 +280,7 @@ int main(int argc, char** argv){
             deltaT = vulgine->lastFrameTime();
         timer += deltaT;
 
-
+#if 0
         for(int i = 0; i < metaCubesize; i++){
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), (float)deltaT * (((i * 3 + 11) % 5) + 1),
                                            glm::normalize(glm::vec3{1.0f, (i * 7 + 19) % 13, (i * 23 + 5) % 37}));
@@ -270,7 +290,7 @@ int main(int argc, char** argv){
         }
 
         mesh->updateInstanceBuffer();
-
+#endif
 
         camera.update(deltaT);
 

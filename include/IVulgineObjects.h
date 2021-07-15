@@ -84,6 +84,12 @@ namespace Vulgine{
 
     };
 
+    struct DescriptorInfo{
+        enum class Type{ UNIFORM_BUFFER, COMBINED_IMAGE_SAMPLER} type;
+        int binding;
+        Image* image = nullptr;
+    };
+
 
     struct RenderTarget{
 
@@ -123,7 +129,6 @@ namespace Vulgine{
             ::Vulgine::Image* normalMap = nullptr;
         } texture;
 
-        std::string vertexShader;
 
         explicit Material(uint32_t id): id_(id){}
         uint32_t id() const { return id_;}
@@ -157,8 +162,12 @@ namespace Vulgine{
 
         Mesh(Scene* parent, uint32_t id): parent_(parent), id_(id){}
 
-        VertexFormat vertexFormat;
+        struct {
+            VertexFormat vertexFormat{};
+            std::string vertexShader = "vert_default";
 
+            std::vector<DescriptorInfo> descriptors{};
+        } vertexStageInfo;
         /**
          * @brief vertices
          *

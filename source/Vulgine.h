@@ -231,6 +231,7 @@ namespace Vulgine {
 
         DescriptorPool perScenePool;    // set 0
         DescriptorPool perMaterialPool; // set 1
+        DescriptorPool perMeshPool;     // set 2
 
         // Container for pipelines
 

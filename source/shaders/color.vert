@@ -16,14 +16,22 @@ layout(push_constant) uniform constants{
     vec3 cameraPosition;
 } PushConstants;
 
+layout(binding = 0, set = 1) uniform sampler2D someMap;
+
 
 void main() {
     //mat4 model = mat4(1.0);
-    outPos = (model * vec4(inPos, 1.0f)).xyz;
+    vec4 temp = (model * vec4(inPos, 1.0f));
+
+    vec2 UV = vec2(temp.z, 100.0f - temp.y) / 100.0;
+
+    temp += vec4(-length(texture(someMap, UV)) * 10.0f, 0.0f, 0.0f, 0.0f);
+
+    outPos = temp.xyz;
 
     outViewPos = outPos - PushConstants.cameraPosition;
 
-    gl_Position = PushConstants.viewMatrix * model * vec4(inPos, 1.0f);
+    gl_Position = PushConstants.viewMatrix * temp;
     outNorm = (model * vec4(inNorm, 0.0f)).xyz;
 
     outUV = inUV;

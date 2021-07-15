@@ -24,11 +24,16 @@ namespace Vulgine{
 
         std::vector<VkVertexInputAttributeDescription> attributesDesc{};
 
-        VkPipelineVertexInputStateCreateInfo vertexInputStateCI{};
-
         void compileVertexInputState();
 
     public:
+
+        uint32_t descriptorSet = UINT32_MAX;
+
+        std::vector<Descriptable*> descriptors;
+
+        VkPipelineVertexInputStateCreateInfo vertexInputStateCI{};
+
         struct{
             void* pData = nullptr;
             uint32_t count = 0;

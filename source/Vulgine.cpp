@@ -1003,11 +1003,22 @@ namespace Vulgine{
 
         perMaterialPool.descriptorsCapacity = std::move(types);
 
+
+        std::map<VkDescriptorType, uint32_t> types1;
+
+        types1[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER] = 1 * 1024;
+        types1[VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER] = 1 * 1024;
+
+        perMeshPool.maxSets = 1024;
+
+        perMeshPool.descriptorsCapacity = std::move(types1);
+
     }
 
     void VulgineImpl::destroyDescriptorPools() {
         perMaterialPool.clear();
         perScenePool.clear();
+        perMeshPool.clear();
     }
 
     Image *VulgineImpl::initNewImage() {

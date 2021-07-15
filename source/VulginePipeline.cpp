@@ -15,6 +15,8 @@ void Vulgine::Pipeline::createImpl() {
 
         if(material->hasDescriptorSet)
             layouts.push_back(vlg_instance->perMaterialPool.getLayout(material->descriptorSet));
+        if(!mesh->descriptors.empty())
+            layouts.push_back(vlg_instance->perMeshPool.getLayout(mesh->descriptorSet));
 
         VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo =
                 initializers::pipelineLayoutCreateInfo(
@@ -57,14 +59,16 @@ void Vulgine::Pipeline::createImpl() {
         pipelineCI.pDynamicState = &dynamicState;
         pipelineCI.stageCount = shaderStages.size();
         pipelineCI.pStages = shaderStages.data();
-        pipelineCI.pVertexInputState = &vertexFormat;
+        pipelineCI.pVertexInputState = &mesh->vertexInputStateCI;
 
         // binding vertex shader
 
-        if(vlg_instance->vertexShaders.count(material->vertexShader) == 0){
-            Utilities::ExitFatal(-1,"Material has unknown vertex shader");
+        auto const& vertexShaderName = mesh->vertexStageInfo.vertexShader;
+
+        if(vlg_instance->vertexShaders.count(vertexShaderName) == 0){
+            Utilities::ExitFatal(-1,"Mesh has unknown vertex shader");
         }
-        auto& vertexShader = vlg_instance->vertexShaders[material->vertexShader];
+        auto& vertexShader = vlg_instance->vertexShaders[vertexShaderName];
 
 
         shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -131,9 +135,9 @@ void Vulgine::Pipeline::bind(VkCommandBuffer cmdBuffer) const {
 }
 
 bool Vulgine::PipelineKey::operator<(PipelineKey const& another) const {
-    if(vertexInputState.pVertexBindingDescriptions < another.vertexInputState.pVertexBindingDescriptions)
+    if(mesh < another.mesh)
         return true;
-    if(vertexInputState.pVertexBindingDescriptions == another.vertexInputState.pVertexBindingDescriptions) {
+    if(mesh == another.mesh) {
         if(material < another.material)
             return true;
         if(material == another.material){
