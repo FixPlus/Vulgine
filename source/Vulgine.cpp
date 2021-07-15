@@ -450,6 +450,12 @@ namespace Vulgine{
 
         onCycle();
 
+        if(gui.update(currentBuffer))
+            cmdBuffersOutdated = true;
+
+        if(cmdBuffersOutdated)
+            buildCommandBuffers(currentBuffer);
+
         if (swapChainFences[currentBuffer] != VK_NULL_HANDLE) {
             vkWaitForFences(device->logicalDevice, 1, &swapChainFences[currentBuffer], VK_TRUE, UINT64_MAX);
         }
@@ -465,11 +471,6 @@ namespace Vulgine{
 
         vkResetFences(device->logicalDevice, 1, &framesSync[currentFrame].inFlightSync);
 
-        if(gui.update(currentBuffer))
-            cmdBuffersOutdated = true;
-
-        if(cmdBuffersOutdated)
-            buildCommandBuffers(currentBuffer);
 
         VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, framesSync[currentFrame].inFlightSync));
 
