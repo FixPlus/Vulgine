@@ -35,6 +35,7 @@ namespace Vulgine{
     };
 
     class MeshImpl: public Mesh{
+        static uint32_t count_;
         VkVertexInputBindingDescription vertexAttrBindingInfo[2] = {};
 
         std::vector<VkVertexInputAttributeDescription> attributesDesc{};
@@ -64,7 +65,7 @@ namespace Vulgine{
 
         Memory::StaticIndexBuffer indexBuffer;
 
-        explicit MeshImpl(Scene* parent, uint32_t id): Mesh(parent, id){ logger("Mesh created");};
+        explicit MeshImpl(Scene* parent, uint32_t id): Mesh(parent, id){ count_++; logger("Mesh created");};
 
         void createImpl() override;
         void destroyImpl() override;
@@ -80,6 +81,7 @@ namespace Vulgine{
 
         void draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass* pass);
 
+        static uint32_t count() {return count_;};
 
         ~MeshImpl() override;
     };

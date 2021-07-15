@@ -878,6 +878,7 @@ namespace Vulgine{
         switch(key){
             case GLFW_KEY_ESCAPE: glfwSetWindowShouldClose(window->instance(), GLFW_TRUE); break;
             case GLFW_KEY_E: if(window->fullscreen) window->goWindowed(); else window->goFullscreen(); break;
+            case GLFW_KEY_APOSTROPHE: guiImpl.opened = !guiImpl.opened; break;
             default: break;
         }
 
@@ -1024,11 +1025,11 @@ namespace Vulgine{
         else
             io.MousePos = ImVec2(mouseState.cursor.posX, mouseState.cursor.posY);
 
+
         io.MouseDown[0] = mouseState.keys.left;
         io.MouseDown[1] = mouseState.keys.right;
         io.MouseDown[2] = mouseState.keys.middle;
 
-        //TODO: io.MouseWheel = mouseButtons.scroll;
 
         io.KeyCtrl = keyboardState.keysPressed.count(GLFW_KEY_LEFT_CONTROL) ||
                      keyboardState.keysPressed.count(GLFW_KEY_RIGHT_CONTROL);
@@ -1046,11 +1047,8 @@ namespace Vulgine{
 
         // TODO: actual ui here
 
-        ImGui::Begin("Statistics", nullptr);
+        guiImpl.draw();
 
-        ImGui::Text("fps:%.1f", fpsCounter.fps);
-
-        ImGui::End();
         imgui.customGUI();
 
         ImGui::Render();
@@ -1059,9 +1057,9 @@ namespace Vulgine{
 
     void VulgineImpl::mouseBtnDown(VulgineImpl::Window *window, int button) {
         switch (button) {
-            case GLFW_MOUSE_BUTTON_LEFT: mouseState.keys.left = true;
-            case GLFW_MOUSE_BUTTON_MIDDLE: mouseState.keys.middle = true;
-            case GLFW_MOUSE_BUTTON_RIGHT: mouseState.keys.right = true;
+            case GLFW_MOUSE_BUTTON_LEFT: mouseState.keys.left = true; break;
+            case GLFW_MOUSE_BUTTON_MIDDLE: mouseState.keys.middle = true; break;
+            case GLFW_MOUSE_BUTTON_RIGHT: mouseState.keys.right = true; break;
             default: ;
         }
 
@@ -1070,9 +1068,9 @@ namespace Vulgine{
 
     void VulgineImpl::mouseBtnUp(VulgineImpl::Window *window, int button) {
         switch (button) {
-            case GLFW_MOUSE_BUTTON_LEFT: mouseState.keys.left = false;
-            case GLFW_MOUSE_BUTTON_MIDDLE: mouseState.keys.middle = false;
-            case GLFW_MOUSE_BUTTON_RIGHT: mouseState.keys.right = false;
+            case GLFW_MOUSE_BUTTON_LEFT: mouseState.keys.left = false; break;
+            case GLFW_MOUSE_BUTTON_MIDDLE: mouseState.keys.middle = false; break;
+            case GLFW_MOUSE_BUTTON_RIGHT: mouseState.keys.right = false; break;
             default: ;
         }
 
@@ -1085,6 +1083,12 @@ namespace Vulgine{
 
     void VulgineImpl::deleteUniformBuffer(UniformBuffer *buffer) {
         uniformBuffers.free(dynamic_cast<UniformBufferImpl*>(buffer));
+    }
+
+    void VulgineImpl::mouseScroll(VulgineImpl::Window *window, double xoffset, double yoffset) {
+        auto& io = ImGui::GetIO();
+
+        io.MouseWheel = yoffset;
     }
 
     void disableLog(){
@@ -1173,6 +1177,7 @@ namespace Vulgine{
         glfwSetKeyCallback(instance_, keyInput);
         glfwSetCursorPosCallback(instance_, cursorPosition);
         glfwSetMouseButtonCallback(instance_, mouseInput);
+        glfwSetScrollCallback(instance_, scrollInput);
 
 
     }
@@ -1268,6 +1273,11 @@ namespace Vulgine{
         }
 
 
+    }
+
+    void VulgineImpl::Window::scrollInput(GLFWwindow *window, double xoffset, double yoffset) {
+        auto* wrappedWindow = windowMap.at(window);
+        vlg_instance->mouseScroll(wrappedWindow, xoffset, yoffset);
     }
 
     void VulgineImpl::FpsCounter::update(double deltaT) {

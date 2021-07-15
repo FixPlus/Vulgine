@@ -11,6 +11,7 @@
 #include "VulgineRenderPass.h"
 #include "VulginePipeline.h"
 #include "vulkan/VulkanDescriptorPool.h"
+#include "VulgineUI.h"
 #include "VulgineImage.h"
 #include <vector>
 #include <chrono>
@@ -57,6 +58,10 @@ namespace Vulgine {
 
             container.clear();
         }
+
+        size_t size() const{
+            return container.size();
+        }
     };
 
 
@@ -74,6 +79,7 @@ namespace Vulgine {
             static void keyInput(GLFWwindow* window, int key, int scancode, int action, int mods);
             static void cursorPosition(GLFWwindow* window, double xPos, double yPos);
             static void mouseInput(GLFWwindow* window, int button, int action, int mods);
+            static void scrollInput(GLFWwindow* window, double xoffset, double yoffset);
 
             GLFWwindow *instance_ = nullptr;
 
@@ -165,6 +171,7 @@ namespace Vulgine {
         std::vector<VkFence> swapChainFences;
         std::vector<FrameSyncObj> framesSync;
 
+        UserInterface guiImpl;
 
         VkSubmitInfo submitInfo;
 
@@ -247,6 +254,7 @@ namespace Vulgine {
         void mouseMoved(Window* window, double xPos, double yPos);
         void mouseBtnDown(Window* window, int button);
         void mouseBtnUp(Window* window, int button);
+        void mouseScroll(Window* window, double xoffset, double yoffset);
 
         void disableCursor();
         void enableCursor();
@@ -317,6 +325,8 @@ namespace Vulgine {
         ~VulgineImpl() override;
         bool cycle() override;
         double lastFrameTime() const override;
+
+        friend class UserInterface;
     };
     extern VulgineImpl* vlg_instance;
 

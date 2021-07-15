@@ -255,7 +255,9 @@ namespace Vulgine{
 
     }
 
+    uint32_t MeshImpl::count_ = 0;
     MeshImpl::~MeshImpl() {
+        count_--;
         logger("Mesh destroyed");
         for(auto buf: perVertex)
             delete buf.first;
