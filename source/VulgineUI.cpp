@@ -7,6 +7,7 @@
 
 namespace Vulgine {
 
+    ImGuiTextBuffer UserInterface::logBuf;
     void UserInterface::draw() {
         auto &vlg = *vlg_instance;
 
@@ -25,6 +26,9 @@ namespace Vulgine {
         if (metricsViewerOpened)
             drawMetricsViewerWindow();
 
+        if(logOpened)
+            drawLogWindow();
+
 
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("VulGine")) {
@@ -40,6 +44,13 @@ namespace Vulgine {
                 ImGui::Separator();
                 if (ImGui::MenuItem("Show about", "F1")) {
                     aboutOpened = true;
+                }
+                if (ImGui::MenuItem("Show log file", "F2")) {
+                    logOpened = true;
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Quit", "Alt + F4")) {
+                    glfwSetWindowShouldClose(vlg.window.instance(), GLFW_TRUE);
                 }
                 ImGui::EndMenu();
             }
@@ -457,10 +468,35 @@ namespace Vulgine {
 
     void UserInterface::drawAboutWindow() {
         auto &vlg = *vlg_instance;
-        if (ImGui::Begin("System properties", &aboutOpened)) {
+        if (ImGui::Begin("About", &aboutOpened)) {
             ImGui::Text(getStringVersion().c_str());
             ImGui::Separator();
             ImGui::Text("By Bushev Dmitry, 2021.");
+        }
+
+        ImGui::End();
+
+    }
+
+    void UserInterface::addLog(const char *log, ...) {
+        va_list args;
+        va_start(args, log);
+        logBuf.appendfv(log, args);
+        logBuf.append("\n");
+        va_end(args);
+    }
+
+    void UserInterface::drawLogWindow() {
+        auto &vlg = *vlg_instance;
+        if (ImGui::Begin("Log", &logOpened)) {
+            ImGui::BeginChild("output");
+            ImGui::TextUnformatted(logBuf.begin(), logBuf.end());
+
+            // autoscroll
+            if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+                ImGui::SetScrollHereY(1.0f);
+
+            ImGui::EndChild();
         }
 
         ImGui::End();

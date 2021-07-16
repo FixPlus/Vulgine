@@ -26,6 +26,26 @@ namespace Vulgine{
         uint32_t id() const { return id_;}
         virtual ~Identifiable() = default;
     };
+
+    /**
+     * @brief General interface for most Vulgine Objects.
+     *
+     * Vulgine objects sharing this interface have common use pattern:
+     *
+     * @fill  Fill up all public fields (create info).
+     * @create    call create() member function.
+     * @use   Use this object.
+     * @destroy   Destroy object:
+     *        a) call destroy() member function - you can later reuse this object.
+     *        Or
+     *        b) invalidate this object using appropriate deleteObject(object) function - you cannot reuse this object.
+     *        in this case.
+     *
+     *  \Remember that if resource owning this object gets freed (by calling destroy() in particular) or invalidated
+     *  the object gets implicitly invalidated. Any use of invalidated object is forbidden.
+     *
+     */
+
     class Creatable{
         bool created = false;
     protected:
@@ -59,6 +79,20 @@ namespace Vulgine{
         virtual ~Creatable() = default;
     };
 
+    /**
+     *
+     * @brief abstraction of any image object
+     *
+     * @use Can be used as texture target by material, TODO: render target by render pass
+     *
+     * @import Store data to it using load() and loadFromFile() functions
+     *
+     * @formats Supported importing of images: png, jpeg, bmp, TODO: ktx
+     *
+     * @todo  add support for dynamic images (render targets as well)
+     *
+     */
+
     struct Image: public Identifiable{
 
         enum FileFormat{FILE_FORMAT_PNG, FILE_FORMAT_JPEG, FILE_FORMAT_KTX};
@@ -68,6 +102,22 @@ namespace Vulgine{
         virtual bool load(const unsigned char* data, uint32_t len, FileFormat fileFormat) = 0;
         explicit Image(uint32_t id): Identifiable(id){}
     };
+
+    /**
+     *
+     * @brief uniform buffer object (ubo)
+     *
+     * @param dynamic tells Vulgine whether this buffer will be updated frequently
+     *
+     * @param pData valid pointer to data. Note: if dynamic = false is set, pointer only must be valid throughout create()
+     * call, otherwise it must remain valid for whole lifetime of ubo.
+     *
+     * @param size size in bytes
+     *
+     * @note size once set cannot be changed.
+     *
+     *
+     */
 
     struct UniformBuffer: public Creatable, public Identifiable{
 
@@ -82,6 +132,12 @@ namespace Vulgine{
     };
 
     struct Scene;
+
+    /**
+     *
+     * @brief encapsulates view matrix calculation based on user-defined position, rotation and projection
+     *
+     */
 
     struct Camera: public Creatable, public Identifiable{
     protected:
@@ -135,6 +191,12 @@ namespace Vulgine{
     };
 
 
+    /**
+     *
+     * @brief contains information about surface rendering (generally -  fragment shader stage info)
+     *
+     *
+     */
     struct Material: public Creatable, public Identifiable{
 
 
@@ -148,7 +210,11 @@ namespace Vulgine{
 
     };
 
-
+    /**
+     *
+     * @brief encapsulates light source implementation
+     *
+     */
 
     class Light: public Creatable, public Identifiable{
     protected:
@@ -165,7 +231,11 @@ namespace Vulgine{
         Camera* camera;
         std::vector<RenderTarget> renderTargets;
     };
-
+    /**
+     *
+     * @brief rendered object
+     *
+     */
     class Mesh: public Creatable, public Identifiable{
     protected:
         Scene* parent_;

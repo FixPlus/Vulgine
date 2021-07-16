@@ -80,6 +80,7 @@ namespace Vulgine {
             static void cursorPosition(GLFWwindow* window, double xPos, double yPos);
             static void mouseInput(GLFWwindow* window, int button, int action, int mods);
             static void scrollInput(GLFWwindow* window, double xoffset, double yoffset);
+            static void charInput(GLFWwindow* window, uint32_t unicode);
 
             GLFWwindow *instance_ = nullptr;
 
@@ -255,6 +256,7 @@ namespace Vulgine {
         void mouseBtnDown(Window* window, int button);
         void mouseBtnUp(Window* window, int button);
         void mouseScroll(Window* window, double xoffset, double yoffset);
+        void charInput(Window* window, uint32_t unicode);
 
         void disableCursor();
         void enableCursor();

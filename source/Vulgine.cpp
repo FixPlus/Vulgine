@@ -46,6 +46,8 @@ namespace Vulgine{
 
         fpsCounter.update(deltaT);
 
+        keyboardState.keysPressed.clear();
+
         glfwPollEvents();
 
         updateGUI();
@@ -875,20 +877,34 @@ namespace Vulgine{
     }
 
     void VulgineImpl::keyDown(VulgineImpl::Window *window, int key) {
-        switch(key){
-            case GLFW_KEY_ESCAPE: glfwSetWindowShouldClose(window->instance(), GLFW_TRUE); break;
-            case GLFW_KEY_E: if(window->fullscreen) window->goWindowed(); else window->goFullscreen(); break;
-            case GLFW_KEY_APOSTROPHE: guiImpl.opened = !guiImpl.opened; break;
-            default: break;
+        if(!ImGui::GetIO().WantCaptureKeyboard) {
+            switch (key) {
+                case GLFW_KEY_ESCAPE:
+                    guiImpl.opened = false;
+                    break;
+                case GLFW_KEY_E:
+                    if (window->fullscreen) window->goWindowed();
+                    else window->goFullscreen();
+                    break;
+                case GLFW_KEY_GRAVE_ACCENT:
+                    mouseState.enableCursor();
+                    guiImpl.opened = !guiImpl.opened;
+                    break;
+                default:
+                    break;
+            }
         }
 
         keyboardState.keysPressed.emplace(key, 0);
-        keyboardState.onKeyDown(key);
+        keyboardState.keysDown.emplace(key, 0);
+        if(!ImGui::GetIO().WantCaptureKeyboard)
+            keyboardState.onKeyDown(key);
     }
 
     void VulgineImpl::keyUp(VulgineImpl::Window *window, int key) {
-        keyboardState.keysPressed.erase(key);
-        keyboardState.onKeyUp(key);
+        keyboardState.keysDown.erase(key);
+        if(!ImGui::GetIO().WantCaptureKeyboard)
+            keyboardState.onKeyUp(key);
     }
 
     double VulgineImpl::lastFrameTime() const {
@@ -947,7 +963,9 @@ namespace Vulgine{
     }
 
     void VulgineImpl::keyPressed(VulgineImpl::Window *window, int key) {
-        keyboardState.onKeyPressed(key);
+        if(!ImGui::GetIO().WantCaptureKeyboard)
+            keyboardState.onKeyPressed(key);
+        keyboardState.keysPressed.emplace(key, 0);
     }
 
     void VulgineImpl::mouseMoved(VulgineImpl::Window *window, double xPos, double yPos) {
@@ -1031,13 +1049,13 @@ namespace Vulgine{
         io.MouseDown[2] = mouseState.keys.middle;
 
 
-        io.KeyCtrl = keyboardState.keysPressed.count(GLFW_KEY_LEFT_CONTROL) ||
-                     keyboardState.keysPressed.count(GLFW_KEY_RIGHT_CONTROL);
+        io.KeyCtrl = keyboardState.keysDown.count(GLFW_KEY_LEFT_CONTROL) ||
+                     keyboardState.keysDown.count(GLFW_KEY_RIGHT_CONTROL);
 
-        io.KeyShift = keyboardState.keysPressed.count(GLFW_KEY_LEFT_SHIFT) ||
-                      keyboardState.keysPressed.count(GLFW_KEY_RIGHT_SHIFT);
-        io.KeyAlt = keyboardState.keysPressed.count(GLFW_KEY_LEFT_ALT) ||
-                    keyboardState.keysPressed.count(GLFW_KEY_RIGHT_ALT);
+        io.KeyShift = keyboardState.keysDown.count(GLFW_KEY_LEFT_SHIFT) ||
+                      keyboardState.keysDown.count(GLFW_KEY_RIGHT_SHIFT);
+        io.KeyAlt = keyboardState.keysDown.count(GLFW_KEY_LEFT_ALT) ||
+                    keyboardState.keysDown.count(GLFW_KEY_RIGHT_ALT);
 
         memset(io.KeysDown, '\0', sizeof(decltype(io.KeysDown)));
         for (auto& key : keyboardState.keysPressed)
@@ -1089,6 +1107,12 @@ namespace Vulgine{
         auto& io = ImGui::GetIO();
 
         io.MouseWheel = yoffset;
+    }
+
+    void VulgineImpl::charInput(VulgineImpl::Window *window, uint32_t unicode) {
+        auto& io = ImGui::GetIO();
+
+        io.AddInputCharacter(unicode);
     }
 
     void disableLog(){
@@ -1178,6 +1202,7 @@ namespace Vulgine{
         glfwSetCursorPosCallback(instance_, cursorPosition);
         glfwSetMouseButtonCallback(instance_, mouseInput);
         glfwSetScrollCallback(instance_, scrollInput);
+        glfwSetCharCallback(instance_, charInput);
 
 
     }
@@ -1278,6 +1303,11 @@ namespace Vulgine{
     void VulgineImpl::Window::scrollInput(GLFWwindow *window, double xoffset, double yoffset) {
         auto* wrappedWindow = windowMap.at(window);
         vlg_instance->mouseScroll(wrappedWindow, xoffset, yoffset);
+    }
+
+    void VulgineImpl::Window::charInput(GLFWwindow *window, uint32_t unicode) {
+        auto* wrappedWindow = windowMap.at(window);
+        vlg_instance->charInput(wrappedWindow, unicode);
     }
 
     void VulgineImpl::FpsCounter::update(double deltaT) {

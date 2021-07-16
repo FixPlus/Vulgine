@@ -18,10 +18,7 @@ namespace Vulgine{
 
             explicit Logger(std::ostream *stream) : output(stream) {}
 
-            void operator()(std::string const &log) {
-                if (enabled)
-                    *output << log << std::endl;
-            }
+            void operator()(std::string const &log);
 
             void changeLogFile(std::ostream *new_out) {
                 output = new_out;

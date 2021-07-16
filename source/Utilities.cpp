@@ -3,13 +3,19 @@
 //
 
 #include "Utilities.h"
-
+#include "VulgineUI.h"
 
 namespace Vulgine{
     Utilities::Logger logger(nullptr);
     Utilities::Errs errs;
 
     namespace Utilities {
+        void Logger::operator()(std::string const &log) {
+            if (enabled) {
+                UserInterface::addLog(log.c_str());
+                *output << log << std::endl;
+            }
+        }
         void ExitFatal(int err_code, std::string const& err){
             errs("FATAL: " + err);
             exit(err_code);
