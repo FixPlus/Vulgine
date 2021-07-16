@@ -11,9 +11,11 @@
 #include <vulkan/VulkanAllocatable.h>
 #include <glm/vec2.hpp>
 #include <vulkan/VulkanSampler.h>
+#include <unordered_map>
 
 namespace Vulgine{
 
+    constexpr const int max_imgui_texture_count = 1024;
 
     class GUI{
 
@@ -28,14 +30,24 @@ namespace Vulgine{
 
 
         VkDescriptorPool descriptorPool;
+
+        /** all descriptors used by imgui have same layout*/
+
         VkDescriptorSetLayout descriptorSetLayout;
-        VkDescriptorSet descriptorSet;
+
+        /** one descriptor per image */
+
+        std::unordered_map<Memory::Image*, std::pair<VkImageView, VkDescriptorSet>> descriptorSets;
+
+
         VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
         VkPipeline pipeline = VK_NULL_HANDLE;
 
 
         Memory::Image fontImage;
+        VkDescriptorSet fontDescriptorSet;
         VkImageView fontView = VK_NULL_HANDLE;
+
         Sampler sampler;
 
         struct PushConstBlock {
@@ -59,6 +71,10 @@ namespace Vulgine{
         void draw(VkCommandBuffer commandBuffer, int currentFrame);
 
         void windowResized(uint32_t width, uint32_t height);
+
+        void addTexturedImage(Memory::Image* image);
+
+        void deleteTexturedImage(Memory::Image* image);
 
         void destroy();
     };

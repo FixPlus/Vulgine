@@ -10,8 +10,9 @@
 
 #include "VulgineImage.h"
 #include "Utilities.h"
+#include "Vulgine.h"
 
-bool Vulgine::ImageImpl::loadFromFile(const char *filename, Vulgine::Image::FileFormat fileFormat) {
+bool Vulgine::ImageImpl::loadFromFile(const char *filename, Image::FileFormat fileFormat) {
     assert(!image.allocated && "Image has been already allocated");
     int texWidth, texHeight, texChannels;
 
@@ -30,7 +31,7 @@ bool Vulgine::ImageImpl::loadFromFile(const char *filename, Vulgine::Image::File
 
 }
 
-bool Vulgine::ImageImpl::load(const unsigned char *data, uint32_t len, Vulgine::Image::FileFormat fileFormat) {
+bool Vulgine::ImageImpl::load(const unsigned char *data, uint32_t len, Image::FileFormat fileFormat) {
     assert(!image.allocated && "Image has been already allocated");
     int texWidth, texHeight, texChannels;
 
@@ -47,7 +48,7 @@ bool Vulgine::ImageImpl::load(const unsigned char *data, uint32_t len, Vulgine::
     return ret;
 }
 
-bool Vulgine::ImageImpl::loadFromPixelData(const unsigned char *pixels, int texWidth, int texHeight, Vulgine::Image::FileFormat fileFormat) {
+bool Vulgine::ImageImpl::loadFromPixelData(const unsigned char *pixels, int texWidth, int texHeight, Image::FileFormat fileFormat) {
     uint32_t imageSize = texWidth * texHeight * 4;
 
     Memory::StagingBuffer stagingBuffer;
@@ -81,10 +82,12 @@ bool Vulgine::ImageImpl::loadFromPixelData(const unsigned char *pixels, int texW
 
     image.transitImageLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
+    vlg_instance->gui.addTexturedImage(&image);
     return true;
 }
 
 Vulgine::ImageImpl::~ImageImpl() {
+    vlg_instance->gui.deleteTexturedImage(&image);
     if(image.allocated)
         image.free();
 }

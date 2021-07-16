@@ -7,6 +7,7 @@
 #include "vulkan/VulkanInitializers.hpp"
 #include "Vulgine.h"
 
+
 void Vulgine::GUI::init(int numberOfFrames) {
 
     // Init ImGui
@@ -115,9 +116,12 @@ void Vulgine::GUI::init(int numberOfFrames) {
 
     // Descriptor pool
     std::vector<VkDescriptorPoolSize> poolSizes = {
-            initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
+            initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, max_imgui_texture_count)
     };
-    VkDescriptorPoolCreateInfo descriptorPoolInfo = initializers::descriptorPoolCreateInfo(poolSizes, 2);
+    VkDescriptorPoolCreateInfo descriptorPoolInfo = initializers::descriptorPoolCreateInfo(poolSizes, max_imgui_texture_count);
+
+    descriptorPoolInfo.flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+
     VK_CHECK_RESULT(vkCreateDescriptorPool(vlg_instance->device->logicalDevice, &descriptorPoolInfo, nullptr, &descriptorPool));
 
     // Descriptor set layout
@@ -129,14 +133,15 @@ void Vulgine::GUI::init(int numberOfFrames) {
 
     // Descriptor set
     VkDescriptorSetAllocateInfo allocInfo = initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(vlg_instance->device->logicalDevice, &allocInfo, &descriptorSet));
+
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(vlg_instance->device->logicalDevice, &allocInfo, &fontDescriptorSet));
     VkDescriptorImageInfo fontDescriptor = initializers::descriptorImageInfo(
             sampler.sampler,
             fontView,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     );
     std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-            initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &fontDescriptor)
+            initializers::writeDescriptorSet(fontDescriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &fontDescriptor)
     };
     vkUpdateDescriptorSets(vlg_instance->device->logicalDevice, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
 
@@ -149,6 +154,10 @@ void Vulgine::GUI::init(int numberOfFrames) {
 
 void Vulgine::GUI::destroy() {
     ImGui::DestroyContext();
+
+    while(!descriptorSets.empty()){
+        deleteTexturedImage(descriptorSets.begin()->first);
+    }
 
     for(auto& buffer: vertexBuffers)
         if(buffer.allocated)
@@ -211,7 +220,7 @@ void Vulgine::GUI::preparePipeline(VkRenderPass renderPass) {
             initializers::pipelineViewportStateCreateInfo(1, 1, 0);
 
     VkPipelineMultisampleStateCreateInfo multisampleState =
-            initializers::pipelineMultisampleStateCreateInfo(rasterizationSamples);
+            initializers::pipelineMultisampleStateCreateInfo(vlg_instance->settings.msaa);
 
     std::vector<VkDynamicState> dynamicStateEnables = {
             VK_DYNAMIC_STATE_VIEWPORT,
@@ -366,8 +375,10 @@ void Vulgine::GUI::draw(VkCommandBuffer commandBuffer, int currentFrame) {
 
     ImGuiIO& io = ImGui::GetIO();
 
+    auto* boundTexture = &fontImage;
+
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, NULL);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &fontDescriptorSet, 0, NULL);
 
     pushConstBlock.scale = glm::vec2(2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y);
     pushConstBlock.translate = glm::vec2(-1.0f);
@@ -380,9 +391,30 @@ void Vulgine::GUI::draw(VkCommandBuffer commandBuffer, int currentFrame) {
     for (int32_t i = 0; i < imDrawData->CmdListsCount; i++)
     {
         const ImDrawList* cmd_list = imDrawData->CmdLists[i];
+
         for (int32_t j = 0; j < cmd_list->CmdBuffer.Size; j++)
         {
             const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[j];
+            auto* textureI = (Image*)pcmd->GetTexID();
+
+            auto* texture = dynamic_cast<ImageImpl*>(textureI);
+            if(texture){ // Custom texture is bound
+                if(boundTexture != &texture->image){
+                    auto it = descriptorSets.find( &texture->image);
+                    if(it != descriptorSets.end()){
+                        boundTexture = &texture->image;
+                        auto descSet = it->second.second;
+                        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descSet, 0, NULL);
+                    } else {
+                        // TODO: bound some sample texture instead
+                    }
+                }
+            } else{ // Font atlas is bound
+                if(boundTexture != &fontImage){
+                    boundTexture = &fontImage;
+                    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &fontDescriptorSet, 0, NULL);
+                }
+            }
             VkRect2D scissorRect;
             scissorRect.offset.x = std::max((int32_t)(pcmd->ClipRect.x), 0);
             scissorRect.offset.y = std::max((int32_t)(pcmd->ClipRect.y), 0);
@@ -394,4 +426,49 @@ void Vulgine::GUI::draw(VkCommandBuffer commandBuffer, int currentFrame) {
         }
         vertexOffset += cmd_list->VtxBuffer.Size;
     }
+}
+
+void Vulgine::GUI::addTexturedImage(Memory::Image *image) {
+    if(descriptorSets.size() + 1 == max_imgui_texture_count){
+        errs("ImGui backend: max number of textures exceeded");
+        return;
+    }
+
+    VkImageView view;
+    VkImageViewCreateInfo viewInfo = initializers::imageViewCreateInfo();
+    viewInfo.image = image->image;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = image->imageInfo.format;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.layerCount = 1;
+    VK_CHECK_RESULT(vkCreateImageView(vlg_instance->device->logicalDevice, &viewInfo, nullptr, &view))
+    VkDescriptorSet descriptorSet;
+    // Descriptor set
+    VkDescriptorSetAllocateInfo allocInfo = initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
+
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(vlg_instance->device->logicalDevice, &allocInfo, &descriptorSet));
+    VkDescriptorImageInfo textureDescriptor = initializers::descriptorImageInfo(
+            sampler.sampler,
+            view,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    );
+    std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
+            initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &textureDescriptor)
+    };
+    vkUpdateDescriptorSets(vlg_instance->device->logicalDevice, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
+
+    descriptorSets.emplace(std::piecewise_construct, std::forward_as_tuple(image), std::forward_as_tuple(view, descriptorSet));
+}
+
+void Vulgine::GUI::deleteTexturedImage(Memory::Image *image) {
+    if(!descriptorSets.count(image)){
+        errs("ImGui-backend: trying to delete unbound texture");
+        return;
+    }
+    auto elem = descriptorSets.at(image);
+    VK_CHECK_RESULT(vkFreeDescriptorSets(vlg_instance->device->logicalDevice, descriptorPool, 1, &elem.second))
+    vkDestroyImageView(vlg_instance->device->logicalDevice, elem.first, nullptr);
+
+    descriptorSets.erase(image);
 }

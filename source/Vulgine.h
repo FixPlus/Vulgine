@@ -187,6 +187,11 @@ namespace Vulgine {
 
         std::vector<Framebuffer> onScreenFramebuffers;
 
+        struct{
+            Memory::Image image;
+            VkImageView view;
+        } msaaImage;
+
         // Offscreen frame buffers (one per each offscreen render pass)
 
         std::vector<Framebuffer> offScreenFramebuffers;
@@ -201,10 +206,6 @@ namespace Vulgine {
 
         std::vector<RenderTask> taskQueue;
 
-        IdentifiableContainer<SceneImpl> scenes;
-        IdentifiableContainer<MaterialImpl> materials;
-        IdentifiableContainer<ImageImpl> images;
-        IdentifiableContainer<UniformBufferImpl> uniformBuffers;
 
 
         // Depth buffer format (selected during Vulkan initialization)
@@ -244,6 +245,7 @@ namespace Vulgine {
 
         struct Settings{
             bool vsync = false;
+            VkSampleCountFlagBits msaa = VK_SAMPLE_COUNT_1_BIT;
             uint32_t framesInFlight = 2;
         } settings;
 
@@ -263,6 +265,11 @@ namespace Vulgine {
 
         std::map<std::string, ShaderModule> vertexShaders;
         std::map<std::string, ShaderModule> fragmentShaders;
+
+        IdentifiableContainer<SceneImpl> scenes;
+        IdentifiableContainer<MaterialImpl> materials;
+        IdentifiableContainer<ImageImpl> images;
+        IdentifiableContainer<UniformBufferImpl> uniformBuffers;
 
         DescriptorPool perScenePool;    // set 0
         DescriptorPool perMaterialPool; // set 1
@@ -327,6 +334,8 @@ namespace Vulgine {
         ~VulgineImpl() override;
         bool cycle() override;
         double lastFrameTime() const override;
+        void updateMSAA(VkSampleCountFlagBits newValue);
+        void toggleVsync();
 
         friend class UserInterface;
     };

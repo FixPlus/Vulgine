@@ -5,7 +5,7 @@ Vulkan-API based 3D rendering engine. Focused to be easy-to-use along being as f
 ## Features
 ### incoming
 
-* uniform / storage buffers support
+* storage buffers support
 * multiple programmable render pass support
 * multithreading support
 * shader modules management
@@ -14,8 +14,11 @@ Vulkan-API based 3D rendering engine. Focused to be easy-to-use along being as f
 ### enabled
 
 * textured mesh rendering
+* custom vertex stage descriptors such as UBO and texture samplers
 * chose between dynamic and static vertex/index buffers
 * imgui basic features and user input
+* imgui user-defined textures support
+* MSAA setting support
 
 ## Dependencies
 

@@ -11,7 +11,7 @@ void Vulgine::Framebuffer::createImpl() {
     frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     frameBufferCreateInfo.pNext = NULL;
     frameBufferCreateInfo.renderPass = renderPass;
-    frameBufferCreateInfo.attachmentCount = 2;
+    frameBufferCreateInfo.attachmentCount = attachments.size();
     frameBufferCreateInfo.pAttachments = attachments.data();
     frameBufferCreateInfo.width = width;
     frameBufferCreateInfo.height = height;

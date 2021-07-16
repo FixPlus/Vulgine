@@ -295,7 +295,7 @@ int main(int argc, char** argv){
         else
             deltaT = vulgine->lastFrameTime();
         timer += deltaT;
-        shift += glm::vec4(1.0f, 0.0f, 0.0f, 0.0f) * (float)deltaT;
+        shift = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f) * (float)sin(deltaT);
         ubo->update();
 #if 0
         for(int i = 0; i < metaCubesize; i++){

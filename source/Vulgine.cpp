@@ -79,7 +79,7 @@ namespace Vulgine{
         swapChain.cleanup();
 
         offScreenFramebuffers.clear();
-        onScreenFramebuffers.clear();
+        destroyOnscreenFrameBuffers();
 
         vkDestroyImageView(device->logicalDevice, depthStencil.view, nullptr);
         vkDestroyImage(device->logicalDevice, depthStencil.image, nullptr);
@@ -539,7 +539,7 @@ namespace Vulgine{
         imageCI.extent = { vieportInfo.width, vieportInfo.height, 1 };
         imageCI.mipLevels = 1;
         imageCI.arrayLayers = 1;
-        imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageCI.samples = settings.msaa;
         imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
         imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
@@ -630,25 +630,40 @@ namespace Vulgine{
 
             // creating general render pass for onScreen rendering
 
-            std::array<VkAttachmentDescription, 2> attachments = {};
+            std::array<VkAttachmentDescription, 3> attachments = {};
             // Color attachment
             attachments[0].format = swapChain.colorFormat;
-            attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+            attachments[0].samples = settings.msaa;
             attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
             attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+            attachments[0].finalLayout = settings.msaa > 1 ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL :
+                    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
             // Depth attachment
             attachments[1].format = depthFormat;
-            attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+            attachments[1].samples = settings.msaa;
             attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
             attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+            // Reslove color attachment for multisampling image
+
+            if(settings.msaa > 1) {
+                attachments[2].format = swapChain.colorFormat;
+                attachments[2].samples = VK_SAMPLE_COUNT_1_BIT;
+                attachments[2].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                attachments[2].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                attachments[2].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                attachments[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                attachments[2].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+            }
 
             VkAttachmentReference colorReference = {};
             colorReference.attachment = 0;
@@ -657,6 +672,11 @@ namespace Vulgine{
             VkAttachmentReference depthReference = {};
             depthReference.attachment = 1;
             depthReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+            VkAttachmentReference colorAttachmentResolveRef{};
+            colorAttachmentResolveRef.attachment = 2;
+            colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
 
             VkSubpassDescription subpassDescription = {};
             subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -667,7 +687,7 @@ namespace Vulgine{
             subpassDescription.pInputAttachments = nullptr;
             subpassDescription.preserveAttachmentCount = 0;
             subpassDescription.pPreserveAttachments = nullptr;
-            subpassDescription.pResolveAttachments = nullptr;
+            subpassDescription.pResolveAttachments = settings.msaa > 1 ? &colorAttachmentResolveRef : nullptr;
 
             // Subpass dependencies for layout transitions
             std::array<VkSubpassDependency, 2> dependencies;
@@ -690,7 +710,7 @@ namespace Vulgine{
 
             VkRenderPassCreateInfo renderPassInfo = {};
             renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-            renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+            renderPassInfo.attachmentCount = static_cast<uint32_t>(settings.msaa > 1 ? attachments.size() : attachments.size() - 1);
             renderPassInfo.pAttachments = attachments.data();
             renderPassInfo.subpassCount = 1;
             renderPassInfo.pSubpasses = &subpassDescription;
@@ -735,12 +755,60 @@ namespace Vulgine{
         for(int i = 0; i < swapChain.imageCount; i++)
             onScreenFramebuffers.emplace_back();
 
+        if(settings.msaa > 1){
+
+            // TODO: move this somewhere else
+
+            VkImageCreateInfo imageInfo{};
+            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            imageInfo.imageType = VK_IMAGE_TYPE_2D;
+            imageInfo.extent.width = static_cast<uint32_t>(vieportInfo.width);
+            imageInfo.extent.height = static_cast<uint32_t>(vieportInfo.height);
+            imageInfo.extent.depth = 1;
+            imageInfo.mipLevels = 1;
+            imageInfo.arrayLayers = 1;
+
+            imageInfo.format = swapChain.colorFormat;
+            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            imageInfo.samples = settings.msaa;
+            imageInfo.flags = 0; // Optional
+
+
+            msaaImage.image.allocate(imageInfo, VMA_MEMORY_USAGE_GPU_ONLY, 0, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+            VkImageViewCreateInfo viewCreateInfo = {};
+            viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+
+
+            viewCreateInfo.format = imageInfo.format;
+            viewCreateInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
+            viewCreateInfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+            // Linear tiling usually won't support mip maps
+            // Only set mip map count if optimal tiling is used
+            viewCreateInfo.subresourceRange.levelCount = 1;
+            viewCreateInfo.image = msaaImage.image.image;
+            VK_CHECK_RESULT(vkCreateImageView(vlg_instance->device->logicalDevice, &viewCreateInfo, nullptr, &msaaImage.view));
+
+        }
+
         for(uint32_t i = 0; i < onScreenFramebuffers.size(); i++){
             auto& framebuffer = onScreenFramebuffers.at(i);
             framebuffer.width = vieportInfo.width;
             framebuffer.height = vieportInfo.height;
-            framebuffer.attachments.push_back(swapChain.buffers[i].view);
-            framebuffer.attachments.push_back(depthStencil.view);
+
+            if(settings.msaa > 1) {
+                framebuffer.attachments.push_back(msaaImage.view);
+                framebuffer.attachments.push_back(depthStencil.view);
+                framebuffer.attachments.push_back(swapChain.buffers[i].view);
+            } else {
+                framebuffer.attachments.push_back(swapChain.buffers[i].view);
+                framebuffer.attachments.push_back(depthStencil.view);
+            }
+
             framebuffer.renderPass = onscreenRenderPass->renderPass;
             framebuffer.create();
         }
@@ -748,6 +816,10 @@ namespace Vulgine{
     }
 
     void VulgineImpl::destroyOnscreenFrameBuffers() {
+        if(msaaImage.image.allocated){
+            vkDestroyImageView(device->logicalDevice, msaaImage.view, nullptr);
+            msaaImage.image.free();
+        }
         onScreenFramebuffers.clear();
     }
 
@@ -1113,6 +1185,37 @@ namespace Vulgine{
         auto& io = ImGui::GetIO();
 
         io.AddInputCharacter(unicode);
+    }
+
+    void VulgineImpl::updateMSAA(VkSampleCountFlagBits newValue) {
+        int maxMSAA = device->getMaximumMSAA();
+        if(maxMSAA < newValue){
+            errs("Cannot apply such high MSAA (device limit: " + std::to_string(maxMSAA) + ")");
+            return;
+        }
+
+        vkQueueWaitIdle(queue);
+
+        settings.msaa = newValue;
+
+
+        vkDestroyImageView(device->logicalDevice, depthStencil.view, nullptr);
+        vkDestroyImage(device->logicalDevice, depthStencil.image, nullptr);
+        vkFreeMemory(device->logicalDevice, depthStencil.mem, nullptr);
+
+        setupDepthStencil();
+
+        buildRenderPasses();
+
+
+    }
+
+    void VulgineImpl::toggleVsync() {
+        vkDeviceWaitIdle(device->logicalDevice);
+        settings.vsync = !settings.vsync;
+        setupSwapChain();
+        destroyOnscreenFrameBuffers();
+        createOnscreenFrameBuffers();
     }
 
     void disableLog(){
