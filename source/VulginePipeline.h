@@ -24,7 +24,7 @@ namespace Vulgine{
 
     };
 
-    struct Pipeline: public Creatable{
+    struct Pipeline: public ObjectImpl{
         MaterialImpl* material;
         SceneImpl* scene;
         RenderPass* renderPass;
@@ -33,7 +33,7 @@ namespace Vulgine{
         VkPipeline pipeline = VK_NULL_HANDLE;
         VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
 
-        explicit Pipeline(PipelineKey key = {}):
+        explicit Pipeline(PipelineKey key = {}): ObjectImpl(0, Object::Type::PIPELINE),
                             mesh(key.mesh), material(key.material), renderPass(key.renderPass), scene(key.scene){};
         Pipeline& operator=(Pipeline&& another) = default;
         void createImpl() override;

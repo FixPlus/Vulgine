@@ -11,10 +11,9 @@
 namespace Vulgine{
 
 
-    class Scene{
-        uint32_t id_;
-    public:
-        explicit Scene(uint32_t id): id_(id){}
+    struct Scene: virtual public Object{
+
+
         virtual Light* createLightSource() = 0;
         virtual Mesh* createEmptyMesh() = 0;
         virtual Camera* createCamera() = 0;
@@ -22,9 +21,7 @@ namespace Vulgine{
         virtual void deleteMesh(Mesh* mesh) = 0;
         virtual void deleteLightSource(Light* light) = 0;
         virtual void deleteCamera(Camera* camera) = 0;
-        virtual ~Scene() = default;
 
-        uint32_t id() const { return id_;}
     };
 
 }

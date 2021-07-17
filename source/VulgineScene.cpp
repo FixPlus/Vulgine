@@ -83,4 +83,12 @@ namespace Vulgine{
         cameras.erase(id);
     }
 
+    void SceneImpl::createImpl() {
+
+    }
+
+    void SceneImpl::destroyImpl() {
+
+    }
+
 }

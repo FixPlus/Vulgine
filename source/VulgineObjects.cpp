@@ -258,7 +258,6 @@ namespace Vulgine{
     uint32_t MeshImpl::count_ = 0;
     MeshImpl::~MeshImpl() {
         count_--;
-        logger("Mesh destroyed");
         for(auto buf: perVertex)
             delete buf.first;
         for(auto buf: perInstance)
@@ -651,7 +650,9 @@ namespace Vulgine{
         }
     }
 
-    UniformBufferImpl::UniformBufferImpl(uint32_t id) : UniformBuffer(id) {
+    UniformBufferImpl::UniformBufferImpl(uint32_t id) : ObjectImpl(id, Type::UBO) {
 
     }
-}
+
+
+ }

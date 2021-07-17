@@ -91,3 +91,11 @@ Vulgine::ImageImpl::~ImageImpl() {
     if(image.allocated)
         image.free();
 }
+
+void Vulgine::ImageImpl::createImpl() {
+
+}
+
+void Vulgine::ImageImpl::destroyImpl() {
+
+}

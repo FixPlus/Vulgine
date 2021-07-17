@@ -70,7 +70,7 @@ namespace Vulgine {
 
         VkBool32 getSupportedDepthFormat();
     protected:
-        class Window : public Creatable {
+        class Window : public ObjectImpl {
             static std::map<GLFWwindow *, Window*> windowMap;
 
             // callbacks
@@ -88,10 +88,12 @@ namespace Vulgine {
             void destroyImpl() override;
 
             struct{
-                int xPos, yPos, width, height;
+                int xPos = 0, yPos = 0, width = 0, height = 0;
             } cachedWindowedDimensions;
 
         public:
+
+            Window(): ObjectImpl(0, Object::Type::UNKNOWN){}
 
             const GLFWvidmode* monitorVideoModes = nullptr;
             const GLFWvidmode* selectedVideoMode = nullptr;

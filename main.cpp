@@ -195,6 +195,8 @@ int main(int argc, char** argv){
 
     auto* material = vulgine->initNewMaterial();
 
+    material->setName("Wario Surface");
+
     auto* texture = vulgine->initNewImage();
 
     auto* ubo = vulgine->initNewUniformBuffer();
@@ -295,7 +297,7 @@ int main(int argc, char** argv){
         else
             deltaT = vulgine->lastFrameTime();
         timer += deltaT;
-        shift = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f) * (float)sin(deltaT);
+        shift = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f) * (float)sin(timer);
         ubo->update();
 #if 0
         for(int i = 0; i < metaCubesize; i++){

@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <cstdint>
+#include <unordered_map>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -19,65 +20,93 @@
 
 namespace Vulgine{
 
-    class Identifiable{
-        uint32_t id_;
-    public:
-        explicit Identifiable(uint32_t id): id_(id){}
-        uint32_t id() const { return id_;}
-        virtual ~Identifiable() = default;
-    };
-
     /**
-     * @brief General interface for most Vulgine Objects.
-     *
-     * Vulgine objects sharing this interface have common use pattern:
-     *
-     * @fill  Fill up all public fields (create info).
-     * @create    call create() member function.
-     * @use   Use this object.
-     * @destroy   Destroy object:
-     *        a) call destroy() member function - you can later reuse this object.
-     *        Or
-     *        b) invalidate this object using appropriate deleteObject(object) function - you cannot reuse this object.
-     *        in this case.
-     *
-     *  \Remember that if resource owning this object gets freed (by calling destroy() in particular) or invalidated
-     *  the object gets implicitly invalidated. Any use of invalidated object is forbidden.
-     *
-     */
+    * @brief General interface for most Vulgine Objects.
+    *
+    * Vulgine objects sharing this interface have common use pattern:
+    *
+    * @fill  Fill up all public fields (create info).
+    * @create    call create() member function.
+    * @use   Use this object.
+    * @destroy   Destroy object:
+    *        a) call destroy() member function - you can later reuse this object.
+    *        Or
+    *        b) invalidate this object using appropriate deleteObject(object) function - you cannot reuse this object.
+    *        in this case.
+    *
+    *  \Remember that if resource owning this object gets freed (by calling destroy() in particular) or invalidated
+    *  the object gets implicitly invalidated. Any use of invalidated object is forbidden.
+    *
+    *  Vulgine objects are not copiable as they encapsulate unique data structures they are to allocated and free
+    *  when destructed. Every object in Vulgine has its own unique ID - unsigned 32 bit integer number. Optionally
+    *  you can name object and Vulgine will display it in corresponding debug sections of UI instead of default
+    *  "%Type% #ID" output. Vulgine keeps track of count of each object type entities allocated. This information
+    *  can be retrieved by corresponding Object::count(%Type%) static function.
+    *
+    */
 
-    class Creatable{
-        bool created = false;
-    protected:
-        virtual void createImpl() = 0;
-        virtual void destroyImpl() = 0;
+    class Object{
     public:
-        Creatable() = default;
-        Creatable(Creatable const& another) = delete;
-        Creatable const& operator=(Creatable const& another) = delete;
-        Creatable(Creatable&& another) = default;
-        Creatable& operator=(Creatable&& another) = default;
-        void create() {
-            if(created)
-                return;
-            createImpl();
-            created = true;
+
+        /** @brief list of types Vulgine is using. Some of them are fully internal and not accessible by API */
+
+        enum class Type{
+            MATERIAL,
+            SCENE,
+            IMAGE,
+            MESH,
+            UBO,
+            CAMERA,
+            LIGHT,
+            RENDER_PASS,        // internal only (yet)
+            FRAME_BUFFER,       // internal only (yet)
+            PIPELINE,           // internal only
+            SHADER_MODULE,      // internal only (yet)
+            NONE,
+            UNKNOWN             // other uncategorized internal only objects
         };
 
-        void destroy() {
-            if(!created)
-                return;
-            destroyImpl();
-            created = false;
-        }
+        Object() = default;
+        Object(Object const& another) = delete;
+        Object const& operator=(Object const& another) = delete;
+        Object(Object&& another) = default;
 
-        bool isCreated() const{
-            return created;
-        }
+        /** @brief allocates and prepares all internal resources of an object based on interface part state
+         *
+         *  Before calling this function, object is in "not-ready" state, so using or/and referencing it is not allowed
+         *
+         * */
 
+        virtual void create() = 0;
 
-        virtual ~Creatable() = default;
+        /** @brief frees all the resources allocated by create() function thus returning object in "not-ready" state */
+
+        virtual void destroy() = 0;
+
+        /** @brief query whether the object is now in "ready" state or not */
+
+        virtual bool isCreated() const = 0;
+
+        /** @brief gives object a name(not necessarily unique) */
+
+        virtual void setName(std::string const& newName) = 0;
+
+        /** @brief gets string version of object id info */
+
+        virtual std::string objectLabel() const = 0;
+
+        /** @brief ID info */
+
+        virtual uint32_t id() const = 0;
+
+        /** @brief count of total allocated objects of certain type */
+
+        static uint32_t count(Type type);
+
+        virtual ~Object() = default;
+
     };
+
 
     /**
      *
@@ -93,14 +122,14 @@ namespace Vulgine{
      *
      */
 
-    struct Image: public Identifiable{
+    struct Image: virtual public Object{
 
         enum FileFormat{FILE_FORMAT_PNG, FILE_FORMAT_JPEG, FILE_FORMAT_KTX};
         enum Format{FORMAT_R8G8B8A8_UNORM, FORMAT_R8G8B8A8_SRGB};
 
         virtual bool loadFromFile(const char* filename, FileFormat fileFormat) = 0;
         virtual bool load(const unsigned char* data, uint32_t len, FileFormat fileFormat) = 0;
-        explicit Image(uint32_t id): Identifiable(id){}
+
     };
 
     /**
@@ -119,14 +148,13 @@ namespace Vulgine{
      *
      */
 
-    struct UniformBuffer: public Creatable, public Identifiable{
+    struct UniformBuffer: virtual public Object{
 
         void* pData = nullptr;
         uint32_t size = 0;
 
         bool dynamic = true;
 
-        explicit UniformBuffer(uint32_t id): Identifiable(id){};
 
         virtual void update() = 0;
     };
@@ -139,12 +167,12 @@ namespace Vulgine{
      *
      */
 
-    struct Camera: public Creatable, public Identifiable{
+    struct Camera: virtual public Object{
     protected:
         Scene* parent_;
     public:
 
-        Camera(Scene* parent, uint32_t id): parent_(parent), Identifiable(id){ projection[1][1] *= -1; }
+        Camera(Scene* parent): parent_(parent) { projection[1][1] *= -1; }
         glm::vec3 position = glm::vec3{0.0f};
         glm::vec3 rotation = glm::vec3{0.0f, 0.0f, 0.0f};
         glm::mat4 projection = glm::perspective(glm::radians(60.0f), 16.0f / 9.0f, 0.1f, 100.0f);
@@ -197,7 +225,7 @@ namespace Vulgine{
      *
      *
      */
-    struct Material: public Creatable, public Identifiable{
+    struct Material: virtual public Object{
 
 
         struct{
@@ -206,7 +234,6 @@ namespace Vulgine{
         } texture;
 
 
-        explicit Material(uint32_t id): Identifiable(id){}
 
     };
 
@@ -216,11 +243,11 @@ namespace Vulgine{
      *
      */
 
-    class Light: public Creatable, public Identifiable{
+    class Light: virtual public Object{
     protected:
         Scene* parent_;
     public:
-        Light(Scene* parent, uint32_t id): parent_(parent), Identifiable(id){}
+        Light(Scene* parent): parent_(parent){}
         glm::vec3 direction;
         Scene* parent() const{ return parent_;};
     };
@@ -236,12 +263,12 @@ namespace Vulgine{
      * @brief rendered object
      *
      */
-    class Mesh: public Creatable, public Identifiable{
+    class Mesh: virtual public Object{
     protected:
         Scene* parent_;
     public:
 
-        Mesh(Scene* parent, uint32_t id): parent_(parent), Identifiable(id){}
+        Mesh(Scene* parent): parent_(parent){}
 
         struct {
             VertexFormat vertexFormat{};
@@ -314,7 +341,7 @@ namespace Vulgine{
          *   Then pushes them to video memory
          * */
 
-        // inherits 'void create()' from Creatable
+        // inherits 'void create()' from Object
 
         /** Updates vertex and index buffer and pushes them to video memory*/
 

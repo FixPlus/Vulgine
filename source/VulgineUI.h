@@ -6,9 +6,13 @@
 #define TEST_EXE_VULGINEUI_H
 
 #include "imgui/imgui.h"
+#include "IVulgineObjects.h"
 #include <vector>
 
 namespace Vulgine{
+
+
+    class ObjectImpl;
 
     class MaterialImpl;
     class SceneImpl;
@@ -31,20 +35,9 @@ namespace Vulgine{
     };
 
     class ObjectInspector: public ContentWindow{
-        enum class ObjectType{
-            MATERIAL,
-            SCENE,
-            IMAGE,
-            UBO,
-            NONE
-        } selectedType = ObjectType::NONE;
+        Object::Type selectedType = Object::Type::NONE;
 
-        union SelectedObject {
-            MaterialImpl *material;
-            SceneImpl *scene;
-            ImageImpl *image;
-            UniformBufferImpl *ubo;
-        } selectedObject;
+        ObjectImpl* selectedObject;
 
         void displaySceneInfo();
         void displayMaterialInfo();

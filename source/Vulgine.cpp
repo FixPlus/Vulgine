@@ -168,6 +168,8 @@ namespace Vulgine{
             }
             logger("Proper GLFW version loaded: " + std::string(glfwGetVersionString()));
 
+            ObjectImpl::fillTypeNameTable();
+
             VulgineImpl* vlg_instance_impl;
             try{
                 vlg_instance_impl = new VulgineImpl();

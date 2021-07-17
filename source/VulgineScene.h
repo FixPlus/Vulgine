@@ -16,11 +16,11 @@ namespace Vulgine{
 
     struct RenderPass;
 
-    struct SceneImpl: public Scene{
+    struct SceneImpl: public Scene, public ObjectImpl{
 
 
 
-        explicit SceneImpl(uint32_t id): Scene(id){};
+        explicit SceneImpl(uint32_t id): ObjectImpl(id, Type::SCENE){};
         std::stack<uint32_t> meshFreeIds;
         std::stack<uint32_t> lightFreeIds;
         std::stack<uint32_t> cameraFreeIds;
@@ -39,7 +39,11 @@ namespace Vulgine{
 
         void draw(VkCommandBuffer commandBuffer, CameraImpl* camera, RenderPass* pass);
 
-        ~SceneImpl() override{ logger("Scene deleted");}
+        ~SceneImpl() override = default;
+
+    protected:
+        void createImpl() override;
+        void destroyImpl() override;
 
     };
 }
