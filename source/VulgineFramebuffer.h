@@ -16,7 +16,7 @@ namespace Vulgine{
         void createImpl() override;
         void destroyImpl() override;
     public:
-        Framebuffer(uint32_t id = 0): ObjectImpl(id, Object::Type::FRAME_BUFFER){};
+        Framebuffer(): ObjectImpl(Object::Type::FRAME_BUFFER, ObjectImpl::claimId()){};
         Framebuffer(Framebuffer&& another) = default;
         Framebuffer& operator=(Framebuffer&& another) = default;
         VkFramebuffer framebuffer;

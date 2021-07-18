@@ -20,7 +20,7 @@ namespace Vulgine{
 
     struct CameraImpl;
 
-    class UniformBufferImpl: public UniformBuffer, public ObjectImpl{
+    class UniformBufferImpl: public UniformBuffer, public ObjectImplNoMove{
     public:
         std::vector<Memory::Buffer*> buffers{};
         std::vector<bool> updated{};
@@ -35,7 +35,7 @@ namespace Vulgine{
         ~UniformBufferImpl() override;
     };
 
-    class MeshImpl: public Mesh, public ObjectImpl{
+    class MeshImpl: public Mesh, public ObjectImplNoMove{
         static uint32_t count_;
         VkVertexInputBindingDescription vertexAttrBindingInfo[2] = {};
 
@@ -66,7 +66,7 @@ namespace Vulgine{
 
         Memory::StaticIndexBuffer indexBuffer;
 
-        explicit MeshImpl(Scene* parent, uint32_t id): Mesh(parent), ObjectImpl(id, Type::MESH){ count_++; };
+        explicit MeshImpl(Scene* parent, uint32_t id): Mesh(parent), ObjectImplNoMove(Type::MESH, id){ count_++; };
 
         void createImpl() override;
         void destroyImpl() override;
@@ -87,9 +87,9 @@ namespace Vulgine{
         ~MeshImpl() override;
     };
 
-    struct LightImpl: public Light, public ObjectImpl{
+    struct LightImpl: public Light, public ObjectImplNoMove{
 
-        explicit LightImpl(Scene* parent, uint32_t id): Light(parent), ObjectImpl(id, Type::LIGHT){};
+        explicit LightImpl(Scene* parent, uint32_t id): Light(parent), ObjectImplNoMove(Type::LIGHT, id){};
 
 
         void createImpl() override;
@@ -101,7 +101,7 @@ namespace Vulgine{
         VkShaderModule module;
         std::string name;
 
-        explicit ShaderModule(VkShaderModule mod = VK_NULL_HANDLE, std::string nm = ""): ObjectImpl(0, Object::Type::SHADER_MODULE), module(mod), name(std::move(nm)){}
+        explicit ShaderModule(VkShaderModule mod = VK_NULL_HANDLE, std::string nm = ""): ObjectImpl(Object::Type::SHADER_MODULE, ObjectImpl::claimId()), module(mod), name(std::move(nm)){}
 
         void createImpl() override;
         void destroyImpl() override;
@@ -109,7 +109,7 @@ namespace Vulgine{
         ~ShaderModule() override;
     };
 
-    struct MaterialImpl: public Material, public ObjectImpl{
+    struct MaterialImpl: public Material, public ObjectImplNoMove{
         uint32_t descriptorSet;
         bool hasDescriptorSet = false;
         struct TextureSampler{
@@ -119,14 +119,14 @@ namespace Vulgine{
 
 
 
-        explicit MaterialImpl(uint32_t id): ObjectImpl(id, Type::MATERIAL){}
+        explicit MaterialImpl(uint32_t id): ObjectImplNoMove(Type::MATERIAL, id){}
         void createImpl() override;
         void destroyImpl() override;
 
         ~MaterialImpl() override;
     };
 
-    struct CameraImpl: public Camera, public ObjectImpl{
+    struct CameraImpl: public Camera, public ObjectImplNoMove{
 
         struct {
             glm::mat4 viewMatrix{};
@@ -135,7 +135,7 @@ namespace Vulgine{
 
         void update() override;
 
-        CameraImpl(Scene* parent, uint32_t id): Camera(parent), ObjectImpl(id, Type::CAMERA){}
+        CameraImpl(Scene* parent, uint32_t id): Camera(parent), ObjectImplNoMove(Type::CAMERA, id){}
         void createImpl() override;
         void destroyImpl() override;
 

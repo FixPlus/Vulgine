@@ -8,11 +8,17 @@
 
 namespace Vulgine{
 
-    std::unordered_map<Object::Type, uint32_t> ObjectImpl::countMap;
-    std::unordered_map<Object::Type, std::string> ObjectImpl::typeNames;
+    std::unordered_map<Object::Type, uint32_t> ObjectImpl::countMap{};
+    std::unordered_map<Object::Type, std::string> ObjectImpl::typeNames{};
 
+    std::stack<uint32_t> ObjectImpl::freeIds{};
+    uint32_t ObjectImpl::claimedIdsCount = 0;
+    std::unordered_map<uint32_t, ObjectImpl*> ObjectImpl::objMap{};
 
-    ObjectImpl::ObjectImpl(uint32_t id, Type typeId): id_(id), typeId_(typeId){
+    ObjectImpl::ObjectImpl(Type typeId, uint32_t id): typeId_(typeId), id_(id){
+
+        objMap.emplace(id_, this);
+
         logger(typeNames.at(typeId_) + " #" + std::to_string(id_) + " created");
         if(countMap.count(typeId))
             countMap.at(typeId)++;
@@ -22,6 +28,10 @@ namespace Vulgine{
     }
 
     ObjectImpl::~ObjectImpl() {
+        if(id_ == UINT32_MAX)
+            return;
+        invalidateId(id_);
+
         if(name.has_value())
             logger(name.value() +  "("+ typeNames.at(typeId_) + " #" + std::to_string(id_) + ") destroyed");
         else
@@ -58,5 +68,60 @@ uint32_t ObjectImpl::count(Type type) { return countMap.count(type) ? countMap.a
         return typeNames.at(typeId_);
     }
 
+    uint32_t ObjectImpl::claimId() {
+        claimedIdsCount++;
+        if(freeIds.empty()){
+            return claimedIdsCount - 1;
+        } else{
+            auto ret = freeIds.top();
+            freeIds.pop();
+            return ret;
+        }
+    }
+
+    void ObjectImpl::invalidateId(uint32_t id) {
+        freeIds.push(id);
+        objMap.erase(id);
+        claimedIdsCount--;
+    }
+
+    ObjectImpl *ObjectImpl::get(uint32_t id) {
+        auto it = objMap.find(id);
+
+        if(it != objMap.end())
+            return it->second;
+        else
+            return nullptr;
+    }
+
+    ObjectImpl &ObjectImpl::operator=(ObjectImpl &&another) noexcept{
+        id_ = another.id_;
+        typeId_ = another.typeId_;
+        name = another.name;
+        created = another.created;
+
+        objMap.at(id_) = this;
+        another.id_ = UINT32_MAX;
+        another.created = false;
+
+        return *this;
+    }
+
+    ObjectImpl::ObjectImpl(ObjectImpl &&another) noexcept: id_(another.id_), name(another.name),
+    typeId_(another.typeId_){
+        created = another.created;
+        objMap.at(id_) = this;
+        another.id_ = UINT32_MAX;
+        another.created = false;
+    }
+
+    void ObjectImpl::for_each(std::function<void(ObjectImpl *)> action) {
+        for(auto it: objMap)
+            action(it.second);
+    }
+
+    Object* Object::get(uint32_t id){
+        return ObjectImpl::get(id);
+    }
     uint32_t Object::count(Type type) { return ObjectImpl::count(type);}
 }

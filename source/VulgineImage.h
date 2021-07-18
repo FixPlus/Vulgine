@@ -10,10 +10,10 @@
 
 namespace Vulgine{
 
-    struct ImageImpl: public Image, public ObjectImpl{
+    struct ImageImpl: public Image, public ObjectImplNoMove{
         Memory::Image image;
 
-        explicit ImageImpl(uint32_t id): ObjectImpl(id, Type::IMAGE){}
+        explicit ImageImpl(uint32_t id): ObjectImplNoMove(Type::IMAGE, id){}
         bool loadFromPixelData(const unsigned char* data, int texWidth, int texHeight, FileFormat fileFormat);
         bool loadFromFile(const char* filename, FileFormat fileFormat) override;
         bool load(const unsigned char* data, uint32_t len, FileFormat fileFormat) override;

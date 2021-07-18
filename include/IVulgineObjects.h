@@ -46,6 +46,8 @@ namespace Vulgine{
     */
 
     class Object{
+    protected:
+        bool created = false;
     public:
 
         /** @brief list of types Vulgine is using. Some of them are fully internal and not accessible by API */
@@ -68,7 +70,8 @@ namespace Vulgine{
 
         Object() = default;
         Object(Object const& another) = delete;
-        Object const& operator=(Object const& another) = delete;
+        Object& operator=(Object const& another) = delete;
+        Object& operator=(Object&& another) = default;
         Object(Object&& another) = default;
 
         /** @brief allocates and prepares all internal resources of an object based on interface part state
@@ -85,7 +88,7 @@ namespace Vulgine{
 
         /** @brief query whether the object is now in "ready" state or not */
 
-        virtual bool isCreated() const = 0;
+        bool isCreated() const { return created; };
 
         /** @brief gives object a name(not necessarily unique) */
 
@@ -99,9 +102,13 @@ namespace Vulgine{
 
         virtual uint32_t id() const = 0;
 
-        /** @brief count of total allocated objects of certain type */
+        /** @brief returns count of total allocated objects of certain type */
 
         static uint32_t count(Type type);
+
+        /** @brief returns pointer to an object with specified id. If id is invalid, returns null pointer*/
+
+        static Object* get(uint32_t id);
 
         virtual ~Object() = default;
 

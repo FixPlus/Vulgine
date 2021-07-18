@@ -13,47 +13,28 @@ namespace Vulgine{
 
     Mesh* SceneImpl::createEmptyMesh() {
 
-        uint32_t id;
-        if(!meshFreeIds.empty()) {
-            id = meshFreeIds.top();
-            meshFreeIds.pop();
-        } else{
-            id = meshes.size();
-        }
+        auto id = ObjectImpl::claimId();
 
-        return &((meshes.emplace(std::piecewise_construct,std::forward_as_tuple(id), std::forward_as_tuple(this, id)).first)->second);
+        return &((meshes.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(this, id)).first)->second);
     }
 
     void SceneImpl::deleteMesh(Mesh *mesh) {
-        auto id = mesh->id();
 
-        if(id != meshes.size() - 1)
-            meshFreeIds.push(id);
-
-        meshes.erase(id);
+        meshes.erase(mesh->id());
     }
 
     Light *SceneImpl::createLightSource() {
 
-        uint32_t id;
-        if(!lightFreeIds.empty()) {
-            id = lightFreeIds.top();
-            lightFreeIds.pop();
-        } else{
-            id = lights.size();
-        }
+        auto id = ObjectImpl::claimId();
 
-        return &((lights.emplace(std::piecewise_construct,std::forward_as_tuple(id), std::forward_as_tuple(this, id)).first)->second);
+        return &((lights.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(this, id)).first)->second);
 
     }
 
     void SceneImpl::deleteLightSource(Light *light) {
-        auto id = light->id();
 
-        if(id != lights.size() - 1)
-            lightFreeIds.push(id);
 
-        lights.erase(id);
+        lights.erase(light->id());
     }
 
     void SceneImpl::draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass* pass) {
@@ -63,24 +44,13 @@ namespace Vulgine{
 
     Camera *SceneImpl::createCamera() {
 
-        uint32_t id;
-        if(!cameraFreeIds.empty()) {
-            id = cameraFreeIds.top();
-            cameraFreeIds.pop();
-        } else{
-            id =cameras.size();
-        }
+        auto id = ObjectImpl::claimId();
 
-        return &((cameras.emplace(std::piecewise_construct,std::forward_as_tuple(id), std::forward_as_tuple(this, id)).first)->second);
+        return &((cameras.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(this, id)).first)->second);
     }
 
     void SceneImpl::deleteCamera(Camera *camera) {
-        auto id = camera->id();
-
-        if(id != cameras.size() - 1)
-            cameraFreeIds.push(id);
-
-        cameras.erase(id);
+        cameras.erase(camera->id());
     }
 
     void SceneImpl::createImpl() {
@@ -88,7 +58,9 @@ namespace Vulgine{
     }
 
     void SceneImpl::destroyImpl() {
-
+        lights.clear();
+        cameras.clear();
+        meshes.clear();
     }
 
 }

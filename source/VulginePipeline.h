@@ -33,7 +33,7 @@ namespace Vulgine{
         VkPipeline pipeline = VK_NULL_HANDLE;
         VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
 
-        explicit Pipeline(PipelineKey key = {}): ObjectImpl(0, Object::Type::PIPELINE),
+        explicit Pipeline(PipelineKey key = {}): ObjectImpl(Object::Type::PIPELINE, ObjectImpl::claimId()),
                             mesh(key.mesh), material(key.material), renderPass(key.renderPass), scene(key.scene){};
         Pipeline& operator=(Pipeline&& another) = default;
         void createImpl() override;

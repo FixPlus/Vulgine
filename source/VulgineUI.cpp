@@ -178,57 +178,18 @@ namespace Vulgine {
         }
 
 
-        auto selectedTypeTemp = selectedType;
         auto* selectedObjectTemp = selectedObject;
 
         bool selectedPresent = false;
         ImGui::BeginChild("left pane", ImVec2(150, 0), true);
 
-        vlg.materials.iterate([&selectedTypeTemp, &selectedObjectTemp, &selectedPresent](MaterialImpl &material) {
-            std::string label = material.objectLabel();
-            bool selected = selectedTypeTemp == Object::Type::MATERIAL && selectedObjectTemp == &material;
-            if (ImGui::Selectable(label.c_str(), selected)) {
-                selectedTypeTemp = Object::Type::MATERIAL;
-                selectedObjectTemp = &material;
+        ObjectImpl::for_each([&selectedObjectTemp, &selectedPresent](ObjectImpl* object){
+            bool selected = selectedObjectTemp == object;
+            if(ImGui::Selectable(object->objectLabel().c_str(), selected)){
                 selected = true;
+                selectedObjectTemp = object;
             }
-            if (selected)
-                selectedPresent = true;
-        });
-
-        vlg.scenes.iterate([&selectedTypeTemp, &selectedObjectTemp, &selectedPresent](SceneImpl &scene) {
-            std::string label = scene.objectLabel();
-            bool selected = selectedTypeTemp == Object::Type::SCENE && selectedObjectTemp == &scene;
-            if (ImGui::Selectable(label.c_str(), selected)) {
-                selectedTypeTemp = Object::Type::SCENE;
-                selectedObjectTemp = &scene;
-                selected = true;
-            }
-            if (selected)
-                selectedPresent = true;
-        });
-
-        vlg.images.iterate([&selectedTypeTemp, &selectedObjectTemp, &selectedPresent](ImageImpl &image) {
-            std::string label = image.objectLabel();
-            bool selected = selectedTypeTemp == Object::Type::IMAGE && selectedObjectTemp == &image;
-            if (ImGui::Selectable(label.c_str(), selected)) {
-                selectedTypeTemp = Object::Type::IMAGE;
-                selectedObjectTemp = &image;
-                selected = true;
-            }
-            if (selected)
-                selectedPresent = true;
-        });
-
-        vlg.uniformBuffers.iterate([&selectedTypeTemp, &selectedObjectTemp, &selectedPresent](UniformBufferImpl &ubo) {
-            std::string label = ubo.objectLabel();
-            bool selected = selectedTypeTemp == Object::Type::UBO && selectedObjectTemp == &ubo;
-            if (ImGui::Selectable(label.c_str(), selected)) {
-                selectedTypeTemp = Object::Type::UBO;
-                selectedObjectTemp = &ubo;
-                selected = true;
-            }
-            if (selected)
+            if(selected)
                 selectedPresent = true;
         });
 
@@ -240,20 +201,22 @@ namespace Vulgine {
 
         if (selectedPresent) {
             selectedObject = selectedObjectTemp;
-            selectedType = selectedTypeTemp;
         } else {
             selectedObject = nullptr;
-            selectedType = Object::Type::NONE;
+            ImGui::Text("Select object to display");
+            ImGui::EndChild();
+            ImGui::End();
+            return;
         }
 
-        if(selectedObject) {
-            ImGui::Text(selectedObject->objectLabel().c_str());
-            ImGui::SameLine();
-            ImGui::TextColored({128, 0, 0, 255}, selectedObject->typeName().c_str());
-            ImGui::Separator();
-        }
 
-        switch (selectedType) {
+        ImGui::Text(selectedObject->objectLabel().c_str());
+        ImGui::SameLine();
+        ImGui::TextColored({128, 0, 0, 255}, selectedObject->typeName().c_str());
+        ImGui::Separator();
+
+
+        switch (selectedObject->type()) {
             case Object::Type::MATERIAL: {
                 displayMaterialInfo();
                 break;
@@ -270,10 +233,6 @@ namespace Vulgine {
                 displayUBOInfo();
                 break;
             }
-            case Object::Type::NONE: {
-                ImGui::Text("Select object to display");
-                break;
-            }
             default:
                 ImGui::Text("Cannot display any information for this type of object yet");
                 break;
@@ -282,50 +241,18 @@ namespace Vulgine {
         ImGui::End();
     }
 
-    void ObjectInspector::select(MaterialImpl* material){
-        selectedObject = material;
-        selectedType = Object::Type::MATERIAL;
-    }
-    void ObjectInspector::select(SceneImpl* scene){
-        selectedObject = scene;
-        selectedType = Object::Type::SCENE;
-    }
-    void ObjectInspector::select(ImageImpl* image){
-        selectedObject = image;
-        selectedType = Object::Type::IMAGE;
-    }
-    void ObjectInspector::select(UniformBufferImpl* ubo){
-        selectedObject = ubo;
-        selectedType = Object::Type::UBO;
+    void ObjectInspector::select(ObjectImpl* object){
+        selectedObject = object;
     }
 
-    void ObjectInspector::selectable(MaterialImpl *material) {
-        std::string label = material ? material->objectLabel() : "null";
-        if (ImGui::Selectable(label.c_str()) && material) {
-            select(material);
+
+    void ObjectInspector::selectable(ObjectImpl *object) {
+        std::string label = object ? object->objectLabel() : "null";
+        if (ImGui::Selectable(label.c_str()) && object) {
+            select(object);
         }
     }
 
-    void ObjectInspector::selectable(SceneImpl *scene) {
-        std::string label = scene ? scene->objectLabel() : "null";
-        if (ImGui::Selectable(label.c_str()) && scene) {
-            select(scene);
-        }
-    }
-
-    void ObjectInspector::selectable(ImageImpl *image) {
-        std::string label = image ? image->objectLabel() : "null";
-        if (ImGui::Selectable(label.c_str()) && image) {
-            select(image);
-        }
-    }
-
-    void ObjectInspector::selectable(UniformBufferImpl *ubo) {
-        std::string label = ubo ? ubo->objectLabel() : "null";
-        if (ImGui::Selectable(label.c_str()) && ubo) {
-            select(ubo);
-        }
-    }
 
     void ObjectInspector::displaySceneInfo() {
         static MeshImpl *selectedMesh = nullptr;

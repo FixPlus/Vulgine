@@ -24,27 +24,16 @@ namespace Vulgine {
 
     template<typename T>
     class IdentifiableContainer{
-        std::stack<uint32_t> freeIds;
         std::unordered_map<uint32_t, T> container;
     public:
         T* emplace(){
-            uint32_t id;
-            if(!freeIds.empty()) {
-                id = freeIds.top();
-                freeIds.pop();
-            } else{
-                id = container.size();
-            }
 
-            return &((container.emplace(std::piecewise_construct,std::forward_as_tuple(id), std::forward_as_tuple(id)).first)->second);
+            uint32_t id = ObjectImpl::claimId();
+
+            return &((container.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(id)).first)->second);
         };
         void free(T* obj){
-            auto id = obj->id();
-
-            if(id != container.size() - 1)
-                freeIds.push(id);
-
-            container.erase(id);
+            container.erase(obj->id());
         }
 
         void iterate(std::function<void(T&)> operation){
@@ -53,9 +42,6 @@ namespace Vulgine {
         }
 
         void clear(){
-            while(!freeIds.empty())
-                freeIds.pop();
-
             container.clear();
         }
 
@@ -93,7 +79,7 @@ namespace Vulgine {
 
         public:
 
-            Window(): ObjectImpl(0, Object::Type::UNKNOWN){}
+            Window(): ObjectImpl(Object::Type::UNKNOWN, ObjectImpl::claimId()){}
 
             const GLFWvidmode* monitorVideoModes = nullptr;
             const GLFWvidmode* selectedVideoMode = nullptr;

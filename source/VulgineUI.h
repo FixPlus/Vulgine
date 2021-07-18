@@ -35,7 +35,6 @@ namespace Vulgine{
     };
 
     class ObjectInspector: public ContentWindow{
-        Object::Type selectedType = Object::Type::NONE;
 
         ObjectImpl* selectedObject;
 
@@ -44,15 +43,11 @@ namespace Vulgine{
         void displayImageInfo();
         void displayUBOInfo();
 
-        void select(MaterialImpl* material);
-        void select(SceneImpl* scene);
-        void select(ImageImpl* image);
-        void select(UniformBufferImpl* ubo);
+        void select(ObjectImpl* object);
 
-        void selectable(MaterialImpl* material);
-        void selectable(SceneImpl* scene);
-        void selectable(ImageImpl* image);
-        void selectable(UniformBufferImpl* ubo);
+
+        void selectable(ObjectImpl* object);
+
     public:
 
         void draw() override;

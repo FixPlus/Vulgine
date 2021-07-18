@@ -650,7 +650,7 @@ namespace Vulgine{
         }
     }
 
-    UniformBufferImpl::UniformBufferImpl(uint32_t id) : ObjectImpl(id, Type::UBO) {
+    UniformBufferImpl::UniformBufferImpl(uint32_t id) : ObjectImplNoMove(Type::UBO, id) {
 
     }
 

@@ -6,17 +6,25 @@
 #define TEST_EXE_VULGINEOBJECT_H
 
 #include "IVulgineObjects.h"
+#include <stack>
+#include <functional>
 
 namespace Vulgine{
     class ObjectImpl: public virtual Object{
     private:
-        bool created = false;
 
-        static std::unordered_map<Type, uint32_t> countMap;
-        static std::unordered_map<Type, std::string> typeNames;
+        static std::stack<uint32_t> freeIds;
+        static uint32_t claimedIdsCount;
+        static std::unordered_map<uint32_t, ObjectImpl*> objMap;
+
+        static std::unordered_map<Type, uint32_t> countMap;          // TODO: make this full-static map (constexpr)
+        static std::unordered_map<Type, std::string> typeNames;      // TODO: make this full static map (constexpr)
 
         Type typeId_;
         uint32_t id_;
+
+
+        static void invalidateId(uint32_t id);
 
 
     protected:
@@ -24,42 +32,51 @@ namespace Vulgine{
         virtual void destroyImpl() = 0;
         std::optional<std::string> name;
     public:
-        ObjectImpl(uint32_t id, Type typeId);
 
-        ObjectImpl(ObjectImpl&& another) = default;
-        ObjectImpl& operator=(ObjectImpl&& another) = default;
+        static uint32_t claimId();
 
+        explicit ObjectImpl(Type typeId, uint32_t id);
+        ObjectImpl& operator=(ObjectImpl&& another) noexcept;
+        ObjectImpl(ObjectImpl&& another) noexcept ;
 
-        void create() override {
+        void create() final {
             if(created)
                 return;
             createImpl();
             created = true;
         };
 
-        void destroy() override {
+        void destroy() final {
             if(!created)
                 return;
             destroyImpl();
             created = false;
         }
 
-        bool isCreated() const override{
-            return created;
-        }
-
 
         static void fillTypeNameTable();
 
-        void setName(std::string const& newName) override { name.reset(); name.emplace(newName);};
+        void setName(std::string const& newName) final { name.reset(); name.emplace(newName);};
 
-        std::string objectLabel() const override;
+        std::string objectLabel() const final;
 
         std::string typeName() const;
 
-        uint32_t id() const override{ return id_;}
+        Type type() const { return typeId_; };
+
+        uint32_t id() const final{ return id_;}
         static uint32_t count(Type type);
+        static ObjectImpl* get(uint32_t id);
+
+        static void for_each(std::function<void(ObjectImpl*)> action);
+
         ~ObjectImpl() override;
+    };
+
+    struct ObjectImplNoMove: public ObjectImpl{
+        ObjectImplNoMove(Type typeId, uint32_t id): ObjectImpl(typeId, id){};
+        ObjectImplNoMove& operator=(ObjectImplNoMove&& another) = delete;
+        ObjectImplNoMove(ObjectImplNoMove&& another) = delete;
     };
 
 }

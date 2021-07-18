@@ -16,14 +16,12 @@ namespace Vulgine{
 
     struct RenderPass;
 
-    struct SceneImpl: public Scene, public ObjectImpl{
+    struct SceneImpl: public Scene, public ObjectImplNoMove{
 
 
 
-        explicit SceneImpl(uint32_t id): ObjectImpl(id, Type::SCENE){};
-        std::stack<uint32_t> meshFreeIds;
-        std::stack<uint32_t> lightFreeIds;
-        std::stack<uint32_t> cameraFreeIds;
+        explicit SceneImpl(uint32_t id): ObjectImplNoMove(Type::SCENE, id){};
+
 
         std::unordered_map<uint32_t, MeshImpl> meshes;
         std::unordered_map<uint32_t, LightImpl> lights;
