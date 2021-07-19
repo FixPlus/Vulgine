@@ -65,6 +65,8 @@ namespace Vulgine{
         images.clear();
         uniformBuffers.clear();
 
+
+
         gui.destroy();
 
         destroyShaders();
@@ -78,8 +80,6 @@ namespace Vulgine{
 
         swapChain.cleanup();
 
-        offScreenFramebuffers.clear();
-        destroyOnscreenFrameBuffers();
 
         vkDestroyImageView(device->logicalDevice, depthStencil.view, nullptr);
         vkDestroyImage(device->logicalDevice, depthStencil.image, nullptr);
@@ -574,9 +574,6 @@ namespace Vulgine{
     }
 
     void VulgineImpl::destroyRenderPasses() {
-        for(auto* pass: renderPasses)
-            delete pass;
-
         renderPasses.clear();
     }
 
@@ -596,43 +593,15 @@ namespace Vulgine{
        materials.free(dynamic_cast<MaterialImpl*>(material));
     }
 
-    void VulgineImpl::updateRenderTaskQueue(const std::vector<RenderTask> &renderTaskQueue) {
 
-        taskQueue.clear();
+    void VulgineImpl::buildRenderPass(RenderPassImpl* renderPass){
 
-        std::copy(renderTaskQueue.begin(), renderTaskQueue.end(), std::back_inserter(taskQueue));
+        renderPass->destroy();
 
-        buildRenderPasses();
-    }
-
-    void VulgineImpl::buildRenderPasses() {
-        destroyRenderPasses();
-
-        if(taskQueue.size() != 1){
-            Utilities::ExitFatal(-1, "Multiple render passes are not supported yet");
-        }
-        for(auto task: taskQueue){
-            if(task.renderTargets.size() != 1){
-                Utilities::ExitFatal(-1, "Multiple render targets are not supported yet");
-            }
-            auto renderTarget = task.renderTargets.at(0);
-
-            if(renderTarget.attachmentType != RenderTarget::COLOR){
-                Utilities::ExitFatal(-1, "Depth buffer rendering not supported yet");
-            }
-
-            if(renderTarget.renderType != RenderTarget::SCREEN){
-                Utilities::ExitFatal(-1, "Offscreen rendering is not supported yet");
-            }
-
-            DefaultRenderPass* renderPass = dynamic_cast<DefaultRenderPass*>(renderPasses.emplace_back(new DefaultRenderPass{}));
-
-            renderPass->camera = reinterpret_cast<CameraImpl *>(taskQueue[0].camera);
-            renderPass->scene = reinterpret_cast<SceneImpl *>(taskQueue[0].scene);
-
-            // creating general render pass for onScreen rendering
+        if(renderPass->onscreen) { // TODO: generalize onscreen render pass creation
 
             std::array<VkAttachmentDescription, 3> attachments = {};
+
             // Color attachment
             attachments[0].format = swapChain.colorFormat;
             attachments[0].samples = settings.msaa;
@@ -642,7 +611,7 @@ namespace Vulgine{
             attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
             attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             attachments[0].finalLayout = settings.msaa > 1 ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL :
-                    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                                         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
             // Depth attachment
             attachments[1].format = depthFormat;
@@ -656,7 +625,7 @@ namespace Vulgine{
 
             // Reslove color attachment for multisampling image
 
-            if(settings.msaa > 1) {
+            if (settings.msaa > 1) {
                 attachments[2].format = swapChain.colorFormat;
                 attachments[2].samples = VK_SAMPLE_COUNT_1_BIT;
                 attachments[2].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -692,7 +661,7 @@ namespace Vulgine{
             subpassDescription.pResolveAttachments = settings.msaa > 1 ? &colorAttachmentResolveRef : nullptr;
 
             // Subpass dependencies for layout transitions
-            std::array<VkSubpassDependency, 2> dependencies;
+            std::array<VkSubpassDependency, 2> dependencies{};
 
             dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
             dependencies[0].dstSubpass = 0;
@@ -712,26 +681,146 @@ namespace Vulgine{
 
             VkRenderPassCreateInfo renderPassInfo = {};
             renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-            renderPassInfo.attachmentCount = static_cast<uint32_t>(settings.msaa > 1 ? attachments.size() : attachments.size() - 1);
+            renderPassInfo.attachmentCount = static_cast<uint32_t>(settings.msaa > 1 ? attachments.size() :
+                                                                   attachments.size() - 1);
             renderPassInfo.pAttachments = attachments.data();
             renderPassInfo.subpassCount = 1;
             renderPassInfo.pSubpasses = &subpassDescription;
             renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
             renderPassInfo.pDependencies = dependencies.data();
 
-            VK_CHECK_RESULT(vkCreateRenderPass(device->logicalDevice, &renderPassInfo, nullptr, &renderPass->renderPass));
-
-            onscreenRenderPass = renderPass;
-
-            //recreate on screen framebuffers
-
-            destroyOnscreenFrameBuffers();
-            createOnscreenFrameBuffers();
+            VK_CHECK_RESULT(
+                    vkCreateRenderPass(device->logicalDevice, &renderPassInfo, nullptr, &renderPass->renderPass));
+        } else{
 
 
+            if(renderPass->frameBuffer.attachmentsImages.empty()){
+                Utilities::ExitFatal(-1, "Cannot create render pass with empty attachments");
+            }
+
+            std::vector<VkAttachmentDescription> attachments = {};
+            std::optional<VkAttachmentReference> depthAttachemntRef;
+            std::vector<VkAttachmentReference> colorAttachmentRefs{};
+            attachments.resize(renderPass->frameBuffer.attachmentCount());
+
+            for(auto& it: renderPass->frameBuffer.attachmentsImages) {
+                auto binding = it.first;
+                auto& image = it.second;
 
 
+                attachments.at(binding).format = image.createInfo.format;
+                attachments.at(binding).samples = VK_SAMPLE_COUNT_1_BIT; // no multisampling for offscreen rendering yet
+                attachments.at(binding).loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                attachments.at(binding).storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                attachments.at(binding).stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                attachments.at(binding).stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+                // for now we consider it to be undefined
+
+                attachments.at(binding).initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+                // for now we consider it to be used as sampled image
+
+                attachments.at(binding).finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                if(image.createInfo.format == depthFormat){
+                    depthAttachemntRef.emplace();
+                    depthAttachemntRef->attachment = binding;
+                    depthAttachemntRef->layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                } else{
+                    auto& colRef = colorAttachmentRefs.emplace_back();
+                    colRef.attachment = binding;
+                    colRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                }
+            }
+
+
+            VkSubpassDescription subpassDescription = {};
+            subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+            subpassDescription.colorAttachmentCount = colorAttachmentRefs.size();
+            subpassDescription.pColorAttachments = colorAttachmentRefs.data();
+            subpassDescription.pDepthStencilAttachment = depthAttachemntRef.has_value() ? &depthAttachemntRef.value() : nullptr;
+            subpassDescription.inputAttachmentCount = 0;
+            subpassDescription.pInputAttachments = nullptr;
+            subpassDescription.preserveAttachmentCount = 0;
+            subpassDescription.pPreserveAttachments = nullptr;
+            subpassDescription.pResolveAttachments = nullptr;
+
+            // Subpass dependencies for layout transitions
+            std::array<VkSubpassDependency, 2> dependencies{};
+
+            // TODO: deduct external dependencies by framebuffer images use info
+
+            dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+            dependencies[0].dstSubpass = 0;
+            dependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependencies[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+            dependencies[1].srcSubpass = 0;
+            dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+            dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependencies[1].dstStageMask = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+            dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+            VkRenderPassCreateInfo renderPassInfo = {};
+            renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+            renderPassInfo.attachmentCount = attachments.size();
+
+            renderPassInfo.pAttachments = attachments.data();
+            renderPassInfo.subpassCount = 1;
+            renderPassInfo.pSubpasses = &subpassDescription;
+            renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
+            renderPassInfo.pDependencies = dependencies.data();
+
+            VK_CHECK_RESULT(
+                    vkCreateRenderPass(device->logicalDevice, &renderPassInfo, nullptr, &renderPass->renderPass));
+
+            renderPass->frameBuffer.renderPass = renderPass;
+            renderPass->frameBuffer.create();
         }
+
+
+        renderPassLine.push_front(renderPass);
+
+        renderPass->create();
+
+        for(auto* pass: renderPass->dependencies)
+            buildRenderPass(dynamic_cast<RenderPassImpl*>(pass));
+
+    }
+
+    void VulgineImpl::buildRenderPasses() {
+
+        // Step 1: find onscreen render pass
+
+        int onscreenRenderPassCount = 0;
+        RenderPassImpl* found = nullptr;
+        renderPassLine.clear();
+
+        renderPasses.iterate([&onscreenRenderPassCount, &found](RenderPassImpl& renderPass)
+        {
+            if(renderPass.onscreen) {
+                found = &renderPass;
+                onscreenRenderPassCount++;
+            }
+        });
+
+        if(onscreenRenderPassCount != 1){
+            Utilities::ExitFatal(-1, "VulGine expects exactly one onscreen render pass");
+        }
+
+        onscreenRenderPass = found;
+
+        buildRenderPass(onscreenRenderPass); // TODO: parse dependency graph to detect loops
+
+        //recreate on screen framebuffers
+
+        destroyOnscreenFrameBuffers();
+        createOnscreenFrameBuffers();
 
         // every pipeline should be recreated here because it's state depends on render pass state
 
@@ -754,8 +843,14 @@ namespace Vulgine{
     }
 
     void VulgineImpl::createOnscreenFrameBuffers() {
-        for(int i = 0; i < swapChain.imageCount; i++)
-            onScreenFramebuffers.emplace_back();
+
+        if(onscreenRenderPass == nullptr)
+            return;
+
+        auto& frameBuffer = onscreenRenderPass->frameBuffer;
+
+        frameBuffer.destroy();
+
 
         if(settings.msaa > 1){
 
@@ -797,32 +892,79 @@ namespace Vulgine{
 
         }
 
-        for(uint32_t i = 0; i < onScreenFramebuffers.size(); i++){
-            auto& framebuffer = onScreenFramebuffers.at(i);
-            framebuffer.width = vieportInfo.width;
-            framebuffer.height = vieportInfo.height;
+        frameBuffer.width = vieportInfo.width;
+        frameBuffer.height = vieportInfo.height;
 
-            if(settings.msaa > 1) {
-                framebuffer.attachments.push_back(msaaImage.view);
-                framebuffer.attachments.push_back(depthStencil.view);
-                framebuffer.attachments.push_back(swapChain.buffers[i].view);
-            } else {
-                framebuffer.attachments.push_back(swapChain.buffers[i].view);
-                framebuffer.attachments.push_back(depthStencil.view);
+
+
+        std::vector<VkImageView> views{};
+        if(settings.msaa > 1) {
+
+            // color attachment (binding 0)
+
+            for (int i = 0; i < swapChain.imageCount; i++) {
+                views.push_back(msaaImage.view);
             }
 
-            framebuffer.renderPass = onscreenRenderPass->renderPass;
-            framebuffer.create();
+            frameBuffer.addOnsrceenAttachment(views);
+
+            views.clear();
+
+            // depth attachment (binding 1)
+
+            for (int i = 0; i < swapChain.imageCount; i++) {
+                views.push_back(depthStencil.view);
+            }
+
+            frameBuffer.addOnsrceenAttachment(views);
+
+            views.clear();
+
+            // resolved color attachment (binding 2)
+
+            for (int i = 0; i < swapChain.imageCount; i++) {
+                views.push_back(swapChain.buffers[i].view);
+            }
+
+            frameBuffer.addOnsrceenAttachment(views);
+
+        } else {
+            // color attachment (binding 0)
+
+            for (int i = 0; i < swapChain.imageCount; i++) {
+                views.push_back(swapChain.buffers[i].view);
+            }
+
+            frameBuffer.addOnsrceenAttachment(views);
+
+            views.clear();
+
+            // depth attachment (binding 1)
+
+            for (int i = 0; i < swapChain.imageCount; i++) {
+                views.push_back(depthStencil.view);
+            }
+
+            frameBuffer.addOnsrceenAttachment(views);
+
         }
+
+        frameBuffer.renderPass = onscreenRenderPass;
+
+        frameBuffer.create();
 
     }
 
     void VulgineImpl::destroyOnscreenFrameBuffers() {
+        if(onscreenRenderPass == nullptr)
+            return;
+
         if(msaaImage.image.allocated){
             vkDestroyImageView(device->logicalDevice, msaaImage.view, nullptr);
             msaaImage.image.free();
         }
-        onScreenFramebuffers.clear();
+
+        onscreenRenderPass->frameBuffer.destroy();
     }
 
     VkShaderModule loadShader(const char *fileName, VkDevice device)
@@ -885,22 +1027,26 @@ namespace Vulgine{
 
 
         VkCommandBufferBeginInfo cmdBufInfo = initializers::commandBufferBeginInfo();
-        if(renderPasses.size() != 1)
-
-        Utilities::ExitFatal(-1, "Multipasses aren't supported yet");
 
         VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[imageIndex], &cmdBufInfo))
 
-        renderPasses[0]->begin(drawCmdBuffers[imageIndex], &onScreenFramebuffers[imageIndex]);
+        for(auto* renderPass: renderPassLine) {
+            assert(renderPass->camera && "RenderPass must have bounded camera");
+            assert(renderPass->scene && "RenderPass must have bounded scene");
 
-        renderPasses[0]->buildCmdBuffers(drawCmdBuffers[imageIndex], &onScreenFramebuffers[imageIndex]);
+            renderPass->begin(drawCmdBuffers[imageIndex], imageIndex);
 
-        gui.draw(drawCmdBuffers[imageIndex], imageIndex);
+            renderPass->buildCmdBuffers(drawCmdBuffers[imageIndex], imageIndex);
 
-        renderPasses[0]->end(drawCmdBuffers[imageIndex]);
+            if(renderPass->onscreen)
+                gui.draw(drawCmdBuffers[imageIndex], imageIndex);
+
+            renderPass->end(drawCmdBuffers[imageIndex]);
+
+
+        }
 
         VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[imageIndex]));
-
 
         cmdBuffersOutdated = false;
 
@@ -1099,7 +1245,7 @@ namespace Vulgine{
     }
 
     void VulgineImpl::deleteImage(Image *image) {
-        images.free(dynamic_cast<ImageImpl*>(image));
+        images.free(dynamic_cast<StaticImageImpl*>(image));
     }
 
     void VulgineImpl::updateGUI() {
@@ -1218,6 +1364,14 @@ namespace Vulgine{
         setupSwapChain();
         destroyOnscreenFrameBuffers();
         createOnscreenFrameBuffers();
+    }
+
+    RenderPass *VulgineImpl::initNewRenderPass() {
+        return renderPasses.emplace();
+    }
+
+    void VulgineImpl::deleteRenderPass(RenderPass *renderPass) {
+        renderPasses.free(dynamic_cast<RenderPassImpl*>(renderPass));
     }
 
     void disableLog(){

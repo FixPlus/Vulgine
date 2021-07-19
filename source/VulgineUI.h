@@ -16,7 +16,7 @@ namespace Vulgine{
 
     class MaterialImpl;
     class SceneImpl;
-    class ImageImpl;
+    class StaticImageImpl;
     class UniformBufferImpl;
 
     class ContentWindow{

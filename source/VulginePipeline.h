@@ -17,7 +17,7 @@ namespace Vulgine{
         MeshImpl* mesh = nullptr;
         MaterialImpl* material = nullptr;
         SceneImpl* scene = nullptr;
-        RenderPass* renderPass = nullptr;
+        RenderPassImpl* renderPass = nullptr;
 
 
         bool operator<(PipelineKey const& another) const;
@@ -27,7 +27,7 @@ namespace Vulgine{
     struct Pipeline: public ObjectImpl{
         MaterialImpl* material;
         SceneImpl* scene;
-        RenderPass* renderPass;
+        RenderPassImpl* renderPass;
         MeshImpl* mesh;
 
         VkPipeline pipeline = VK_NULL_HANDLE;

@@ -8,17 +8,34 @@
 #include "VulgineObject.h"
 #include "vulkan/VulkanAllocatable.h"
 
+
 namespace Vulgine{
 
-    struct ImageImpl: public Image, public ObjectImplNoMove{
+    struct StaticImageImpl: public Image, public ObjectImplNoMove{
         Memory::Image image;
 
-        explicit ImageImpl(uint32_t id): ObjectImplNoMove(Type::IMAGE, id){}
+        explicit StaticImageImpl(uint32_t id): ObjectImplNoMove(Type::IMAGE, id){}
         bool loadFromPixelData(const unsigned char* data, int texWidth, int texHeight, FileFormat fileFormat);
         bool loadFromFile(const char* filename, FileFormat fileFormat) override;
         bool load(const unsigned char* data, uint32_t len, FileFormat fileFormat) override;
 
-        ~ImageImpl() override;
+        ~StaticImageImpl() override;
+
+    protected:
+        void createImpl() override;
+        void destroyImpl() override;
+    };
+
+    struct DynamicImageImpl: public Image, public ObjectImplNoMove{
+        std::vector<Memory::Image> images;
+        VkImageCreateInfo createInfo{};
+
+        explicit DynamicImageImpl(uint32_t id): ObjectImplNoMove(Type::IMAGE, id){}
+
+        // TODO: I should reconsider following functions being part of Image general interface because for dynamic images they make no sense
+
+        bool loadFromFile(const char* filename, FileFormat fileFormat) override{ return false;};
+        bool load(const unsigned char* data, uint32_t len, FileFormat fileFormat) override{ return false;};
 
     protected:
         void createImpl() override;

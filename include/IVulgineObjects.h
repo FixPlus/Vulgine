@@ -34,7 +34,7 @@ namespace Vulgine{
     *        b) invalidate this object using appropriate deleteObject(object) function - you cannot reuse this object.
     *        in this case.
     *
-    *  \Remember that if resource owning this object gets freed (by calling destroy() in particular) or invalidated
+    *  \Remember that if resource owning this object gets freed (by calling destroy() in particular) or invalidated,
     *  the object gets implicitly invalidated. Any use of invalidated object is forbidden.
     *
     *  Vulgine objects are not copiable as they encapsulate unique data structures they are to allocated and free
@@ -197,14 +197,6 @@ namespace Vulgine{
     };
 
 
-    struct RenderTarget{
-
-        enum { COLOR, DEPTH_STENCIL} attachmentType;
-        enum { SCREEN, OFFSCREEN} renderType;
-
-
-    };
-
     /**
  *
  *  RGBA32SF -->  glm::vec4
@@ -260,11 +252,6 @@ namespace Vulgine{
     };
 
 
-    struct RenderTask{
-        Scene* scene;
-        Camera* camera;
-        std::vector<RenderTarget> renderTargets;
-    };
     /**
      *
      * @brief rendered object
@@ -363,6 +350,35 @@ namespace Vulgine{
         Scene* parent() const{ return parent_;};
 
 
+
+    };
+
+    struct FrameBuffer: virtual public Object{
+        enum class Type { COLOR, DEPTH_STENCIL};
+        uint32_t width, height;
+
+        FrameBuffer() = default;
+        FrameBuffer& operator=(FrameBuffer&& another) = delete;
+        FrameBuffer(FrameBuffer&& another) = delete;
+
+        virtual Image* addAttachment(Type type = Type::COLOR) = 0;
+
+        virtual uint32_t attachmentCount() = 0;
+
+        virtual Image* getAttachment(uint32_t binding) = 0;
+
+    };
+
+    struct RenderPass: virtual public Object{
+
+        bool onscreen = true;
+
+        Scene* scene = nullptr;
+        Camera* camera = nullptr;
+
+        virtual FrameBuffer* getFrameBuffer() = 0;
+
+        std::vector<RenderPass*> dependencies;
 
     };
 }

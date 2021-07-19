@@ -120,7 +120,7 @@ namespace Vulgine{
                     binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
                     binding.pImmutableSamplers = nullptr;
 
-                    auto *image = dynamic_cast<ImageImpl *>(it->image);
+                    auto *image = dynamic_cast<StaticImageImpl *>(it->image);
                     auto *combImageSampler = new CombinedImageSampler{&image->image};
 
                     combImageSampler->setupDescriptor();
@@ -231,7 +231,7 @@ namespace Vulgine{
         if(indices.empty()) {
             auto* material = dynamic_cast<MaterialImpl *>(primitives[0].material);
             auto& boundPipeline = vlg_instance->pipelineMap.bind({this, dynamic_cast<MaterialImpl *>(primitives[0].material),
-                                            dynamic_cast<SceneImpl *>(parent()), pass}, commandBuffer);
+                                            dynamic_cast<SceneImpl *>(parent()), dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
             if(hasMeshDescriptors)
                 vlg_instance->perMeshPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 1,descriptorSets.at(currentFrame));
             if(material->hasDescriptorSet)
@@ -243,7 +243,7 @@ namespace Vulgine{
             for (auto primitive: primitives) {
                 auto* material = dynamic_cast<MaterialImpl *>(primitive.material);
                 auto& boundPipeline = vlg_instance->pipelineMap.bind({this, material,
-                                                dynamic_cast<SceneImpl *>(parent()), pass}, commandBuffer);
+                                                dynamic_cast<SceneImpl *>(parent()), dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
                 if(hasMeshDescriptors)
                     vlg_instance->perMeshPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 1,descriptorSets.at(currentFrame));
                 if(material->hasDescriptorSet)
@@ -324,7 +324,7 @@ namespace Vulgine{
             binding.pImmutableSamplers = nullptr;
             bindings.push_back(binding);
 
-            auto& colorImage = dynamic_cast<ImageImpl*>(texture.colorMap)->image;
+            auto& colorImage = dynamic_cast<StaticImageImpl*>(texture.colorMap)->image;
             colorMapSampled.descriptor.imageView = colorImage.createImageView();
             colorMapSampled.sampler.create();
             colorMapSampled.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -343,7 +343,7 @@ namespace Vulgine{
             binding.pImmutableSamplers = nullptr;
             bindings.push_back(binding);
 
-            auto& colorImage = dynamic_cast<ImageImpl*>(texture.colorMap)->image;
+            auto& colorImage = dynamic_cast<StaticImageImpl*>(texture.colorMap)->image;
             normalMapSampled.descriptor.imageView = colorImage.createImageView();
             normalMapSampled.sampler.create();
             normalMapSampled.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;

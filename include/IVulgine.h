@@ -137,7 +137,12 @@ namespace Vulgine {
         virtual UniformBuffer* initNewUniformBuffer() = 0;
         virtual void deleteUniformBuffer(UniformBuffer* buffer) = 0;
 
-        virtual void updateRenderTaskQueue(std::vector<RenderTask> const& renderTaskQueue) = 0;
+        virtual RenderPass* initNewRenderPass() = 0;
+        virtual void deleteRenderPass(RenderPass* renderPass) = 0;
+
+
+        virtual void buildRenderPasses() = 0;
+
 
         /**
          *

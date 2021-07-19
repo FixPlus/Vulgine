@@ -378,7 +378,7 @@ namespace Vulgine {
                         case DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER: {
                             ImGui::BulletText("Resource: ");
                             ImGui::SameLine();
-                            selectable(dynamic_cast<ImageImpl*>(descriptor.image));
+                            selectable(dynamic_cast<StaticImageImpl*>(descriptor.image));
                             break;
                         }
                         case DescriptorInfo::Type::UNIFORM_BUFFER: {
@@ -403,7 +403,7 @@ namespace Vulgine {
             ImGui::SameLine();
             std::string label;
 
-            auto *colorMap = dynamic_cast<ImageImpl*>(material.texture.colorMap);
+            auto *colorMap = dynamic_cast<StaticImageImpl*>(material.texture.colorMap);
 
             selectable(colorMap);
 
@@ -411,7 +411,7 @@ namespace Vulgine {
 
             ImGui::SameLine();
 
-            auto *normalMap = dynamic_cast<ImageImpl*>(material.texture.normalMap);
+            auto *normalMap = dynamic_cast<StaticImageImpl*>(material.texture.normalMap);
 
             selectable(normalMap);
 
@@ -422,7 +422,7 @@ namespace Vulgine {
     }
 
     void ObjectInspector::displayImageInfo() {
-        auto &image = *dynamic_cast<ImageImpl*>(selectedObject);
+        auto &image = *dynamic_cast<StaticImageImpl*>(selectedObject);
         std::string type;
         std::string dims;
 

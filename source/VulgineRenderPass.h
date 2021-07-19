@@ -10,25 +10,27 @@
 
 namespace Vulgine{
 
-    struct RenderPass{
+    struct RenderPassImpl: public RenderPass, public ObjectImplNoMove{
+
+        explicit RenderPassImpl(uint32_t id): ObjectImplNoMove(Object::Type::RENDER_PASS, id){};
+
+        FrameBufferImpl frameBuffer{};
+
         VkRenderPass renderPass = VK_NULL_HANDLE;
 
-        void begin(VkCommandBuffer buffer, Framebuffer* framebuffer);
+        FrameBuffer* getFrameBuffer() override;
 
-        virtual void buildCmdBuffers(VkCommandBuffer buffer, Framebuffer* framebuffer) = 0;
+        void begin(VkCommandBuffer buffer, int currentFrame);
+
+        void buildCmdBuffers(VkCommandBuffer buffer, int currentFrame);
 
         void end(VkCommandBuffer buffer);
 
-        virtual ~RenderPass();
-    };
-    class SceneImpl;
-    class CameraImpl;
+        ~RenderPassImpl() override;
+    protected:
+        void createImpl() override;
+        void destroyImpl() override;
 
-    struct DefaultRenderPass: public RenderPass{
-        SceneImpl* scene;
-        CameraImpl* camera;
-
-        void buildCmdBuffers(VkCommandBuffer buffer, Framebuffer* framebuffer) override;
     };
 }
 #endif //TEST_EXE_VULGINERENDERPASS_H

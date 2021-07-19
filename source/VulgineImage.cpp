@@ -12,7 +12,7 @@
 #include "Utilities.h"
 #include "Vulgine.h"
 
-bool Vulgine::ImageImpl::loadFromFile(const char *filename, Image::FileFormat fileFormat) {
+bool Vulgine::StaticImageImpl::loadFromFile(const char *filename, Image::FileFormat fileFormat) {
     assert(!image.allocated && "Image has been already allocated");
     int texWidth, texHeight, texChannels;
 
@@ -31,7 +31,7 @@ bool Vulgine::ImageImpl::loadFromFile(const char *filename, Image::FileFormat fi
 
 }
 
-bool Vulgine::ImageImpl::load(const unsigned char *data, uint32_t len, Image::FileFormat fileFormat) {
+bool Vulgine::StaticImageImpl::load(const unsigned char *data, uint32_t len, Image::FileFormat fileFormat) {
     assert(!image.allocated && "Image has been already allocated");
     int texWidth, texHeight, texChannels;
 
@@ -48,7 +48,7 @@ bool Vulgine::ImageImpl::load(const unsigned char *data, uint32_t len, Image::Fi
     return ret;
 }
 
-bool Vulgine::ImageImpl::loadFromPixelData(const unsigned char *pixels, int texWidth, int texHeight, Image::FileFormat fileFormat) {
+bool Vulgine::StaticImageImpl::loadFromPixelData(const unsigned char *pixels, int texWidth, int texHeight, Image::FileFormat fileFormat) {
     uint32_t imageSize = texWidth * texHeight * 4;
 
     Memory::StagingBuffer stagingBuffer;
@@ -86,16 +86,30 @@ bool Vulgine::ImageImpl::loadFromPixelData(const unsigned char *pixels, int texW
     return true;
 }
 
-Vulgine::ImageImpl::~ImageImpl() {
+Vulgine::StaticImageImpl::~StaticImageImpl() {
     vlg_instance->gui.deleteTexturedImage(&image);
     if(image.allocated)
         image.free();
 }
 
-void Vulgine::ImageImpl::createImpl() {
+void Vulgine::StaticImageImpl::createImpl() {
 
 }
 
-void Vulgine::ImageImpl::destroyImpl() {
+void Vulgine::StaticImageImpl::destroyImpl() {
 
 }
+
+void Vulgine::DynamicImageImpl::createImpl() {
+    auto imageCount = vlg_instance->swapChain.imageCount;
+    images.reserve(imageCount);
+    for(int i = 0; i < imageCount; ++i){
+        auto& image = images.emplace_back();
+        image.allocate(createInfo, VMA_MEMORY_USAGE_GPU_ONLY, 0, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    }
+}
+
+void Vulgine::DynamicImageImpl::destroyImpl() {
+    images.clear();
+}
+

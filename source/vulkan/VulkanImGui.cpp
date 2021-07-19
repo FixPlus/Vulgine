@@ -397,7 +397,7 @@ void Vulgine::GUI::draw(VkCommandBuffer commandBuffer, int currentFrame) {
             const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[j];
             auto* textureI = (Image*)pcmd->GetTexID();
 
-            auto* texture = dynamic_cast<ImageImpl*>(textureI);
+            auto* texture = dynamic_cast<StaticImageImpl*>(textureI);
             if(texture){ // Custom texture is bound
                 if(boundTexture != &texture->image){
                     auto it = descriptorSets.find( &texture->image);

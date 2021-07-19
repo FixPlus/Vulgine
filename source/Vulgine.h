@@ -171,18 +171,12 @@ namespace Vulgine {
         // Active frame buffer index
         uint32_t currentBuffer = 0;
 
-        // Onscreen frame buffers (one per each swap chain image)
-
-        std::vector<Framebuffer> onScreenFramebuffers;
 
         struct{
             Memory::Image image;
             VkImageView view;
         } msaaImage;
 
-        // Offscreen frame buffers (one per each offscreen render pass)
-
-        std::vector<Framebuffer> offScreenFramebuffers;
 
         // depth/stencil image used by onscreen renderPass (only one for all frame buffers)
 
@@ -191,8 +185,6 @@ namespace Vulgine {
             VkDeviceMemory mem;
             VkImageView view;
         } depthStencil;
-
-        std::vector<RenderTask> taskQueue;
 
 
 
@@ -217,7 +209,8 @@ namespace Vulgine {
         void initFields();
         void renderFrame();
 
-        void buildRenderPasses();
+        void buildRenderPass(RenderPassImpl* pass);
+        void buildRenderPasses() override;
         void buildCommandBuffers(int imageIndex);
         void createOnscreenFrameBuffers();
         void destroyOnscreenFrameBuffers();
@@ -256,7 +249,7 @@ namespace Vulgine {
 
         IdentifiableContainer<SceneImpl> scenes;
         IdentifiableContainer<MaterialImpl> materials;
-        IdentifiableContainer<ImageImpl> images;
+        IdentifiableContainer<StaticImageImpl> images;
         IdentifiableContainer<UniformBufferImpl> uniformBuffers;
 
         DescriptorPool perScenePool;    // set 0
@@ -295,15 +288,15 @@ namespace Vulgine {
 
         // Queue of render passes. Must contain at least 1 pass (onscreen)
 
-        std::vector<RenderPass*> renderPasses;
+        IdentifiableContainer<RenderPassImpl> renderPasses;
+        std::deque<RenderPassImpl*> renderPassLine;
 
-        RenderPass* onscreenRenderPass;
+        RenderPassImpl* onscreenRenderPass = nullptr;
 
         GUI gui;
 
         bool cmdBuffersOutdated = false;
 
-        void updateRenderTaskQueue(std::vector<RenderTask> const& renderTaskQueue) override;
 
         Scene* initNewScene() override;
         void deleteScene(Scene* scene) override;
@@ -313,6 +306,9 @@ namespace Vulgine {
 
         Image* initNewImage() override;
         void deleteImage(Image* image) override;
+
+        RenderPass* initNewRenderPass() override;
+        void deleteRenderPass(RenderPass* renderPass) override;
 
         UniformBuffer* initNewUniformBuffer() override;
         void deleteUniformBuffer(UniformBuffer* buffer) override;

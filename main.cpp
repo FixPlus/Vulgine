@@ -284,10 +284,26 @@ int main(int argc, char** argv){
 
     createSampleMesh(mesh, material, ubo);
 
+    auto* renderPass = vulgine->initNewRenderPass();
 
-    Vulgine::RenderTarget renderTarget = {Vulgine::RenderTarget::COLOR, Vulgine::RenderTarget::SCREEN};
+    auto* offscreenRenderPass = vulgine->initNewRenderPass();
 
-    vulgine->updateRenderTaskQueue({{scene, camera.cameraImpl, {renderTarget}}});
+    renderPass->onscreen = true;
+    renderPass->dependencies.push_back(offscreenRenderPass);
+
+    offscreenRenderPass->getFrameBuffer()->width = 500;
+    offscreenRenderPass->getFrameBuffer()->height = 500;
+
+    auto* attachmentImage = offscreenRenderPass->getFrameBuffer()->addAttachment();
+
+    offscreenRenderPass->onscreen = false;
+    offscreenRenderPass->camera = camera.cameraImpl;
+    offscreenRenderPass->scene = scene;
+
+    renderPass->scene = scene;
+    renderPass->camera = camera.cameraImpl;
+
+    vulgine->buildRenderPasses();
 
     bool skip = true;
 
