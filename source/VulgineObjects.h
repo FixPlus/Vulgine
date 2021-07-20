@@ -89,6 +89,7 @@ namespace Vulgine{
 
         explicit LightImpl(Scene* parent, uint32_t id): Light(parent), ObjectImplNoMove(Type::LIGHT, id){};
 
+        void update() override;
 
         void createImpl() override;
         void destroyImpl() override;

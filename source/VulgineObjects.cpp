@@ -171,11 +171,14 @@ namespace Vulgine{
             auto* material = dynamic_cast<MaterialImpl *>(primitives[0].material);
             auto& boundPipeline = vlg_instance->pipelineMap.bind({this, dynamic_cast<MaterialImpl *>(primitives[0].material),
                                             dynamic_cast<SceneImpl *>(parent()), dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
+
+            dynamic_cast<SceneImpl*>(parent())->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+
             if(hasMeshDescriptors)
-                set.bind(1, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+                set.bind(2, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
 
             if(material->set.isCreated())
-                material->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+                material->set.bind(1, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
 
             vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(camera->matrices), &(camera->matrices));
             vkCmdDraw(commandBuffer, vertices.count, instCount, 0, 0);
@@ -186,11 +189,13 @@ namespace Vulgine{
                 auto& boundPipeline = vlg_instance->pipelineMap.bind({this, material,
                                                 dynamic_cast<SceneImpl *>(parent()), dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
 
+                dynamic_cast<SceneImpl*>(parent())->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+
                 if(hasMeshDescriptors)
-                    set.bind(1, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+                    set.bind(2, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
 
                 if(material->set.isCreated())
-                    material->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+                    material->set.bind(1, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
 
                 vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(camera->matrices), &(camera->matrices));
                 vkCmdDrawIndexed(commandBuffer, primitive.indexCount, instCount, primitive.startIdx, 0, 0);
@@ -448,6 +453,10 @@ namespace Vulgine{
 
     void LightImpl::destroyImpl() {
 
+    }
+
+    void LightImpl::update() {
+        dynamic_cast<SceneImpl*>(parent())->updateLight(id());
     }
 
     ShaderModule::~ShaderModule() {

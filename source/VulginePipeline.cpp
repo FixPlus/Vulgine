@@ -13,6 +13,8 @@ void Vulgine::Pipeline::createImpl() {
 
         std::vector<VkDescriptorSetLayout> layouts;
 
+        layouts.push_back(scene->set.layout());
+
         if(material->set.isCreated())
             layouts.push_back(material->set.layout());
         if(mesh->set.isCreated())

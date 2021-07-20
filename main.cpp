@@ -226,6 +226,20 @@ int main(int argc, char** argv){
 
     auto* scene = vulgine->initNewScene();
 
+    scene->create();
+
+    auto* light1 = scene->createLightSource();
+
+    light1->direction = glm::vec3{1.0f, 0.5f, 0.0f};
+    light1->color = glm::vec3{1.0f, 0.5f, 0.2f};
+    light1->update();
+
+    auto* light2 = scene->createLightSource();
+
+    light2->direction = glm::vec3{0.0f, 1.0f, 0.0f};
+    light2->color = glm::vec3{1.0f, 1.0f, 1.0f};
+    light2->update();
+
     auto* material = vulgine->initNewMaterial();
 
     material->setName("Wario Surface");

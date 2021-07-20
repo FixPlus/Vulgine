@@ -8,13 +8,27 @@ layout (location = 3) in vec3 inViewVec;
 
 layout (location = 0) out vec4 outFragColor;
 
-layout(binding = 0, set = 0) uniform sampler2D colorMap;
+layout(binding = 0, set = 1) uniform sampler2D colorMap;
+struct Data{
+    vec4 color;
+    vec4 direction;
+};
+layout(binding = 0, set = 0) uniform UBO{
+    Data data[20];
+    uint count;
+} lights;
 
 void main()
 {
-    vec3 light = normalize(vec3(1.0f, 0.0f, 1.0f));
-    float brightness = 0.6f + 0.4f * dot(-light, normalize(inNorm));
-    vec4 specular = vec4(1.0f, 1.0f, 1.0f, 0.0f) * pow(max(dot(reflect(normalize(inViewVec) , inNorm), -light), 0.0f), 16.0f);
+    vec4 totalBrightness = vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    vec4 totalSpecular =  vec4(0.0f, 0.0f, 0.0f, 0.0f);
+    for(uint i = 0; i < lights.count; i++){
+        vec3 light = normalize(lights.data[i].direction.xyz);
+        totalBrightness += 0.6f * vec4(1.0f) + 0.4f * lights.data[i].color * dot(-light, normalize(inNorm));
+        totalSpecular += lights.data[i].color * pow(max(dot(reflect(normalize(inViewVec), inNorm), -light), 0.0f), 16.0f);
 
-    outFragColor = texture(colorMap, inUV) * brightness + specular;
+    }
+    totalBrightness.w = 1.0f;
+    totalSpecular.w = 0.0f;
+    outFragColor = texture(colorMap, inUV) * totalBrightness + totalSpecular;
 }

@@ -246,8 +246,16 @@ namespace Vulgine{
     protected:
         Scene* parent_;
     public:
+
+
+
+        virtual void update() = 0;
+
         Light(Scene* parent): parent_(parent){}
-        glm::vec3 direction;
+
+        glm::vec3 color = glm::vec3{1.0f};
+        glm::vec3 direction = glm::vec3{0.0f, 1.0f, 0.0f};
+
         Scene* parent() const{ return parent_;};
     };
 

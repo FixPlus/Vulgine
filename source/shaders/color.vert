@@ -16,9 +16,9 @@ layout(push_constant) uniform constants{
     vec3 cameraPosition;
 } PushConstants;
 
-layout(binding = 0, set = 1) uniform sampler2D someMap;
+layout(binding = 0, set = 2) uniform sampler2D someMap;
 
-layout(binding = 1, set = 1) uniform UBO
+layout(binding = 1, set = 2) uniform UBO
 {
     vec4 shift;
 } ubo;

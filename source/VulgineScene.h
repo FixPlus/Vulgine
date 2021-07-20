@@ -7,21 +7,33 @@
 
 #include <../include/IVulgineScene.h>
 #include <VulgineObjects.h>
-#include <stack>
 
 #include <unordered_map>
 
 namespace Vulgine{
 
+    constexpr const uint32_t MAX_LIGHTS = 20;
 
     struct RenderPass;
 
     struct SceneImpl: public Scene, public ObjectImplNoMove{
+        DescriptorSet set;
+
+        struct{
+            struct{
+                glm::vec4 lightColor;
+                glm::vec4 lightDirection;
+            } lights[MAX_LIGHTS] = {};
+            uint32_t lightCount = 0;
+        } lightsInfo;
+
+        UniformBufferImpl lightUBO;
 
 
+        explicit SceneImpl(uint32_t id): lightUBO(ObjectImpl::claimId()), ObjectImplNoMove(Type::SCENE, id){};
 
-        explicit SceneImpl(uint32_t id): ObjectImplNoMove(Type::SCENE, id){};
-
+        std::unordered_map<uint32_t, uint32_t> lightMap;
+        std::unordered_map<uint32_t, uint32_t> reverseLightMap;
 
         std::unordered_map<uint32_t, MeshImpl> meshes;
         std::unordered_map<uint32_t, LightImpl> lights;
@@ -39,9 +51,14 @@ namespace Vulgine{
 
         ~SceneImpl() override = default;
 
+        void updateLight(uint32_t light);
+
     protected:
         void createImpl() override;
         void destroyImpl() override;
+
+
+
 
     };
 }

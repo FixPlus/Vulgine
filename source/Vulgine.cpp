@@ -466,6 +466,7 @@ namespace Vulgine{
         // synchronize dynamic buffers data
 
         uniformBuffers.iterate([](UniformBufferImpl& buffer){ buffer.sync();});
+        scenes.iterate([](SceneImpl& scene){ scene.lightUBO.sync();});
 
         if(cmdBuffersOutdated)
             buildCommandBuffers(currentBuffer);
@@ -1236,6 +1237,16 @@ namespace Vulgine{
         perMeshPool.maxSets = 1024;
 
         perMeshPool.descriptorsCapacity = std::move(types1);
+
+        std::map<VkDescriptorType, uint32_t> types2;
+
+        types2[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER] = 1 * 1024;
+
+
+        perScenePool.maxSets = 1024;
+
+        perScenePool.descriptorsCapacity = std::move(types2);
+
 
     }
 
