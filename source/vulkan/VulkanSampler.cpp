@@ -29,5 +29,5 @@ void Vulgine::Sampler::create(VkSamplerAddressMode addressMode) {
 
 void Vulgine::Sampler::destroy() {
     vkDestroySampler(vlg_instance->device->logicalDevice, sampler, nullptr);
-    sampler = nullptr;
+    sampler = VK_NULL_HANDLE;
 }

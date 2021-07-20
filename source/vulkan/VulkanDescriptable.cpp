@@ -25,7 +25,7 @@ Vulgine::CombinedImageSampler::~CombinedImageSampler() {
 }
 
 VkWriteDescriptorSet Vulgine::CombinedImageSampler::write(int binding) {
-    VkWriteDescriptorSet ret = initializers::writeDescriptorSet(nullptr, descriptorType, binding, &descriptor);
+    VkWriteDescriptorSet ret = initializers::writeDescriptorSet(VK_NULL_HANDLE, descriptorType, binding, &descriptor);
     return ret;
 }
 
@@ -44,6 +44,6 @@ void Vulgine::DUniformBuffer::destroyDescriptor() {
 }
 
 VkWriteDescriptorSet Vulgine::DUniformBuffer::write(int binding) {
-    VkWriteDescriptorSet ret = initializers::writeDescriptorSet(nullptr, descriptorType, binding, &descriptor);
+    VkWriteDescriptorSet ret = initializers::writeDescriptorSet(VK_NULL_HANDLE, descriptorType, binding, &descriptor);
     return ret;
 }
