@@ -96,8 +96,8 @@ namespace Vulgine {
         if (ImGui::Begin("Metrics Viewer", &metricsViewerOpened)) {
             ImGui::BulletText("FPS: %.1f (%.2fms)", vlg.fpsCounter.fps, 1000.0f / (float) vlg.fpsCounter.fps);
             ImGui::Separator();
-            ImGui::BulletText("Meshes: %d", MeshImpl::count());
-            ImGui::BulletText("Images: %d", vlg.images.size());
+            ImGui::BulletText("Meshes: %d", ObjectImpl::count(Object::Type::MESH));
+            ImGui::BulletText("Images: %d", ObjectImpl::count(Object::Type::IMAGE));
         }
 
         ImGui::End();

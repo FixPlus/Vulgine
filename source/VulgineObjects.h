@@ -10,6 +10,8 @@
 #include "Utilities.h"
 #include "vulkan/VulkanAllocatable.h"
 #include "vulkan/VulkanDescriptable.h"
+#include "VulgineDescriptorSet.h"
+
 #include <map>
 
 namespace Vulgine{
@@ -36,7 +38,6 @@ namespace Vulgine{
     };
 
     class MeshImpl: public Mesh, public ObjectImplNoMove{
-        static uint32_t count_;
         VkVertexInputBindingDescription vertexAttrBindingInfo[2] = {};
 
         std::vector<VkVertexInputAttributeDescription> attributesDesc{};
@@ -45,9 +46,7 @@ namespace Vulgine{
 
     public:
 
-        std::vector<uint32_t> descriptorSets;
-
-        std::vector<std::vector<Descriptable*>> descriptors;
+        DescriptorSet set;
 
         VkPipelineVertexInputStateCreateInfo vertexInputStateCI{};
 
@@ -66,7 +65,7 @@ namespace Vulgine{
 
         Memory::StaticIndexBuffer indexBuffer;
 
-        explicit MeshImpl(Scene* parent, uint32_t id): Mesh(parent), ObjectImplNoMove(Type::MESH, id){ count_++; };
+        explicit MeshImpl(Scene* parent, uint32_t id): Mesh(parent), ObjectImplNoMove(Type::MESH, id){ };
 
         void createImpl() override;
         void destroyImpl() override;
@@ -80,9 +79,8 @@ namespace Vulgine{
 
         void updateInstanceBuffer() override;
 
-        void draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass* pass);
+        void draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass* pass, int currentFrame);
 
-        static uint32_t count() {return count_;};
 
         ~MeshImpl() override;
     };
@@ -110,14 +108,7 @@ namespace Vulgine{
     };
 
     struct MaterialImpl: public Material, public ObjectImplNoMove{
-        uint32_t descriptorSet;
-        bool hasDescriptorSet = false;
-        struct TextureSampler{
-            VkDescriptorImageInfo descriptor;
-            Sampler sampler;
-        } colorMapSampled, normalMapSampled;
-
-
+        DescriptorSet set;
 
         explicit MaterialImpl(uint32_t id): ObjectImplNoMove(Type::MATERIAL, id){}
         void createImpl() override;

@@ -73,6 +73,20 @@ Vulgine::Memory::Image::~Image() {
     }
 }
 
+namespace Vulgine {
+    VkImageAspectFlagBits getAspect(VkFormat format) {
+        if (format == vlg_instance->depthFormat){
+            int ret;
+            ret = VK_IMAGE_ASPECT_DEPTH_BIT;
+            if(format >= VK_FORMAT_D16_UNORM_S8_UINT){
+                ret |= VK_IMAGE_ASPECT_STENCIL_BIT;
+            }
+            return static_cast<VkImageAspectFlagBits>(ret);
+        } else{
+            return VK_IMAGE_ASPECT_COLOR_BIT;
+        }
+    }
+}
 VkImageView Vulgine::Memory::Image::createImageView() const {
     VkImageView view;
     VkImageViewCreateInfo viewCreateInfo = {};
@@ -86,7 +100,7 @@ VkImageView Vulgine::Memory::Image::createImageView() const {
 
     viewCreateInfo.format = imageInfo.format;
     viewCreateInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
-    viewCreateInfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+    viewCreateInfo.subresourceRange = { getAspect(imageInfo.format), 0, 1, 0, 1 };
     // Linear tiling usually won't support mip maps
     // Only set mip map count if optimal tiling is used
     viewCreateInfo.subresourceRange.levelCount = 1;
@@ -107,7 +121,7 @@ void Vulgine::Memory::Image::transitImageLayout(VkImageLayout oldLayout, VkImage
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
     barrier.image = image;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.aspectMask = getAspect(imageInfo.format);
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
@@ -129,8 +143,15 @@ void Vulgine::Memory::Image::transitImageLayout(VkImageLayout oldLayout, VkImage
 
         sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
     } else {
-        assert(0 && "Not supported yet");
+        assert(0 && "This image transition layout isn't supported yet");
     }
 
     vkCmdPipelineBarrier(

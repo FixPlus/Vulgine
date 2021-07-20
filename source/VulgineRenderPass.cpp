@@ -44,7 +44,7 @@ void Vulgine::RenderPassImpl::buildCmdBuffers(VkCommandBuffer buffer, int curren
 
     //draw scene from perspective of specified camera
 
-    dynamic_cast<SceneImpl*>(scene)->draw(buffer, dynamic_cast<CameraImpl*>(camera), this);
+    dynamic_cast<SceneImpl*>(scene)->draw(buffer, dynamic_cast<CameraImpl*>(camera), this, currentFrame);
 
 }
 

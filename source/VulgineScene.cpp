@@ -37,9 +37,9 @@ namespace Vulgine{
         lights.erase(light->id());
     }
 
-    void SceneImpl::draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass* pass) {
+    void SceneImpl::draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass* pass, int currentFrame) {
         for(auto& mesh: meshes)
-            mesh.second.draw(commandBuffer, camera, pass);
+            mesh.second.draw(commandBuffer, camera, pass, currentFrame);
     }
 
     Camera *SceneImpl::createCamera() {

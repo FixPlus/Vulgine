@@ -85,6 +85,11 @@ namespace Vulgine{
         vkDestroyImage(device->logicalDevice, depthStencil.image, nullptr);
         vkFreeMemory(device->logicalDevice, depthStencil.mem, nullptr);
 
+        if(msaaImage.image.allocated){
+            vkDestroyImageView(device->logicalDevice, msaaImage.view, nullptr);
+            msaaImage.image.free();
+        }
+
         destroyDescriptorPools();
 
         destroyCommandBuffers();
@@ -715,9 +720,9 @@ namespace Vulgine{
                 attachments.at(binding).stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
                 attachments.at(binding).stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
-                // for now we consider it to be undefined
+                // for now we consider it to be shader read-only optimal
 
-                attachments.at(binding).initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                attachments.at(binding).initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
                 // for now we consider it to be used as sampled image
 

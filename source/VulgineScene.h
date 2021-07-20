@@ -35,7 +35,7 @@ namespace Vulgine{
         void deleteLightSource(Light* light) override;
         void deleteCamera(Camera* camera) override;
 
-        void draw(VkCommandBuffer commandBuffer, CameraImpl* camera, RenderPass* pass);
+        void draw(VkCommandBuffer commandBuffer, CameraImpl* camera, RenderPass* pass, int currentFrame);
 
         ~SceneImpl() override = default;
 

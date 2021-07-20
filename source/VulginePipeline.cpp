@@ -13,10 +13,10 @@ void Vulgine::Pipeline::createImpl() {
 
         std::vector<VkDescriptorSetLayout> layouts;
 
-        if(material->hasDescriptorSet)
-            layouts.push_back(vlg_instance->perMaterialPool.getLayout(material->descriptorSet));
-        if(!mesh->descriptors.empty())
-            layouts.push_back(vlg_instance->perMeshPool.getLayout(mesh->descriptorSets.at(0)));
+        if(material->set.isCreated())
+            layouts.push_back(material->set.layout());
+        if(mesh->set.isCreated())
+            layouts.push_back(mesh->set.layout());
 
         VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo =
                 initializers::pipelineLayoutCreateInfo(
@@ -45,7 +45,7 @@ void Vulgine::Pipeline::createImpl() {
         VkPipelineColorBlendStateCreateInfo colorBlendState = initializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
         VkPipelineDepthStencilStateCreateInfo depthStencilState = initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
         VkPipelineViewportStateCreateInfo viewportState = initializers::pipelineViewportStateCreateInfo(1, 1, 0);
-        VkPipelineMultisampleStateCreateInfo multisampleState = initializers::pipelineMultisampleStateCreateInfo(vlg_instance->settings.msaa, 0);
+        VkPipelineMultisampleStateCreateInfo multisampleState = initializers::pipelineMultisampleStateCreateInfo(renderPass == vlg_instance->onscreenRenderPass ? vlg_instance->settings.msaa : VK_SAMPLE_COUNT_1_BIT, 0);
         std::vector<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
         VkPipelineDynamicStateCreateInfo dynamicState = initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables, 0);
         std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages {};

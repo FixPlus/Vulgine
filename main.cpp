@@ -26,6 +26,8 @@ InstanceAttribute instancesAttributes[metaCubesize * metaCubesize * metaCubesize
         {glm::mat4(1.0f)}
 };
 
+InstanceAttribute standaloneCube = {glm::mat4(1.0f)};
+
 VertexAttribute vertexAttributes[24] = {
 
         // upper face
@@ -179,6 +181,37 @@ void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material, Vulgine:
     mesh->create();
 }
 
+void createOffscreenProjectedMesh(Vulgine::Mesh* mesh, Vulgine::Material* material){
+    Vulgine::VertexFormat format;
+    format.perVertexAttributes = {Vulgine::AttributeFormat::RGB32SF, Vulgine::AttributeFormat::RGB32SF, Vulgine::AttributeFormat::RG32SF};
+    format.perInstanceAttributes = {Vulgine::AttributeFormat::MAT4F};
+
+    mesh->vertexStageInfo.vertexFormat = format;
+    mesh->vertexStageInfo.vertexShader = "vert_default";
+    mesh->vertices.pData = vertexAttributes;
+    mesh->vertices.count = sizeof(vertexAttributes) / sizeof(VertexAttribute);
+    mesh->instances.pData = &standaloneCube;
+    mesh->instances.count = 1;
+    mesh->indices = {0, 1, 2, 0, 2, 3, 6, 5, 4, 7, 6, 4,
+                     8, 9, 10, 8, 10, 11, 12, 14, 13, 12, 15, 14,
+                     16, 17, 18, 16, 18, 19, 20, 23, 22, 20, 22, 21};
+
+    Vulgine::Mesh::Primitive primitive{};
+
+    primitive.material = material;
+
+    primitive.startIdx = 0;
+
+    primitive.indexCount = mesh->indices.size();
+
+    mesh->primitives.push_back(primitive);
+
+    mesh->vertices.dynamic = false;
+    mesh->instances.dynamic = false;
+
+    mesh->create();
+
+}
 int main(int argc, char** argv){
 
     Vulgine::initializeInfo.windowName = "HELLO THERE";
@@ -295,6 +328,21 @@ int main(int argc, char** argv){
     offscreenRenderPass->getFrameBuffer()->height = 500;
 
     auto* attachmentImage = offscreenRenderPass->getFrameBuffer()->addAttachment();
+    offscreenRenderPass->getFrameBuffer()->addAttachment(Vulgine::FrameBuffer::Type::DEPTH_STENCIL);
+
+    auto* cube = scene->createEmptyMesh();
+    cube->setName("Cube");
+
+    auto* offscreenProjector = vulgine->initNewMaterial();
+    offscreenProjector->texture.colorMap = attachmentImage;
+    offscreenProjector->create();
+    offscreenProjector->setName("Offscreen Projector");
+
+    standaloneCube.transform = glm::translate(glm::vec3{0.0f, -5.0f, 0.0f});
+
+    createOffscreenProjectedMesh(cube, offscreenProjector);
+
+
 
     offscreenRenderPass->onscreen = false;
     offscreenRenderPass->camera = camera.cameraImpl;

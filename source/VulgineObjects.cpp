@@ -100,73 +100,18 @@ namespace Vulgine{
         }
 
 
-
-        std::vector<std::vector<VkDescriptorSetLayoutBinding>> bindings;
-        std::vector<std::vector<VkWriteDescriptorSet>> writes;
-        bindings.resize(framebufferCount);
-        writes.resize(framebufferCount);
-
-        for (auto it = vertexStageInfo.descriptors.begin(), end = vertexStageInfo.descriptors.end();
-             it != end; ++it) {
-            switch (it->type) {
+        for (auto & descriptor : vertexStageInfo.descriptors) {
+            switch (descriptor.type) {
                 case DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER: {
 
-                    // for now assuming that image is static
+                    set.addCombinedImageSampler(descriptor.image, VK_SHADER_STAGE_VERTEX_BIT);
 
-                    VkDescriptorSetLayoutBinding binding;
-                    binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                    binding.binding = it->binding;
-                    binding.descriptorCount = 1;
-                    binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-                    binding.pImmutableSamplers = nullptr;
-
-                    auto *image = dynamic_cast<StaticImageImpl *>(it->image);
-                    auto *combImageSampler = new CombinedImageSampler{&image->image};
-
-                    combImageSampler->setupDescriptor();
-
-                    descriptors.emplace_back(std::vector<Descriptable *>{combImageSampler});
-
-                    for(int i = 0; i < framebufferCount; i++) {
-
-                        bindings[i].push_back(binding);
-                        writes[i].emplace_back(combImageSampler->write(it->binding));
-
-                    }
                     break;
                 }
                 case DescriptorInfo::Type::UNIFORM_BUFFER: {
-                    VkDescriptorSetLayoutBinding binding;
-                    binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                    binding.binding = it->binding;
-                    binding.descriptorCount = 1;
-                    binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-                    binding.pImmutableSamplers = nullptr;
-                    descriptors.emplace_back();
-                    if(it->ubo->dynamic){
-                        for(int i = 0; i < framebufferCount; i++){
-                            auto* buffer = dynamic_cast<UniformBufferImpl*>(it->ubo);
-                            auto* ubo = new DUniformBuffer{buffer->buffers.at(i)};
-                            ubo->setupDescriptor();
-                            descriptors.back().emplace_back(ubo);
 
-                            bindings[i].push_back(binding);
-                            writes[i].emplace_back(ubo->write(it->binding));
+                    set.addUniformBuffer(descriptor.ubo, VK_SHADER_STAGE_VERTEX_BIT);
 
-                        }
-                    } else{
-                        auto* buffer = dynamic_cast<UniformBufferImpl*>(it->ubo);
-                        auto* ubo = new DUniformBuffer{buffer->buffers.at(0)};
-                        ubo->setupDescriptor();
-                        descriptors.back().emplace_back(ubo);
-
-                        for(int i = 0; i < framebufferCount; i++) {
-
-                            bindings[i].push_back(binding);
-                            writes[i].emplace_back(ubo->write(it->binding));
-
-                        }
-                    }
                     break;
                 }
                 default:
@@ -174,11 +119,10 @@ namespace Vulgine{
             }
         }
 
-        if (!writes.at(0).empty()) {
-            for(int i = 0; i < framebufferCount; i++) {
-                descriptorSets.push_back(vlg_instance->perMeshPool.allocateSet(bindings[i].data(), bindings[i].size()));
-                vlg_instance->perMeshPool.updateDescriptor(descriptorSets.back(), writes[i]);
-            }
+        set.pool = &vlg_instance->perMeshPool;
+
+        if(!set.empty()){
+            set.create();
         }
 
 
@@ -189,25 +133,20 @@ namespace Vulgine{
             delete buf.first;
         for(auto buf: perInstance)
             delete buf.first;
-        for(auto const& desc: descriptors) {
-            for(auto perFrame: desc){
-                perFrame->destroyDescriptor();
-                delete perFrame;
-            }
-        }
+
+        set.destroy();
+        set.clearDescriptors();
 
         perVertex.clear();
         perInstance.clear();
-        descriptors.clear();
 
         if(indexBuffer.allocated)
             indexBuffer.free();
     }
 
-    void MeshImpl::draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass *pass) {
-        int currentFrame = vlg_instance->currentFrame;
-        int vertBufId = vertices.dynamic ? currentFrame : 0;
-        int instanceBufId = instances.dynamic ? currentFrame : 0;
+    void MeshImpl::draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass *pass, int currentFrame) {
+        int vertBufId = vertices.dynamic ? vlg_instance->currentFrame : 0;
+        int instanceBufId = instances.dynamic ? vlg_instance->currentFrame : 0;
 
         auto& vertexBuf = perVertex.at(vertBufId);
         if(vertexBuf.second) {
@@ -222,7 +161,7 @@ namespace Vulgine{
 
         vertexBuf.first->bind(commandBuffer);
 
-        bool hasMeshDescriptors = !descriptors.empty();
+        bool hasMeshDescriptors = set.isCreated();
 
         if(!perInstance.empty())
             instanceBuf.first->bind(commandBuffer);
@@ -233,9 +172,11 @@ namespace Vulgine{
             auto& boundPipeline = vlg_instance->pipelineMap.bind({this, dynamic_cast<MaterialImpl *>(primitives[0].material),
                                             dynamic_cast<SceneImpl *>(parent()), dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
             if(hasMeshDescriptors)
-                vlg_instance->perMeshPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 1,descriptorSets.at(currentFrame));
-            if(material->hasDescriptorSet)
-                vlg_instance->perMaterialPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 0,material->descriptorSet);
+                set.bind(1, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+
+            if(material->set.isCreated())
+                material->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+
             vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(camera->matrices), &(camera->matrices));
             vkCmdDraw(commandBuffer, vertices.count, instCount, 0, 0);
         }else{
@@ -244,10 +185,13 @@ namespace Vulgine{
                 auto* material = dynamic_cast<MaterialImpl *>(primitive.material);
                 auto& boundPipeline = vlg_instance->pipelineMap.bind({this, material,
                                                 dynamic_cast<SceneImpl *>(parent()), dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
+
                 if(hasMeshDescriptors)
-                    vlg_instance->perMeshPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 1,descriptorSets.at(currentFrame));
-                if(material->hasDescriptorSet)
-                    vlg_instance->perMaterialPool.bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, boundPipeline.pipelineLayout, 0,material->descriptorSet);
+                    set.bind(1, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+
+                if(material->set.isCreated())
+                    material->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+
                 vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(camera->matrices), &(camera->matrices));
                 vkCmdDrawIndexed(commandBuffer, primitive.indexCount, instCount, primitive.startIdx, 0, 0);
             }
@@ -255,18 +199,14 @@ namespace Vulgine{
 
     }
 
-    uint32_t MeshImpl::count_ = 0;
     MeshImpl::~MeshImpl() {
-        count_--;
-        for(auto buf: perVertex)
-            delete buf.first;
-        for(auto buf: perInstance)
-            delete buf.first;
-        for(auto const& desc: descriptors) {
-            for(auto perFrame: desc){
-                perFrame->destroyDescriptor();
-                delete perFrame;
-            }
+        if(isCreated()) {
+            for (auto buf: perVertex)
+                delete buf.first;
+            for (auto buf: perInstance)
+                delete buf.first;
+
+            set.destroy();
         }
     }
 
@@ -311,64 +251,29 @@ namespace Vulgine{
     void MaterialImpl::createImpl() {
         assert(!texture.normalMap || (texture.colorMap && texture.normalMap) && "Standalone normal maps aren't supported");
 
-        std::vector<VkDescriptorSetLayoutBinding> bindings;
-        std::vector<VkWriteDescriptorSet> writes;
+        set.pool = &vlg_instance->perMaterialPool;
 
         if(texture.colorMap){
 
-            VkDescriptorSetLayoutBinding binding;
-            binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            binding.binding = 0;
-            binding.descriptorCount = 1;
-            binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-            binding.pImmutableSamplers = nullptr;
-            bindings.push_back(binding);
+            set.addCombinedImageSampler(texture.colorMap, VK_SHADER_STAGE_FRAGMENT_BIT);
 
-            auto& colorImage = dynamic_cast<StaticImageImpl*>(texture.colorMap)->image;
-            colorMapSampled.descriptor.imageView = colorImage.createImageView();
-            colorMapSampled.sampler.create();
-            colorMapSampled.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            colorMapSampled.descriptor.sampler = colorMapSampled.sampler.sampler;
-
-            VkWriteDescriptorSet write = initializers::writeDescriptorSet(nullptr, binding.descriptorType, 0, &colorMapSampled.descriptor);
-            writes.push_back(write);
         }
         if(texture.normalMap){
 
-            VkDescriptorSetLayoutBinding binding;
-            binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            binding.binding = 1;
-            binding.descriptorCount = 1;
-            binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-            binding.pImmutableSamplers = nullptr;
-            bindings.push_back(binding);
+            set.addCombinedImageSampler(texture.normalMap, VK_SHADER_STAGE_FRAGMENT_BIT);
 
-            auto& colorImage = dynamic_cast<StaticImageImpl*>(texture.colorMap)->image;
-            normalMapSampled.descriptor.imageView = colorImage.createImageView();
-            normalMapSampled.sampler.create();
-            normalMapSampled.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            normalMapSampled.descriptor.sampler = normalMapSampled.sampler.sampler;
-            VkWriteDescriptorSet write = initializers::writeDescriptorSet(nullptr, binding.descriptorType, 1, &colorMapSampled.descriptor);
-            writes.push_back(write);
         }
 
         if(texture.colorMap) {
-            descriptorSet = vlg_instance->perMaterialPool.allocateSet(bindings.data(), bindings.size());
-            vlg_instance->perMaterialPool.updateDescriptor(descriptorSet, writes);
-            hasDescriptorSet = true;
+            set.create();
         }
 
 
     }
 
     void MaterialImpl::destroyImpl() {
-        if(texture.colorMap){
-            vkDestroyImageView(vlg_instance->device->logicalDevice, colorMapSampled.descriptor.imageView, nullptr);
-        }
-
-        if(texture.normalMap){
-            vkDestroyImageView(vlg_instance->device->logicalDevice, normalMapSampled.descriptor.imageView, nullptr);
-        }
+        set.destroy();
+        set.clearDescriptors();
     }
 
     void MeshImpl::compileVertexInputState() {
@@ -534,18 +439,6 @@ namespace Vulgine{
     }
 
     MaterialImpl::~MaterialImpl() {
-        if(isCreated()){
-            if(texture.colorMap){
-                vkDestroyImageView(vlg_instance->device->logicalDevice, colorMapSampled.descriptor.imageView, nullptr);
-                colorMapSampled.sampler.destroy();
-
-            }
-
-            if(texture.normalMap){
-                vkDestroyImageView(vlg_instance->device->logicalDevice, normalMapSampled.descriptor.imageView, nullptr);
-                colorMapSampled.sampler.destroy();
-            }
-        }
 
     }
 
@@ -599,7 +492,7 @@ namespace Vulgine{
 
     void UniformBufferImpl::createImpl() {
         if(dynamic){
-            int imageCount = vlg_instance->settings.framesInFlight;
+            int imageCount = vlg_instance->swapChain.imageCount;
             for(int i = 0; i < imageCount; i++) {
                 auto *dynBuffer = new Memory::DynamicBuffer{};
                 dynBuffer->create(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
@@ -641,7 +534,7 @@ namespace Vulgine{
         if(!dynamic)
             return;
 
-        int curFrame = vlg_instance->currentFrame;
+        int curFrame = vlg_instance->currentBuffer;
 
         if(updated.at(curFrame)){
              auto* buf = dynamic_cast<Memory::DynamicBuffer*>(buffers.at(curFrame));

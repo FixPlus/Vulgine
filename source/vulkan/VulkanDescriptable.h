@@ -14,6 +14,7 @@ namespace Vulgine{
 
     struct Descriptable{
         VkDescriptorType descriptorType;
+        VkShaderStageFlagBits stage;
         explicit Descriptable(VkDescriptorType type = VK_DESCRIPTOR_TYPE_MAX_ENUM): descriptorType(type){}
         virtual VkWriteDescriptorSet write(int binding) = 0;
         virtual void setupDescriptor() = 0;

@@ -168,8 +168,7 @@ namespace Vulgine {
         VkCommandPool cmdPool;
         // Command buffers used for rendering
         std::vector<VkCommandBuffer> drawCmdBuffers;
-        // Active frame buffer index
-        uint32_t currentBuffer = 0;
+
 
 
         struct{
@@ -188,8 +187,7 @@ namespace Vulgine {
 
 
 
-        // Depth buffer format (selected during Vulkan initialization)
-        VkFormat depthFormat;
+
 
         void createVkInstance();
         void createVulkanDevice();
@@ -223,6 +221,11 @@ namespace Vulgine {
         void updateGUI();
 
     public:
+        // Active frame buffer index
+        uint32_t currentBuffer = 0;
+
+        // Depth buffer format (selected during Vulkan initialization)
+        VkFormat depthFormat;
 
         struct Settings{
             bool vsync = false;
