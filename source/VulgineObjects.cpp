@@ -45,6 +45,8 @@ namespace Vulgine{
         assert(!primitives.empty() && "Can't create Mesh with 0 primitives");
         assert(!indices.empty() || primitives.size() == 1 && "Unindexed mesh cant have more than one primitive");
 
+        SELF_CHECK_DEVICE_LIMITS()
+
         cachedInstances.pData = instances.pData;
         cachedInstances.count = instances.count;
 

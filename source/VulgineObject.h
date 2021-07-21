@@ -73,6 +73,10 @@ namespace Vulgine{
         ~ObjectImpl() override;
     };
 
+    bool checkDeviceLimits(ObjectImpl* object);
+
+#define SELF_CHECK_DEVICE_LIMITS() assert(checkDeviceLimits(this) && "object exceeds device limits");
+#define CHECK_DEVICE_LIMITS(OBJ) assert(checkDeviceLimits(OBJ) && "object exceeds device limits");
     struct ObjectImplNoMove: public ObjectImpl{
         ObjectImplNoMove(Type typeId, uint32_t id): ObjectImpl(typeId, id){};
         ObjectImplNoMove& operator=(ObjectImplNoMove&& another) = delete;

@@ -604,6 +604,8 @@ namespace Vulgine{
 
         renderPass->destroy();
 
+        CHECK_DEVICE_LIMITS(renderPass)
+
         if(renderPass->onscreen) { // TODO: generalize onscreen render pass creation
 
             std::array<VkAttachmentDescription, 3> attachments = {};
