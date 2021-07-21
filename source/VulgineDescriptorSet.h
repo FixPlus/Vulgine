@@ -33,7 +33,7 @@ namespace Vulgine{
 
         void bind(uint32_t set, VkCommandBuffer buffer, VkPipelineLayout layout, VkPipelineBindPoint bindPoint,uint32_t currentFrame);
 
-        void addCombinedImageSampler(Image* image, VkShaderStageFlagBits stage);
+        void addCombinedImageSampler(Image* image, VkShaderStageFlagBits stage, Sampler* sampler);
 
         void addUniformBuffer(UniformBuffer* buffer, VkShaderStageFlagBits stage);
 

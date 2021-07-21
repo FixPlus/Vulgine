@@ -1,3 +1,3 @@
 file(GLOB IMGUI_SRC "../../external/imgui/*.cpp")
-add_library(VulkanBase OBJECT ${IMGUI_SRC} VulkanSwapChain.cpp VulkanSwapChain.h VulkanDebug.h VulkanDebug.cpp VulkanDevice.h VulkanDevice.cpp VulkanInitializers.hpp VulkanAllocatable.cpp VulkanAllocatable.h VmaImpl.cpp VulkanDescriptorPool.cpp VulkanDescriptorPool.h VulkanDescriptable.cpp VulkanDescriptable.h VulkanSampler.cpp VulkanSampler.h VulkanImGui.cpp VulkanImGui.h)
+add_library(VulkanBase OBJECT ${IMGUI_SRC} VulkanSwapChain.cpp VulkanSwapChain.h VulkanDebug.h VulkanDebug.cpp VulkanDevice.h VulkanDevice.cpp VulkanInitializers.hpp VulkanAllocatable.cpp VulkanAllocatable.h VmaImpl.cpp VulkanDescriptorPool.cpp VulkanDescriptorPool.h VulkanDescriptable.cpp VulkanDescriptable.h VulkanImGui.cpp VulkanImGui.h)
 set_property(TARGET VulkanBase PROPERTY CXX_STANDARD 20)

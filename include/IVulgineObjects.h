@@ -60,11 +60,12 @@ namespace Vulgine{
             UBO,
             CAMERA,
             LIGHT,
-            RENDER_PASS,        // internal only (yet)
-            FRAME_BUFFER,       // internal only (yet)
+            RENDER_PASS,
+            FRAME_BUFFER,
             PIPELINE,           // internal only
             SHADER_MODULE,      // internal only (yet)
             NONE,
+            SAMPLER,
             UNKNOWN             // other uncategorized internal only objects
         };
 
@@ -189,9 +190,14 @@ namespace Vulgine{
 
     };
 
+    struct Sampler: virtual public Object{
+        enum class Filtering{NONE, LINEAR} filtering = Filtering::LINEAR;
+    };
+
     struct DescriptorInfo{
         enum class Type{ UNIFORM_BUFFER, COMBINED_IMAGE_SAMPLER} type;
         int binding;
+        Sampler* sampler = nullptr;
         Image* image = nullptr;
         UniformBuffer* ubo = nullptr;
     };
@@ -228,6 +234,7 @@ namespace Vulgine{
 
 
         struct{
+            ::Vulgine::Sampler* sampler = nullptr;
             ::Vulgine::Image* colorMap = nullptr;
             ::Vulgine::Image* normalMap = nullptr;
         } texture;

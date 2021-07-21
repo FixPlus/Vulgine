@@ -54,6 +54,7 @@ uint32_t ObjectImpl::count(Type type) { return countMap.count(type) ? countMap.a
         typeNames.emplace(Type::RENDER_PASS,   "Render pass");
         typeNames.emplace(Type::FRAME_BUFFER,  "Framebuffer");
         typeNames.emplace(Type::PIPELINE,      "Pipeline");
+        typeNames.emplace(Type::SAMPLER,      "Sampler");
         typeNames.emplace(Type::UNKNOWN,       "Unknown object");
     }
 

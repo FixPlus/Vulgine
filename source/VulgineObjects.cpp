@@ -106,7 +106,7 @@ namespace Vulgine{
             switch (descriptor.type) {
                 case DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER: {
 
-                    set.addCombinedImageSampler(descriptor.image, VK_SHADER_STAGE_VERTEX_BIT);
+                    set.addCombinedImageSampler(descriptor.image, VK_SHADER_STAGE_VERTEX_BIT, descriptor.sampler);
 
                     break;
                 }
@@ -262,15 +262,13 @@ namespace Vulgine{
         if(!custom) {
             assert(!texture.normalMap ||
                    (texture.colorMap && texture.normalMap) && "Standalone normal maps aren't supported");
-
+            assert(((texture.colorMap && texture.sampler) || !texture.colorMap) && "Cannot create material texture without sampler");
             if (texture.colorMap) {
-
-                set.addCombinedImageSampler(texture.colorMap, VK_SHADER_STAGE_FRAGMENT_BIT);
+                set.addCombinedImageSampler(texture.colorMap, VK_SHADER_STAGE_FRAGMENT_BIT, texture.sampler);
 
             }
             if (texture.normalMap) {
-
-                set.addCombinedImageSampler(texture.normalMap, VK_SHADER_STAGE_FRAGMENT_BIT);
+                set.addCombinedImageSampler(texture.normalMap, VK_SHADER_STAGE_FRAGMENT_BIT, texture.sampler);
 
             }
 
@@ -281,7 +279,9 @@ namespace Vulgine{
             for(auto& descriptor: customMaterialInfo.descriptors){
                 switch(descriptor.type){
                     case DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER:{
-                        set.addCombinedImageSampler(descriptor.image, VK_SHADER_STAGE_FRAGMENT_BIT);
+
+                        set.addCombinedImageSampler(descriptor.image, VK_SHADER_STAGE_FRAGMENT_BIT, descriptor.sampler);
+
                         break;
                     }
                     case DescriptorInfo::Type::UNIFORM_BUFFER:{
@@ -578,4 +578,42 @@ namespace Vulgine{
     }
 
 
- }
+    void SamplerImpl::createImpl() {
+        VkFilter filter;
+
+        switch(filtering){
+            case Sampler::Filtering::LINEAR: filter = VK_FILTER_LINEAR; break;
+            case Sampler::Filtering::NONE: filter = VK_FILTER_NEAREST; break;
+        }
+
+        VkSamplerCreateInfo samplerCreateInfo = {};
+        samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerCreateInfo.magFilter = filter;
+        samplerCreateInfo.minFilter = filter;
+        samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerCreateInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerCreateInfo.mipLodBias = 0.0f;
+        samplerCreateInfo.compareOp = VK_COMPARE_OP_NEVER;
+        samplerCreateInfo.minLod = 0.0f;
+        // Max level-of-detail should match mip level count
+        samplerCreateInfo.maxLod = 0.0f;
+        // Only enable anisotropic filtering if enabled on the device
+        samplerCreateInfo.maxAnisotropy = vlg_instance->device->enabledFeatures.samplerAnisotropy ? vlg_instance->device->properties.limits.maxSamplerAnisotropy : 1.0f;
+        samplerCreateInfo.anisotropyEnable = vlg_instance->device->enabledFeatures.samplerAnisotropy;
+        samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+        VK_CHECK_RESULT(vkCreateSampler(vlg_instance->device->logicalDevice, &samplerCreateInfo, nullptr, &sampler));
+
+    }
+
+    SamplerImpl::~SamplerImpl() {
+        if(isCreated())
+            vkDestroySampler(vlg_instance->device->logicalDevice, sampler, nullptr);
+    }
+
+    void SamplerImpl::destroyImpl() {
+        vkDestroySampler(vlg_instance->device->logicalDevice, sampler, nullptr);
+        sampler = VK_NULL_HANDLE;
+    }
+}

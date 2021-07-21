@@ -134,5 +134,14 @@ namespace Vulgine{
         ~CameraImpl() override{}
     };
 
+    struct SamplerImpl: public Sampler, public ObjectImplNoMove{
+        VkSampler sampler = VK_NULL_HANDLE;
+        explicit SamplerImpl(uint32_t id): ObjectImplNoMove(Object::Type::SAMPLER, id){}
+
+        ~SamplerImpl() override;
+    protected:
+        void createImpl() override;
+        void destroyImpl() override;
+    };
 }
 #endif //TEST_EXE_VULGINEOBJECTS_H

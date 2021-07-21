@@ -110,7 +110,8 @@ void Vulgine::GUI::init(int numberOfFrames) {
 
     buffer.free();
 
-    sampler.create(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
+    sampler = dynamic_cast<SamplerImpl*>(vlg_instance->initNewSampler());
+    sampler->create();
 
     // GUI has it's own descriptor pool
 
@@ -136,7 +137,7 @@ void Vulgine::GUI::init(int numberOfFrames) {
 
     VK_CHECK_RESULT(vkAllocateDescriptorSets(vlg_instance->device->logicalDevice, &allocInfo, &fontDescriptorSet));
     VkDescriptorImageInfo fontDescriptor = initializers::descriptorImageInfo(
-            sampler.sampler,
+            sampler->sampler,
             fontView,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     );
@@ -169,7 +170,6 @@ void Vulgine::GUI::destroy() {
 
     vkDestroyImageView(vlg_instance->device->logicalDevice, fontView, nullptr);
     fontImage.free();
-    sampler.destroy();
     vkDestroyDescriptorSetLayout(vlg_instance->device->logicalDevice, descriptorSetLayout, nullptr);
     vkDestroyDescriptorPool(vlg_instance->device->logicalDevice, descriptorPool, nullptr);
     vkDestroyPipelineLayout(vlg_instance->device->logicalDevice, pipelineLayout, nullptr);
@@ -449,7 +449,7 @@ void Vulgine::GUI::addTexturedImage(Memory::Image *image) {
 
     VK_CHECK_RESULT(vkAllocateDescriptorSets(vlg_instance->device->logicalDevice, &allocInfo, &descriptorSet));
     VkDescriptorImageInfo textureDescriptor = initializers::descriptorImageInfo(
-            sampler.sampler,
+            sampler->sampler,
             view,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     );

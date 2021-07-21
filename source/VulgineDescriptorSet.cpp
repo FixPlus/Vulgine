@@ -67,14 +67,16 @@ void Vulgine::DescriptorSet::clearDescriptors() {
 
 }
 
-void Vulgine::DescriptorSet::addCombinedImageSampler(Image *image, VkShaderStageFlagBits stage) {
+void Vulgine::DescriptorSet::addCombinedImageSampler(Image *image, VkShaderStageFlagBits stage, Sampler* sampler) {
     if(sets.empty())
         sets.resize(vlg_instance->swapChain.imageCount);
+
+    auto* samplerImpl = dynamic_cast<SamplerImpl*>(sampler);
 
     if(auto* staticImage = dynamic_cast<StaticImageImpl*>(image)){
 
         for(auto& set: sets){
-            auto* desc = set.descriptors.emplace_back(new CombinedImageSampler{&staticImage->image});
+            auto* desc = set.descriptors.emplace_back(new CombinedImageSampler{&staticImage->image, samplerImpl->sampler});
             desc->stage = stage;
             desc->setupDescriptor();
         }
@@ -83,7 +85,7 @@ void Vulgine::DescriptorSet::addCombinedImageSampler(Image *image, VkShaderStage
         int i = 0;
         auto setSize = sets.size();
         for(auto& set: sets){
-            auto* desc = set.descriptors.emplace_back(new CombinedImageSampler{&dynamicImage->images.at((i + setSize - 1) % setSize)});
+            auto* desc = set.descriptors.emplace_back(new CombinedImageSampler{&dynamicImage->images.at((i + setSize - 1) % setSize), samplerImpl->sampler});
             desc->stage = stage;
             desc->setupDescriptor();
             i++;

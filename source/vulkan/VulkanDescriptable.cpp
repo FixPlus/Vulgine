@@ -9,19 +9,19 @@
 void Vulgine::CombinedImageSampler::setupDescriptor() {
     descriptor.imageView = image->createImageView();
     descriptor.imageLayout = claimedLayout;
-    descriptor.sampler = sampler.sampler;
+    descriptor.sampler = sampler;
 }
 
 void Vulgine::CombinedImageSampler::destroyDescriptor() {
     vkDestroyImageView(vlg_instance->device->logicalDevice, descriptor.imageView, nullptr);
 }
 
-Vulgine::CombinedImageSampler::CombinedImageSampler(Memory::Image *img) : DImage(img), Descriptable(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
-    sampler.create();
+Vulgine::CombinedImageSampler::CombinedImageSampler(Memory::Image *img, VkSampler sp) : DImage(img), sampler(sp),  Descriptable(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+
 }
 
 Vulgine::CombinedImageSampler::~CombinedImageSampler() {
-    sampler.destroy();
+
 }
 
 VkWriteDescriptorSet Vulgine::CombinedImageSampler::write(int binding) {

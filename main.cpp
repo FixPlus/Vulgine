@@ -162,13 +162,8 @@ void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material, Vulgine:
 
     Vulgine::DescriptorInfo info{};
 
+
     info.binding = 0;
-    info.image = material->texture.colorMap;
-    info.type = Vulgine::DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER;
-
-    mesh->vertexStageInfo.descriptors.push_back(info);
-
-    info.binding = 1;
     info.image = nullptr;
     info.ubo = ubo;
     info.type = Vulgine::DescriptorInfo::Type::UNIFORM_BUFFER;
@@ -216,7 +211,7 @@ int main(int argc, char** argv){
 
     Vulgine::initializeInfo.windowName = "HELLO THERE";
     Vulgine::initializeInfo.windowSize = {1200, 800};
-    Vulgine::initializeInfo.enableVulkanValidationLayers = true;
+    Vulgine::initializeInfo.enableVulkanValidationLayers = false;
     Vulgine::initializeInfo.vsync = false;
     Vulgine::initializeInfo.fullscreen = false;
 
@@ -227,6 +222,10 @@ int main(int argc, char** argv){
     auto* scene = vulgine->initNewScene();
 
     scene->create();
+
+    auto* sampler = vulgine->initNewSampler();
+
+    sampler->create();
 
     auto* light1 = scene->createLightSource();
 
@@ -241,6 +240,8 @@ int main(int argc, char** argv){
     light2->update();
 
     auto* material = vulgine->initNewMaterial();
+
+
 
     material->setName("Wario Surface");
 
@@ -261,6 +262,7 @@ int main(int argc, char** argv){
 
 
     material->texture.colorMap = texture;
+    material->texture.sampler = sampler;
 
     material->create();
 
@@ -347,12 +349,16 @@ int main(int argc, char** argv){
     offscreenRenderPass->getFrameBuffer()->addAttachment(Vulgine::FrameBuffer::Type::DEPTH_STENCIL);
 
 
-    scene->createBackGround("frag_background_textured", {{Vulgine::DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER, 0, attachmentImage, nullptr}});
+    scene->createBackGround("frag_background_textured",
+                            {{Vulgine::DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER, 0,
+                              sampler,
+                              attachmentImage, nullptr}});
 
     auto* cube = scene->createEmptyMesh();
     cube->setName("Cube");
 
     auto* offscreenProjector = vulgine->initNewMaterial();
+    offscreenProjector->texture.sampler = sampler;
     offscreenProjector->texture.colorMap = attachmentImage;
     offscreenProjector->create();
     offscreenProjector->setName("Offscreen Projector");

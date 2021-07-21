@@ -10,12 +10,13 @@
 #include <vector>
 #include <vulkan/VulkanAllocatable.h>
 #include <glm/vec2.hpp>
-#include <vulkan/VulkanSampler.h>
 #include <unordered_map>
 
 namespace Vulgine{
 
     constexpr const int max_imgui_texture_count = 1024;
+
+    class SamplerImpl;
 
     class GUI{
 
@@ -48,7 +49,7 @@ namespace Vulgine{
         VkDescriptorSet fontDescriptorSet;
         VkImageView fontView = VK_NULL_HANDLE;
 
-        Sampler sampler;
+        SamplerImpl* sampler;
 
         struct PushConstBlock {
             glm::vec2 scale;

@@ -64,6 +64,7 @@ namespace Vulgine{
         materials.clear();
         images.clear();
         uniformBuffers.clear();
+        samplers.clear();
 
 
 
@@ -1419,6 +1420,14 @@ namespace Vulgine{
 
         shaderMap->emplace(std::piecewise_construct, std::forward_as_tuple(name), std::forward_as_tuple(shader, name));
 
+    }
+
+    Sampler *VulgineImpl::initNewSampler() {
+        return samplers.emplace();
+    }
+
+    void VulgineImpl::deleteSampler(Sampler *sampler) {
+        samplers.free(dynamic_cast<SamplerImpl*>(sampler));
     }
 
     void disableLog(){

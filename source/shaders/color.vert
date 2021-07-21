@@ -16,9 +16,7 @@ layout(push_constant) uniform constants{
     vec3 cameraPosition;
 } PushConstants;
 
-layout(binding = 0, set = 2) uniform sampler2D someMap;
-
-layout(binding = 1, set = 2) uniform UBO
+layout(binding = 0, set = 2) uniform UBO
 {
     vec4 shift;
 } ubo;
@@ -26,10 +24,6 @@ layout(binding = 1, set = 2) uniform UBO
 void main() {
     //mat4 model = mat4(1.0);
     vec4 temp = (model * vec4(inPos, 1.0f)) + ubo.shift;
-
-    vec2 UV = vec2(temp.z, 100.0f - temp.y) / 100.0;
-
-    temp += vec4(-length(texture(someMap, UV)) * 10.0f, 0.0f, 0.0f, 0.0f);
 
     outPos = temp.xyz;
 

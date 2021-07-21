@@ -142,6 +142,9 @@ namespace Vulgine {
         virtual RenderPass* initNewRenderPass() = 0;
         virtual void deleteRenderPass(RenderPass* renderPass) = 0;
 
+        virtual Sampler* initNewSampler() = 0;
+        virtual void deleteSampler(Sampler* sampler) = 0;
+
         virtual void loadCustomShader(const char* filename, const char* name, ShaderStage stage) = 0;
 
 

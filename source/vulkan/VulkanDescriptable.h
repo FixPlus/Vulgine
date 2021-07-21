@@ -7,7 +7,6 @@
 
 #include <vulkan/vulkan.h>
 #include "VulkanAllocatable.h"
-#include "VulkanSampler.h"
 
 namespace Vulgine{
 
@@ -32,8 +31,8 @@ namespace Vulgine{
 
 
     struct CombinedImageSampler: public DImage{
-        Sampler sampler{};
-        explicit CombinedImageSampler(Memory::Image* img);
+        VkSampler sampler;
+        CombinedImageSampler(Memory::Image* img, VkSampler sampler);
         VkWriteDescriptorSet write(int binding) override;
         void setupDescriptor() override;
         void destroyDescriptor() override;

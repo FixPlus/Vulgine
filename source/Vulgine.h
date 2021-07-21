@@ -254,6 +254,7 @@ namespace Vulgine {
         IdentifiableContainer<MaterialImpl> materials;
         IdentifiableContainer<StaticImageImpl> images;
         IdentifiableContainer<UniformBufferImpl> uniformBuffers;
+        IdentifiableContainer<SamplerImpl> samplers;
 
         DescriptorPool perScenePool;    // set 0
         DescriptorPool perMaterialPool; // set 1
@@ -315,6 +316,9 @@ namespace Vulgine {
 
         UniformBuffer* initNewUniformBuffer() override;
         void deleteUniformBuffer(UniformBuffer* buffer) override;
+
+        Sampler* initNewSampler() override;
+        void deleteSampler(Sampler* sampler) override;
 
         void loadCustomShader(const char* filename, const char* name, ShaderStage stage) override;
 
