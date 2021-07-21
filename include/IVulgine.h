@@ -30,6 +30,8 @@
 
 namespace Vulgine {
 
+    enum class ShaderStage{ VERTEX, FRAGMENT};
+
     struct Initializers{
         std::string windowName = "VulGineApp";
         std::pair<uint32_t, uint32_t> windowSize = {800, 600};
@@ -139,6 +141,8 @@ namespace Vulgine {
 
         virtual RenderPass* initNewRenderPass() = 0;
         virtual void deleteRenderPass(RenderPass* renderPass) = 0;
+
+        virtual void loadCustomShader(const char* filename, const char* name, ShaderStage stage) = 0;
 
 
         virtual void buildRenderPasses() = 0;

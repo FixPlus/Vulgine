@@ -1398,6 +1398,27 @@ namespace Vulgine{
         renderPasses.free(dynamic_cast<RenderPassImpl*>(renderPass));
     }
 
+    void VulgineImpl::loadCustomShader(const char *filename, const char *name, ShaderStage stage) {
+        auto shader = loadShader(filename, device->logicalDevice);
+        auto* shaderMap = &fragmentShaders;
+
+        switch (stage) {
+            case ShaderStage::VERTEX:{
+                shaderMap = &vertexShaders;
+                break;
+            }
+            case ShaderStage::FRAGMENT:{
+                shaderMap = &fragmentShaders;
+                break;
+            }
+            default: assert(0 && "Invalid shader stage");
+
+        }
+
+        shaderMap->emplace(std::piecewise_construct, std::forward_as_tuple(name), std::forward_as_tuple(shader, name));
+
+    }
+
     void disableLog(){
         logger.disable();
     }

@@ -316,6 +316,8 @@ namespace Vulgine {
         UniformBuffer* initNewUniformBuffer() override;
         void deleteUniformBuffer(UniformBuffer* buffer) override;
 
+        void loadCustomShader(const char* filename, const char* name, ShaderStage stage) override;
+
         bool initialize();
         explicit VulgineImpl();
         ~VulgineImpl() override;
