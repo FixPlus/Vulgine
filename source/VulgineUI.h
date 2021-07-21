@@ -42,6 +42,11 @@ namespace Vulgine{
         void displayMaterialInfo();
         void displayImageInfo();
         void displayUBOInfo();
+        void displayMeshInfo();
+        void displayRenderPassInfo();
+        void displayFrameBufferInfo();
+        void displayCameraInfo();
+        void displayLightInfo();
 
         void select(ObjectImpl* object);
 
@@ -73,7 +78,6 @@ namespace Vulgine{
         bool logOpened = false;
         bool aboutOpened = false;
         void drawLogWindow();
-        void drawObjectInspectorWindow();
         void drawMetricsViewerWindow();
         void drawSystemPropertiesWindow();
         void drawAboutWindow();

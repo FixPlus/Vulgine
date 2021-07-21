@@ -230,13 +230,13 @@ int main(int argc, char** argv){
 
     auto* light1 = scene->createLightSource();
 
-    light1->direction = glm::vec3{1.0f, 0.5f, 0.0f};
+    light1->direction = glm::vec2{0.0f, 0.0f};
     light1->color = glm::vec3{1.0f, 0.5f, 0.2f};
     light1->update();
 
     auto* light2 = scene->createLightSource();
 
-    light2->direction = glm::vec3{0.0f, 1.0f, 0.0f};
+    light2->direction = glm::vec2{0.0f, 0.0f};
     light2->color = glm::vec3{1.0f, 1.0f, 1.0f};
     light2->update();
 
@@ -369,7 +369,7 @@ int main(int argc, char** argv){
 
     bool skip = true;
 
-    vulgine->onCycle = [&skip, &timer, &deltaT, vulgine, mesh, &camera, &shift, ubo](){
+    vulgine->onCycle = [&skip, &timer, &deltaT, vulgine, mesh, &camera, &shift, light1, light2, ubo](){
         if(skip)
             skip = false;
         else
@@ -377,6 +377,8 @@ int main(int argc, char** argv){
         timer += deltaT;
         shift = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f) * (float)sin(timer);
         ubo->update();
+        light1->update();
+        light2->update();
 #if 0
         for(int i = 0; i < metaCubesize; i++){
             glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), (float)deltaT * (((i * 3 + 11) % 5) + 1),

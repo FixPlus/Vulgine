@@ -95,7 +95,12 @@ namespace Vulgine{
     void SceneImpl::updateLight(uint32_t light) {
         auto lightNumber = lightMap.at(light);
         lightsInfo.lights[lightNumber].lightColor = glm::vec4{lights.at(light).color, 0.0f};
-        lightsInfo.lights[lightNumber].lightDirection = glm::vec4{lights.at(light).direction, 0.0f};
+        glm::mat4 rotate = glm::rotate(glm::radians(lights.at(light).direction.x), glm::vec3{1.0f, 0.0f, 0.0f});
+        rotate = glm::rotate(rotate,glm::radians(lights.at(light).direction.y), glm::vec3{0.0f, 1.0f, 0.0f});
+        glm::vec4 direction = glm::vec4{1.0f, 0.0f, 0.0f, 0.0f};
+        direction = rotate * direction;
+
+        lightsInfo.lights[lightNumber].lightDirection = direction;
         lightUBO.update();
     }
 

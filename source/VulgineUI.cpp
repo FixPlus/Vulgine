@@ -4,7 +4,9 @@
 
 #include "VulgineUI.h"
 #include "Vulgine.h"
-
+namespace {
+    ImVec2 mainMenuBarSize;
+}
 namespace Vulgine {
 
     ImGuiTextBuffer UserInterface::logBuf;
@@ -32,6 +34,7 @@ namespace Vulgine {
 
 
         if (ImGui::BeginMainMenuBar()) {
+            mainMenuBarSize = ImGui::GetWindowSize();
             if (ImGui::BeginMenu("VulGine")) {
                 if (ImGui::MenuItem("Object Inspector", "CTRL+Z", pObjectInspector->isOpened())) {
                     pObjectInspector->open();
@@ -88,8 +91,6 @@ namespace Vulgine {
 
     }
 
-    void UserInterface::drawObjectInspectorWindow() {
-    }
 
     void UserInterface::drawMetricsViewerWindow() {
         auto &vlg = *vlg_instance;
@@ -169,10 +170,11 @@ namespace Vulgine {
             return;
 
         auto &vlg = *vlg_instance;
+        auto & io = ImGui::GetIO();
+        ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.y / 3.0f, 0));
+        ImGui::SetNextWindowPos(ImVec2(0, mainMenuBarSize.y));
 
-        ImGui::SetNextWindowSize(ImVec2(500, 440), ImGuiCond_FirstUseEver);
-
-        if (!ImGui::Begin("Object Inspector", &opened)) {
+        if (!ImGui::Begin("Object Inspector", &opened, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove)) {
             ImGui::End();
             return;
         }
@@ -181,7 +183,7 @@ namespace Vulgine {
         auto* selectedObjectTemp = selectedObject;
 
         bool selectedPresent = false;
-        ImGui::BeginChild("left pane", ImVec2(150, 0), true);
+        ImGui::BeginChild("Object list", ImVec2(ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x, io.DisplaySize.y / 3.0f), true);
 
         ObjectImpl::for_each([&selectedObjectTemp, &selectedPresent](ObjectImpl* object){
             bool selected = selectedObjectTemp == object;
@@ -193,22 +195,27 @@ namespace Vulgine {
                 selectedPresent = true;
         });
 
-        ImGui::EndChild();
-
-        ImGui::SameLine();
-
-        ImGui::BeginChild("right pane", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()));
-
         if (selectedPresent) {
             selectedObject = selectedObjectTemp;
         } else {
             selectedObject = nullptr;
-            ImGui::Text("Select object to display");
-            ImGui::EndChild();
+        }
+
+        ImGui::EndChild();
+
+        if(!ImGui::CollapsingHeader("Properties")) {
             ImGui::End();
             return;
         }
 
+        ImGui::BeginChild("Properties viewer", ImVec2(ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x, io.DisplaySize.y - ImGui::GetCursorPos().y - mainMenuBarSize.y), true);
+
+        if(selectedObject == nullptr){
+            ImGui::Text("No object selected");
+            ImGui::EndChild();
+            ImGui::End();
+            return;
+        }
 
         ImGui::Text(selectedObject->objectLabel().c_str());
         ImGui::SameLine();
@@ -233,6 +240,26 @@ namespace Vulgine {
                 displayUBOInfo();
                 break;
             }
+            case Object::Type::MESH: {
+                displayMeshInfo();
+                break;
+            }
+            case Object::Type::RENDER_PASS:{
+                displayRenderPassInfo();
+                break;
+            }
+            case Object::Type::FRAME_BUFFER:{
+                displayFrameBufferInfo();
+                break;
+            }
+            case Object::Type::CAMERA: {
+                displayCameraInfo();
+                break;
+            }
+            case Object::Type::LIGHT:{
+                displayLightInfo();
+                break;
+            }
             default:
                 ImGui::Text("Cannot display any information for this type of object yet");
                 break;
@@ -255,145 +282,19 @@ namespace Vulgine {
 
 
     void ObjectInspector::displaySceneInfo() {
-        static MeshImpl *selectedMesh = nullptr;
-        bool selectedMeshPresent = false;
         auto &scene = *(dynamic_cast<SceneImpl*>(selectedObject));
         ImGui::BeginChild("Meshes", ImVec2(150, 200), true);
 
         for (auto &mesh: scene.meshes) {
-            std::string label = mesh.second.objectLabel();
-
-
-            if (ImGui::Selectable(label.c_str(), selectedMesh == &mesh.second)) {
-                selectedMesh = &mesh.second;
-            }
-
-            if (selectedMesh == &mesh.second)
-                selectedMeshPresent = true;
+            selectable(&mesh.second);
         }
-        if (!selectedMeshPresent)
-            selectedMesh = nullptr;
+
 
         ImGui::EndChild();
         ImGui::SameLine();
 
         ImGui::Text("Total meshes: %d\nTotal cameras: %d\nTotal lights: %d", scene.meshes.size(), scene.cameras.size(), scene.lights.size());
-        ImGui::Separator();
 
-        if (selectedMesh) {
-            auto &mesh = *selectedMesh;
-            ImGui::Text(mesh.objectLabel().c_str());
-            ImGui::Separator();
-            if (ImGui::CollapsingHeader("Vertex Input Layout")) {
-                ImGui::Text("Per-Vertex:");
-                int location = 0;
-                auto iterate = [&location](AttributeFormat attr) {
-                    std::string format;
-                    int curLoc = location;
-                    switch (attr) {
-                        case AttributeFormat::RGBA32SF: {
-                            format = "vec4";
-                            location++;
-                            break;
-                        }
-                        case AttributeFormat::RGB32SF: {
-                            format = "vec3";
-                            location++;
-                            break;
-                        }
-                        case AttributeFormat::RG32SF: {
-                            format = "vec2";
-                            location++;
-                            break;
-                        }
-                        case AttributeFormat::R32SF: {
-                            format = "float";
-                            location++;
-                            break;
-                        }
-                        case AttributeFormat::MAT4F: {
-                            format = "mat4";
-                            location += 4;
-                            break;
-                        }
-                        default:
-                            format = "???";
-                    }
-
-                    ImGui::BulletText("location = %d, %s", curLoc, format.c_str());
-
-                };
-
-                for (auto attr: mesh.vertexStageInfo.vertexFormat.perVertexAttributes)
-                    iterate(attr);
-
-                if (mesh.vertexStageInfo.vertexFormat.perVertexAttributes.empty())
-                    ImGui::Text("empty");
-
-                ImGui::Separator();
-
-                ImGui::Text("Per-Instance:");
-
-                for (auto attr: mesh.vertexStageInfo.vertexFormat.perInstanceAttributes)
-                    iterate(attr);
-
-                if (mesh.vertexStageInfo.vertexFormat.perInstanceAttributes.empty())
-                    ImGui::Text("empty");
-
-            }
-            if (ImGui::CollapsingHeader("Vertices")) {
-                std::string type = mesh.vertices.dynamic ? "dynamic" : "static";
-
-                ImGui::Text("Buffer type: %s", type.c_str());
-                ImGui::Text("Count: %d", mesh.vertices.count);
-                ImGui::Text("Size: %d bytes",
-                            mesh.vertexStageInfo.vertexFormat.perVertexSize() * mesh.vertices.count);
-            }
-            if (ImGui::CollapsingHeader("Instances")) {
-                std::string type = mesh.instances.dynamic ? "dynamic" : "static";
-
-                ImGui::Text("Buffer type: %s", type.c_str());
-                ImGui::Text("Count: %d", mesh.instances.count);
-                ImGui::Text("Size: %d bytes",
-                            mesh.vertexStageInfo.vertexFormat.perInstanceSize() * mesh.instances.count);
-
-            }
-            if (ImGui::CollapsingHeader("Descriptor layout")) {
-                for (auto const &descriptor: mesh.vertexStageInfo.descriptors) {
-                    std::string type;
-                    switch (descriptor.type) {
-                        case DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER: {
-                            type = "combined image sampler";
-                            break;
-                        }
-                        case DescriptorInfo::Type::UNIFORM_BUFFER: {
-                            type = "uniform buffer";
-                            break;
-                        }
-                        default:
-                            type = "unknown";
-                    }
-                    ImGui::Text("Binding %d: %s", descriptor.binding, type.c_str());
-                    switch (descriptor.type) {
-                        case DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER: {
-                            ImGui::BulletText("Resource: ");
-                            ImGui::SameLine();
-                            selectable(dynamic_cast<StaticImageImpl*>(descriptor.image));
-                            break;
-                        }
-                        case DescriptorInfo::Type::UNIFORM_BUFFER: {
-                            ImGui::BulletText("Resource: ");
-                            ImGui::SameLine();
-                            selectable(dynamic_cast<UniformBufferImpl*>(descriptor.ubo));
-                            break;
-                        }
-                        default:;
-                    }
-                    ImGui::Separator();
-                }
-            }
-
-        }
     }
 
     void ObjectInspector::displayMaterialInfo() {
@@ -403,18 +304,20 @@ namespace Vulgine {
             ImGui::SameLine();
             std::string label;
 
-            auto *colorMap = dynamic_cast<StaticImageImpl*>(material.texture.colorMap);
-
-            selectable(colorMap);
-
+            if(auto *colorMap = dynamic_cast<StaticImageImpl*>(material.texture.colorMap)) {
+                selectable(colorMap);
+            } else {
+                selectable(dynamic_cast<DynamicImageImpl*>(material.texture.colorMap));
+            }
             ImGui::BulletText("Normal Map: ");
 
             ImGui::SameLine();
 
-            auto *normalMap = dynamic_cast<StaticImageImpl*>(material.texture.normalMap);
-
-            selectable(normalMap);
-
+            if(auto *normalMap = dynamic_cast<StaticImageImpl*>(material.texture.normalMap)) {
+                selectable(normalMap);
+            } else {
+                selectable(dynamic_cast<DynamicImageImpl*>(material.texture.normalMap));
+            }
             ImGui::Separator();
         }
 
@@ -422,11 +325,21 @@ namespace Vulgine {
     }
 
     void ObjectInspector::displayImageInfo() {
-        auto &image = *dynamic_cast<StaticImageImpl*>(selectedObject);
+        VkImageCreateInfo imageInfo;
+
+        if(auto* image = dynamic_cast<StaticImageImpl*>(selectedObject)){
+            ImGui::Text("Static texture");
+
+            imageInfo = image->image.imageInfo;
+        }
+        if(auto* image = dynamic_cast<DynamicImageImpl*>(selectedObject)){
+            ImGui::Text("Dynamic texture");
+            ImGui::Text("Image Count: %d", image->images.size());
+            imageInfo = image->images.at(0).imageInfo;
+        }
         std::string type;
         std::string dims;
 
-        auto const &imageInfo = image.image.imageInfo;
         switch (imageInfo.imageType) {
             case VK_IMAGE_TYPE_1D:
                 type = "1D";
@@ -514,6 +427,193 @@ namespace Vulgine {
         ImGui::Text("type: %s", type.c_str());
         ImGui::Text("Size: %d", ubo.size);
 
+    }
+
+    void ObjectInspector::displayMeshInfo() {
+        auto &mesh = *dynamic_cast<MeshImpl*>(selectedObject);
+        ImGui::Text("Parent: ");
+        ImGui::SameLine();
+        selectable(dynamic_cast<ObjectImpl*>(mesh.parent()));
+        if (ImGui::CollapsingHeader("Vertex Input Layout")) {
+            ImGui::Text("Per-Vertex:");
+            int location = 0;
+            auto iterate = [&location](AttributeFormat attr) {
+                std::string format;
+                int curLoc = location;
+                switch (attr) {
+                    case AttributeFormat::RGBA32SF: {
+                        format = "vec4";
+                        location++;
+                        break;
+                    }
+                    case AttributeFormat::RGB32SF: {
+                        format = "vec3";
+                        location++;
+                        break;
+                    }
+                    case AttributeFormat::RG32SF: {
+                        format = "vec2";
+                        location++;
+                        break;
+                    }
+                    case AttributeFormat::R32SF: {
+                        format = "float";
+                        location++;
+                        break;
+                    }
+                    case AttributeFormat::MAT4F: {
+                        format = "mat4";
+                        location += 4;
+                        break;
+                    }
+                    default:
+                        format = "???";
+                }
+
+                ImGui::BulletText("location = %d, %s", curLoc, format.c_str());
+
+            };
+
+            for (auto attr: mesh.vertexStageInfo.vertexFormat.perVertexAttributes)
+                iterate(attr);
+
+            if (mesh.vertexStageInfo.vertexFormat.perVertexAttributes.empty())
+                ImGui::Text("empty");
+
+            ImGui::Separator();
+
+            ImGui::Text("Per-Instance:");
+
+            for (auto attr: mesh.vertexStageInfo.vertexFormat.perInstanceAttributes)
+                iterate(attr);
+
+            if (mesh.vertexStageInfo.vertexFormat.perInstanceAttributes.empty())
+                ImGui::Text("empty");
+
+        }
+        if (ImGui::CollapsingHeader("Vertices")) {
+            std::string type = mesh.vertices.dynamic ? "dynamic" : "static";
+
+            ImGui::Text("Buffer type: %s", type.c_str());
+            ImGui::Text("Count: %d", mesh.vertices.count);
+            ImGui::Text("Size: %d bytes",
+                        mesh.vertexStageInfo.vertexFormat.perVertexSize() * mesh.vertices.count);
+        }
+        if (ImGui::CollapsingHeader("Instances")) {
+            std::string type = mesh.instances.dynamic ? "dynamic" : "static";
+
+            ImGui::Text("Buffer type: %s", type.c_str());
+            ImGui::Text("Count: %d", mesh.instances.count);
+            ImGui::Text("Size: %d bytes",
+                        mesh.vertexStageInfo.vertexFormat.perInstanceSize() * mesh.instances.count);
+
+        }
+        if (ImGui::CollapsingHeader("Descriptor layout")) {
+            for (auto const &descriptor: mesh.vertexStageInfo.descriptors) {
+                std::string type;
+                switch (descriptor.type) {
+                    case DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER: {
+                        type = "combined image sampler";
+                        break;
+                    }
+                    case DescriptorInfo::Type::UNIFORM_BUFFER: {
+                        type = "uniform buffer";
+                        break;
+                    }
+                    default:
+                        type = "unknown";
+                }
+                ImGui::Text("Binding %d: %s", descriptor.binding, type.c_str());
+                switch (descriptor.type) {
+                    case DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER: {
+                        ImGui::BulletText("Resource: ");
+                        ImGui::SameLine();
+                        if(auto* image = dynamic_cast<StaticImageImpl*>(descriptor.image))
+                            selectable(image);
+                        else {
+                            selectable(dynamic_cast<DynamicImageImpl*>(descriptor.image));
+                        }
+                        break;
+                    }
+                    case DescriptorInfo::Type::UNIFORM_BUFFER: {
+                        ImGui::BulletText("Resource: ");
+                        ImGui::SameLine();
+                        selectable(dynamic_cast<UniformBufferImpl*>(descriptor.ubo));
+                        break;
+                    }
+                    default:;
+                }
+                ImGui::Separator();
+            }
+        }
+
+
+    }
+
+    void ObjectInspector::displayRenderPassInfo() {
+        auto* pRenderPass = dynamic_cast<RenderPassImpl*>(selectedObject);
+        assert(pRenderPass && "Expected dynamic type match RenderPassImpl");
+        auto& renderPass = *pRenderPass;
+
+        ImGui::Text("Draws: ");
+        ImGui::SameLine();
+        selectable(dynamic_cast<SceneImpl*>(renderPass.scene));
+
+        ImGui::Text("From pov of: ");
+        ImGui::SameLine();
+        selectable(dynamic_cast<CameraImpl*>(renderPass.camera));
+
+        ImGui::Text("To: ");
+        ImGui::SameLine();
+        selectable(&renderPass.frameBuffer);
+
+        ImGui::Separator();
+
+        ImGui::Text("Dependencies:");
+        for(auto* depend: renderPass.dependencies)
+            selectable(dynamic_cast<RenderPassImpl*>(depend));
+
+    }
+
+    void ObjectInspector::displayFrameBufferInfo() {
+        auto* pFrameBuffer = dynamic_cast<FrameBufferImpl*>(selectedObject);
+        assert(pFrameBuffer && "Expected dynamic type match FrameBufferImpl");
+        auto& frameBuffer = *pFrameBuffer;
+
+        if(frameBuffer.renderPass->onscreen){
+            ImGui::Text("Type: onscreen");
+
+        } else{
+            ImGui::Text("Type: offscreen");
+            ImGui::Separator();
+            ImGui::Text("Attachments: ");
+            for(auto& imageMapped: frameBuffer.attachmentsImages){
+                auto* image = &imageMapped.second;
+                ImGui::Text("Attachment #%d: ", imageMapped.first);
+                ImGui::SameLine();
+                selectable(image);
+            }
+        }
+
+    }
+
+    void ObjectInspector::displayCameraInfo() {
+        auto* pCamera = dynamic_cast<CameraImpl*>(selectedObject);
+        assert(pCamera && "Expected dynamic type match CameraImpl");
+        auto& camera = *pCamera;
+
+        ImGui::DragFloat3("Position", reinterpret_cast<float*>(&camera.position));
+        ImGui::DragFloat3("Rotation", reinterpret_cast<float*>(&camera.rotation));
+    }
+
+    void ObjectInspector::displayLightInfo() {
+        auto* pLight = dynamic_cast<LightImpl*>(selectedObject);
+        assert(pLight && "Expected dynamic type match LightImpl");
+        auto& light = *pLight;
+
+
+        ImGui::DragFloat2("Direction", reinterpret_cast<float*>(&light.direction));
+        ImGui::ColorPicker3("Color", reinterpret_cast<float*>(&light.color));
     }
 
 }

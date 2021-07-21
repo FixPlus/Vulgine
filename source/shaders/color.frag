@@ -24,7 +24,8 @@ void main()
     vec4 totalSpecular =  vec4(0.0f, 0.0f, 0.0f, 0.0f);
     for(uint i = 0; i < lights.count; i++){
         vec3 light = normalize(lights.data[i].direction.xyz);
-        totalBrightness += 0.6f * vec4(1.0f) + 0.4f * lights.data[i].color * dot(-light, normalize(inNorm));
+        float diffuse = dot(-light, normalize(inNorm)) * 0.4f + 0.6f;
+        totalBrightness += lights.data[i].color * diffuse;
         totalSpecular += lights.data[i].color * pow(max(dot(reflect(normalize(inViewVec), inNorm), -light), 0.0f), 16.0f);
 
     }
