@@ -55,6 +55,23 @@ namespace Vulgine{
     }
 
     void SceneImpl::draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass* pass, int currentFrame) {
+
+        // draw background
+
+        if(background.created){
+            auto& pipeline = vlg_instance->pipelineMap.bind({nullptr, &background.material, this, dynamic_cast<RenderPassImpl*>(pass)}, commandBuffer);
+            if(set.isCreated()){
+                set.bind(0, commandBuffer, pipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+            }
+
+            if(background.material.set.isCreated()){
+                background.material.set.bind(1, commandBuffer, pipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+            }
+            vkCmdDraw(commandBuffer, 4, 1, 0, 0);
+        }
+
+        // draw all the meshes
+
         for(auto& mesh: meshes)
             mesh.second.draw(commandBuffer, camera, pass, currentFrame);
     }
@@ -102,6 +119,30 @@ namespace Vulgine{
 
         lightsInfo.lights[lightNumber].lightDirection = direction;
         lightUBO.update();
+    }
+
+    void SceneImpl::createBackGround(const char *fragmentShaderModule, const std::vector<DescriptorInfo> &descriptors) {
+        if(background.created)
+            return;
+
+        background.created = true;
+        background.material.custom = true;
+        background.material.customMaterialInfo.descriptors = descriptors;
+        background.material.customMaterialInfo.fragmentShader = fragmentShaderModule;
+        background.material.customMaterialInfo.inputAttributes = {AttributeFormat::RGB32SF}; // inUVW
+
+        background.material.setName(objectLabel() + " background");
+
+        background.material.create();
+
+    }
+
+    void SceneImpl::deleteBackGround() {
+        if(!background.created)
+            return;
+
+        background.created = false;
+        background.material.destroy();
     }
 
 

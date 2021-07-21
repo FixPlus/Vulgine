@@ -254,25 +254,44 @@ namespace Vulgine{
     }
 
     void MaterialImpl::createImpl() {
-        assert(!texture.normalMap || (texture.colorMap && texture.normalMap) && "Standalone normal maps aren't supported");
 
         set.pool = &vlg_instance->perMaterialPool;
 
-        if(texture.colorMap){
+        if(!custom) {
+            assert(!texture.normalMap ||
+                   (texture.colorMap && texture.normalMap) && "Standalone normal maps aren't supported");
 
-            set.addCombinedImageSampler(texture.colorMap, VK_SHADER_STAGE_FRAGMENT_BIT);
+            if (texture.colorMap) {
 
+                set.addCombinedImageSampler(texture.colorMap, VK_SHADER_STAGE_FRAGMENT_BIT);
+
+            }
+            if (texture.normalMap) {
+
+                set.addCombinedImageSampler(texture.normalMap, VK_SHADER_STAGE_FRAGMENT_BIT);
+
+            }
+
+            if (texture.colorMap) {
+                set.create();
+            }
+        } else{
+            for(auto& descriptor: customMaterialInfo.descriptors){
+                switch(descriptor.type){
+                    case DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER:{
+                        set.addCombinedImageSampler(descriptor.image, VK_SHADER_STAGE_FRAGMENT_BIT);
+                        break;
+                    }
+                    case DescriptorInfo::Type::UNIFORM_BUFFER:{
+                        set.addUniformBuffer(descriptor.ubo, VK_SHADER_STAGE_FRAGMENT_BIT);
+                        break;
+                    }
+                    default: assert(0 && "Invalid descriptor type");
+                }
+            }
+            if(!customMaterialInfo.descriptors.empty())
+                set.create();
         }
-        if(texture.normalMap){
-
-            set.addCombinedImageSampler(texture.normalMap, VK_SHADER_STAGE_FRAGMENT_BIT);
-
-        }
-
-        if(texture.colorMap) {
-            set.create();
-        }
-
 
     }
 

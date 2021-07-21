@@ -8,6 +8,22 @@
 #include "vulkan/VulkanInitializers.hpp"
 #include <vector>
 
+namespace {
+    VkPipelineVertexInputStateCreateInfo* emptyVertexState(){
+        static bool created = false;
+        static VkPipelineVertexInputStateCreateInfo state{};
+
+        if(!created){
+            created = true;
+            state.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+            state.flags = 0;
+            state.vertexAttributeDescriptionCount = 0;
+            state.vertexBindingDescriptionCount = 0;
+        }
+
+        return &state;
+    }
+}
 void Vulgine::Pipeline::createImpl() {
 
 
@@ -17,7 +33,7 @@ void Vulgine::Pipeline::createImpl() {
 
         if(material->set.isCreated())
             layouts.push_back(material->set.layout());
-        if(mesh->set.isCreated())
+        if(mesh && mesh->set.isCreated())
             layouts.push_back(mesh->set.layout());
 
         VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo =
@@ -61,11 +77,16 @@ void Vulgine::Pipeline::createImpl() {
         pipelineCI.pDynamicState = &dynamicState;
         pipelineCI.stageCount = shaderStages.size();
         pipelineCI.pStages = shaderStages.data();
-        pipelineCI.pVertexInputState = &mesh->vertexInputStateCI;
+        pipelineCI.pVertexInputState = mesh ? &mesh->vertexInputStateCI :  emptyVertexState();
+
+        if(mesh == nullptr){
+            rasterizationState.cullMode = VK_CULL_MODE_NONE;
+            depthStencilState.depthWriteEnable = VK_FALSE;
+        }
 
         // binding vertex shader
 
-        auto const& vertexShaderName = mesh->vertexStageInfo.vertexShader;
+        auto const& vertexShaderName = mesh ? mesh->vertexStageInfo.vertexShader : "vert_background";
 
         if(vlg_instance->vertexShaders.count(vertexShaderName) == 0){
             Utilities::ExitFatal(-1,"Mesh has unknown vertex shader");
@@ -82,17 +103,19 @@ void Vulgine::Pipeline::createImpl() {
 
         const char* defaultFragmentShader;
 
-        if(material->texture.colorMap){
-            if(material->texture.normalMap){
-                defaultFragmentShader = "frag_color_normal";
-            }else{
-                defaultFragmentShader = "frag_color";
+        if(material->custom){
+            defaultFragmentShader = material->customMaterialInfo.fragmentShader.c_str();
+        } else {
+            if (material->texture.colorMap) {
+                if (material->texture.normalMap) {
+                    defaultFragmentShader = "frag_color_normal";
+                } else {
+                    defaultFragmentShader = "frag_color";
+                }
+            } else {
+                defaultFragmentShader = "frag_default";
             }
         }
-        else{
-            defaultFragmentShader = "frag_default";
-        }
-
 
         if(vlg_instance->fragmentShaders.count(defaultFragmentShader) == 0){
             Utilities::ExitFatal(-1,"Error loading default fragment shader");

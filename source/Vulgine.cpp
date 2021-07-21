@@ -1022,6 +1022,14 @@ namespace Vulgine{
         shader = loadShader("uioverlay.frag.spv", device->logicalDevice);
         fragmentShaders.emplace(std::piecewise_construct, std::forward_as_tuple("frag_imgui"), std::forward_as_tuple(shader, "frag_imgui"));
 
+        shader = loadShader("background.vert.spv", device->logicalDevice);
+        vertexShaders.emplace(std::piecewise_construct, std::forward_as_tuple("vert_background"), std::forward_as_tuple(shader, "vert_background"));
+        shader = loadShader("background.frag.spv", device->logicalDevice);
+        fragmentShaders.emplace(std::piecewise_construct, std::forward_as_tuple("frag_background"), std::forward_as_tuple(shader, "frag_background"));
+
+        shader = loadShader("backgroundTextured.frag.spv", device->logicalDevice);
+        fragmentShaders.emplace(std::piecewise_construct, std::forward_as_tuple("frag_background_textured"), std::forward_as_tuple(shader, "frag_background_textured"));
+
     }
 
     void VulgineImpl::destroyShaders() {

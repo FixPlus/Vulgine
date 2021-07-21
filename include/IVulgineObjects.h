@@ -232,7 +232,15 @@ namespace Vulgine{
             ::Vulgine::Image* normalMap = nullptr;
         } texture;
 
+        bool custom = false;
 
+        struct {
+
+            std::vector<AttributeFormat> inputAttributes = {};
+            std::vector<DescriptorInfo> descriptors = {};
+            std::string fragmentShader = "frag_default";
+
+        } customMaterialInfo;
 
     };
 

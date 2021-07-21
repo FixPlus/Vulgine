@@ -216,7 +216,7 @@ int main(int argc, char** argv){
 
     Vulgine::initializeInfo.windowName = "HELLO THERE";
     Vulgine::initializeInfo.windowSize = {1200, 800};
-    Vulgine::initializeInfo.enableVulkanValidationLayers = false;
+    Vulgine::initializeInfo.enableVulkanValidationLayers = true;
     Vulgine::initializeInfo.vsync = false;
     Vulgine::initializeInfo.fullscreen = false;
 
@@ -246,6 +246,7 @@ int main(int argc, char** argv){
 
     auto* texture = vulgine->initNewImage();
 
+
     auto* ubo = vulgine->initNewUniformBuffer();
 
     ubo->dynamic = true;
@@ -257,6 +258,7 @@ int main(int argc, char** argv){
         Vulgine::Vulgine::freeInstance(vulgine);
         return 0;
     }
+
 
     material->texture.colorMap = texture;
 
@@ -343,6 +345,8 @@ int main(int argc, char** argv){
 
     auto* attachmentImage = offscreenRenderPass->getFrameBuffer()->addAttachment();
     offscreenRenderPass->getFrameBuffer()->addAttachment(Vulgine::FrameBuffer::Type::DEPTH_STENCIL);
+
+    scene->createBackGround("frag_background_textured", {{Vulgine::DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER, 0, attachmentImage, nullptr}});
 
     auto* cube = scene->createEmptyMesh();
     cube->setName("Cube");

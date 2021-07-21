@@ -14,6 +14,10 @@ namespace Vulgine{
     struct Scene: virtual public Object{
 
 
+        virtual void createBackGround(const char* fragmentShaderModule = "frag_background"
+                , std::vector<DescriptorInfo> const& descriptors = {}) = 0;
+        virtual void deleteBackGround() = 0;
+
         virtual Light* createLightSource() = 0;
         virtual Mesh* createEmptyMesh() = 0;
         virtual Camera* createCamera() = 0;
