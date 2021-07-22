@@ -169,9 +169,15 @@ namespace Vulgine {
          */
         virtual bool cycle() = 0;
         virtual double lastFrameTime() const = 0;
-        static Vulgine* createInstance();
-        static void freeInstance(Vulgine* instance);
+        friend bool Init();
+        friend void Terminate();
     };
+
+    bool Init();
+
+    Vulgine* Get();
+
+    void Terminate();
 
     std::string getLastErrorLog();
     void disableLog();

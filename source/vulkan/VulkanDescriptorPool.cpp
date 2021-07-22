@@ -31,18 +31,18 @@ uint32_t Vulgine::DescriptorPool::allocateSet(const VkDescriptorSetLayoutBinding
             poolSizes.push_back({cap.first, cap.second});
         VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = initializers::descriptorPoolCreateInfo(poolSizes, maxSets);
         auto& newPool = pools.emplace_back();
-        VK_CHECK_RESULT( vkCreateDescriptorPool(vlg_instance->device->logicalDevice, &descriptorPoolCreateInfo, nullptr, &newPool))
+        VK_CHECK_RESULT( vkCreateDescriptorPool(GetImpl().device->logicalDevice, &descriptorPoolCreateInfo, nullptr, &newPool))
     }
 
     VkDescriptorSetLayoutCreateInfo layoutCreateInfo = initializers::descriptorSetLayoutCreateInfo(bindings, bindingCount);
     VkDescriptorSetLayout layout;
-    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(vlg_instance->device->logicalDevice, &layoutCreateInfo, nullptr, &layout))
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(GetImpl().device->logicalDevice, &layoutCreateInfo, nullptr, &layout))
 
     VkDescriptorSetAllocateInfo allocateInfo = initializers::descriptorSetAllocateInfo(pools.back(), &layout, 1);
 
     VkDescriptorSet descriptorSet;
 
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(vlg_instance->device->logicalDevice, &allocateInfo, &descriptorSet))
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(GetImpl().device->logicalDevice, &allocateInfo, &descriptorSet))
     uint32_t id;
     if(freeIds.empty())
        id = sets.size();
@@ -64,13 +64,13 @@ void Vulgine::DescriptorPool::freeSet(uint32_t id) {
 
 void Vulgine::DescriptorPool::clear() {
     reset();
-    vkDestroyDescriptorPool(vlg_instance->device->logicalDevice, pools.at(0),nullptr);
+    vkDestroyDescriptorPool(GetImpl().device->logicalDevice, pools.at(0),nullptr);
     pools.clear();
 }
 
 void Vulgine::DescriptorPool::reset() {
     for(auto set: sets)
-        vkDestroyDescriptorSetLayout(vlg_instance->device->logicalDevice, layouts.at(set.second), nullptr);
+        vkDestroyDescriptorSetLayout(GetImpl().device->logicalDevice, layouts.at(set.second), nullptr);
     sets.clear();
     layouts.clear();
     descriptorsStored.clear();
@@ -80,11 +80,11 @@ void Vulgine::DescriptorPool::reset() {
 
     setCount = 0;
     for(auto pool: pools){
-        VK_CHECK_RESULT(vkResetDescriptorPool(vlg_instance->device->logicalDevice, pool, 0))
+        VK_CHECK_RESULT(vkResetDescriptorPool(GetImpl().device->logicalDevice, pool, 0))
     }
 
     for(int i = 1; i < pools.size(); i++)
-        vkDestroyDescriptorPool(vlg_instance->device->logicalDevice, pools.at(i),nullptr);
+        vkDestroyDescriptorPool(GetImpl().device->logicalDevice, pools.at(i),nullptr);
     pools.resize(1);
 }
 
@@ -96,7 +96,7 @@ void Vulgine::DescriptorPool::updateDescriptor(uint32_t id, std::vector<VkWriteD
     for(auto& write: writes)
         write.dstSet = sets.at(id);
 
-    vkUpdateDescriptorSets(vlg_instance->device->logicalDevice, writes.size(), writes.data(), 0, nullptr);
+    vkUpdateDescriptorSets(GetImpl().device->logicalDevice, writes.size(), writes.data(), 0, nullptr);
 }
 
 VkDescriptorSetLayout Vulgine::DescriptorPool::getLayout(uint32_t id) {

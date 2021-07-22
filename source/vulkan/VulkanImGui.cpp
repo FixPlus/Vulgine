@@ -94,7 +94,7 @@ void Vulgine::GUI::init(int numberOfFrames) {
     viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.layerCount = 1;
-    VK_CHECK_RESULT(vkCreateImageView(vlg_instance->device->logicalDevice, &viewInfo, nullptr, &fontView));
+    VK_CHECK_RESULT(vkCreateImageView(GetImpl().device->logicalDevice, &viewInfo, nullptr, &fontView));
 
     Memory::StagingBuffer buffer;
 
@@ -110,7 +110,7 @@ void Vulgine::GUI::init(int numberOfFrames) {
 
     buffer.free();
 
-    sampler = dynamic_cast<SamplerImpl*>(vlg_instance->initNewSampler());
+    sampler = dynamic_cast<SamplerImpl*>(GetImpl().initNewSampler());
     sampler->create();
 
     // GUI has it's own descriptor pool
@@ -123,19 +123,19 @@ void Vulgine::GUI::init(int numberOfFrames) {
 
     descriptorPoolInfo.flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
-    VK_CHECK_RESULT(vkCreateDescriptorPool(vlg_instance->device->logicalDevice, &descriptorPoolInfo, nullptr, &descriptorPool));
+    VK_CHECK_RESULT(vkCreateDescriptorPool(GetImpl().device->logicalDevice, &descriptorPoolInfo, nullptr, &descriptorPool));
 
     // Descriptor set layout
     std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
             initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
     };
     VkDescriptorSetLayoutCreateInfo descriptorLayout = initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
-    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(vlg_instance->device->logicalDevice, &descriptorLayout, nullptr, &descriptorSetLayout));
+    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(GetImpl().device->logicalDevice, &descriptorLayout, nullptr, &descriptorSetLayout));
 
     // Descriptor set
     VkDescriptorSetAllocateInfo allocInfo = initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
 
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(vlg_instance->device->logicalDevice, &allocInfo, &fontDescriptorSet));
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(GetImpl().device->logicalDevice, &allocInfo, &fontDescriptorSet));
     VkDescriptorImageInfo fontDescriptor = initializers::descriptorImageInfo(
             sampler->sampler,
             fontView,
@@ -144,7 +144,7 @@ void Vulgine::GUI::init(int numberOfFrames) {
     std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
             initializers::writeDescriptorSet(fontDescriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &fontDescriptor)
     };
-    vkUpdateDescriptorSets(vlg_instance->device->logicalDevice, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
+    vkUpdateDescriptorSets(GetImpl().device->logicalDevice, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
 
     vertexBuffers.resize(numberOfFrames);
     indexBuffers.resize(numberOfFrames);
@@ -168,21 +168,21 @@ void Vulgine::GUI::destroy() {
         if(buffer.allocated)
             buffer.free();
 
-    vkDestroyImageView(vlg_instance->device->logicalDevice, fontView, nullptr);
+    vkDestroyImageView(GetImpl().device->logicalDevice, fontView, nullptr);
     fontImage.free();
-    vkDestroyDescriptorSetLayout(vlg_instance->device->logicalDevice, descriptorSetLayout, nullptr);
-    vkDestroyDescriptorPool(vlg_instance->device->logicalDevice, descriptorPool, nullptr);
-    vkDestroyPipelineLayout(vlg_instance->device->logicalDevice, pipelineLayout, nullptr);
-    vkDestroyPipeline(vlg_instance->device->logicalDevice, pipeline, nullptr);
+    vkDestroyDescriptorSetLayout(GetImpl().device->logicalDevice, descriptorSetLayout, nullptr);
+    vkDestroyDescriptorPool(GetImpl().device->logicalDevice, descriptorPool, nullptr);
+    vkDestroyPipelineLayout(GetImpl().device->logicalDevice, pipelineLayout, nullptr);
+    vkDestroyPipeline(GetImpl().device->logicalDevice, pipeline, nullptr);
 
 }
 
 void Vulgine::GUI::preparePipeline(VkRenderPass renderPass) {
 
     if(pipeline != VK_NULL_HANDLE)
-        vkDestroyPipeline(vlg_instance->device->logicalDevice, pipeline, nullptr);
+        vkDestroyPipeline(GetImpl().device->logicalDevice, pipeline, nullptr);
     if(pipelineLayout != VK_NULL_HANDLE)
-        vkDestroyPipelineLayout(vlg_instance->device->logicalDevice, pipelineLayout, nullptr);
+        vkDestroyPipelineLayout(GetImpl().device->logicalDevice, pipelineLayout, nullptr);
 
     // Pipeline layout
     // Push constants for UI rendering parameters
@@ -190,7 +190,7 @@ void Vulgine::GUI::preparePipeline(VkRenderPass renderPass) {
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = initializers::pipelineLayoutCreateInfo(&descriptorSetLayout, 1);
     pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
     pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
-    VK_CHECK_RESULT(vkCreatePipelineLayout(vlg_instance->device->logicalDevice, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout));
+    VK_CHECK_RESULT(vkCreatePipelineLayout(GetImpl().device->logicalDevice, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout));
 
     // Setup graphics pipeline for UI rendering
     VkPipelineInputAssemblyStateCreateInfo inputAssemblyState =
@@ -220,7 +220,7 @@ void Vulgine::GUI::preparePipeline(VkRenderPass renderPass) {
             initializers::pipelineViewportStateCreateInfo(1, 1, 0);
 
     VkPipelineMultisampleStateCreateInfo multisampleState =
-            initializers::pipelineMultisampleStateCreateInfo(vlg_instance->settings.msaa);
+            initializers::pipelineMultisampleStateCreateInfo(GetImpl().settings.msaa);
 
     std::vector<VkDynamicState> dynamicStateEnables = {
             VK_DYNAMIC_STATE_VIEWPORT,
@@ -248,10 +248,10 @@ void Vulgine::GUI::preparePipeline(VkRenderPass renderPass) {
 
     const char* imguiVertex = "vert_imgui";
 
-    if(vlg_instance->vertexShaders.count(imguiVertex) == 0){
+    if(GetImpl().vertexShaders.count(imguiVertex) == 0){
         Utilities::ExitFatal(-1,"Imgui vertex shader not loaded");
     }
-    auto& vertexShader = vlg_instance->vertexShaders[imguiVertex];
+    auto& vertexShader = GetImpl().vertexShaders[imguiVertex];
 
 
     shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -263,10 +263,10 @@ void Vulgine::GUI::preparePipeline(VkRenderPass renderPass) {
 
     const char* imguiFragment = "frag_imgui";
 
-    if(vlg_instance->fragmentShaders.count(imguiFragment) == 0){
+    if(GetImpl().fragmentShaders.count(imguiFragment) == 0){
         Utilities::ExitFatal(-1,"Imgui fragment shader not loaded");
     }
-    auto& fragmentShader = vlg_instance->fragmentShaders[imguiFragment];
+    auto& fragmentShader = GetImpl().fragmentShaders[imguiFragment];
 
 
     shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -292,7 +292,7 @@ void Vulgine::GUI::preparePipeline(VkRenderPass renderPass) {
 
     pipelineCreateInfo.pVertexInputState = &vertexInputState;
 
-    VK_CHECK_RESULT(vkCreateGraphicsPipelines(vlg_instance->device->logicalDevice, vlg_instance->pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipeline));
+    VK_CHECK_RESULT(vkCreateGraphicsPipelines(GetImpl().device->logicalDevice, GetImpl().pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipeline));
 
 }
 
@@ -442,12 +442,12 @@ void Vulgine::GUI::addTexturedImage(Memory::Image *image) {
     viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.layerCount = 1;
-    VK_CHECK_RESULT(vkCreateImageView(vlg_instance->device->logicalDevice, &viewInfo, nullptr, &view))
+    VK_CHECK_RESULT(vkCreateImageView(GetImpl().device->logicalDevice, &viewInfo, nullptr, &view))
     VkDescriptorSet descriptorSet;
     // Descriptor set
     VkDescriptorSetAllocateInfo allocInfo = initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
 
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(vlg_instance->device->logicalDevice, &allocInfo, &descriptorSet));
+    VK_CHECK_RESULT(vkAllocateDescriptorSets(GetImpl().device->logicalDevice, &allocInfo, &descriptorSet));
     VkDescriptorImageInfo textureDescriptor = initializers::descriptorImageInfo(
             sampler->sampler,
             view,
@@ -456,7 +456,7 @@ void Vulgine::GUI::addTexturedImage(Memory::Image *image) {
     std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
             initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &textureDescriptor)
     };
-    vkUpdateDescriptorSets(vlg_instance->device->logicalDevice, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
+    vkUpdateDescriptorSets(GetImpl().device->logicalDevice, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
 
     descriptorSets.emplace(std::piecewise_construct, std::forward_as_tuple(image), std::forward_as_tuple(view, descriptorSet));
 }
@@ -467,8 +467,8 @@ void Vulgine::GUI::deleteTexturedImage(Memory::Image *image) {
         return;
     }
     auto elem = descriptorSets.at(image);
-    VK_CHECK_RESULT(vkFreeDescriptorSets(vlg_instance->device->logicalDevice, descriptorPool, 1, &elem.second))
-    vkDestroyImageView(vlg_instance->device->logicalDevice, elem.first, nullptr);
+    VK_CHECK_RESULT(vkFreeDescriptorSets(GetImpl().device->logicalDevice, descriptorPool, 1, &elem.second))
+    vkDestroyImageView(GetImpl().device->logicalDevice, elem.first, nullptr);
 
     descriptorSets.erase(image);
 }

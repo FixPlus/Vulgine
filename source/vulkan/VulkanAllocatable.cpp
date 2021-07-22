@@ -10,7 +10,7 @@
 
 void Vulgine::Memory::Buffer::allocate(VkBufferCreateInfo bufferCI, VmaMemoryUsage memoryUsageFlags, VmaAllocationCreateFlags allocFlags, VkMemoryPropertyFlags reqFlags, VkMemoryPropertyFlags prefFlags) {
     if(allocated){
-        vmaDestroyBuffer(vlg_instance->allocator, buffer, allocation);
+        vmaDestroyBuffer(GetImpl().allocator, buffer, allocation);
     }
 
     VmaAllocationCreateInfo allocInfo = {};
@@ -20,20 +20,20 @@ void Vulgine::Memory::Buffer::allocate(VkBufferCreateInfo bufferCI, VmaMemoryUsa
     allocInfo.flags = allocFlags;
 
 
-    vmaCreateBuffer(vlg_instance->allocator, &bufferCI, &allocInfo, &buffer, &allocation, nullptr);
+    vmaCreateBuffer(GetImpl().allocator, &bufferCI, &allocInfo, &buffer, &allocation, nullptr);
 
     allocated = true;
 }
 
 Vulgine::Memory::Buffer::~Buffer() {
     if(allocated){
-        vmaDestroyBuffer(vlg_instance->allocator, buffer, allocation);
+        vmaDestroyBuffer(GetImpl().allocator, buffer, allocation);
     }
 }
 
 void Vulgine::Memory::Buffer::free() {
     if(allocated){
-        vmaDestroyBuffer(vlg_instance->allocator, buffer, allocation);
+        vmaDestroyBuffer(GetImpl().allocator, buffer, allocation);
     }
     allocated = false;
 
@@ -42,7 +42,7 @@ void Vulgine::Memory::Buffer::free() {
 
 void Vulgine::Memory::Image::allocate(VkImageCreateInfo imageCI, VmaMemoryUsage memoryUsageFlags, VmaAllocationCreateFlags allocFlags, VkMemoryPropertyFlags reqFlags, VkMemoryPropertyFlags prefFlags) {
     if(allocated){
-        vmaDestroyImage(vlg_instance->allocator, image, allocation);
+        vmaDestroyImage(GetImpl().allocator, image, allocation);
     }
     imageInfo = imageCI;
     VmaAllocationCreateInfo allocInfo = {};
@@ -51,7 +51,7 @@ void Vulgine::Memory::Image::allocate(VkImageCreateInfo imageCI, VmaMemoryUsage 
     allocInfo.requiredFlags = reqFlags;
     allocInfo.flags = allocFlags;
 
-    vmaCreateImage(vlg_instance->allocator, &imageCI, &allocInfo, &image, &allocation, nullptr);
+    vmaCreateImage(GetImpl().allocator, &imageCI, &allocInfo, &image, &allocation, nullptr);
 
     allocated = true;
 
@@ -59,7 +59,7 @@ void Vulgine::Memory::Image::allocate(VkImageCreateInfo imageCI, VmaMemoryUsage 
 
 void Vulgine::Memory::Image::free() {
     if(allocated){
-        vmaDestroyImage(vlg_instance->allocator, image, allocation);
+        vmaDestroyImage(GetImpl().allocator, image, allocation);
     }
 
     allocated = false;
@@ -69,13 +69,13 @@ void Vulgine::Memory::Image::free() {
 
 Vulgine::Memory::Image::~Image() {
     if(allocated){
-        vmaDestroyImage(vlg_instance->allocator, image, allocation);
+        vmaDestroyImage(GetImpl().allocator, image, allocation);
     }
 }
 
 namespace Vulgine {
     VkImageAspectFlagBits getAspect(VkFormat format) {
-        if (format == vlg_instance->depthFormat){
+        if (format == GetImpl().depthFormat){
             int ret;
             ret = VK_IMAGE_ASPECT_DEPTH_BIT;
             if(format >= VK_FORMAT_D16_UNORM_S8_UINT){
@@ -105,13 +105,13 @@ VkImageView Vulgine::Memory::Image::createImageView() const {
     // Only set mip map count if optimal tiling is used
     viewCreateInfo.subresourceRange.levelCount = 1;
     viewCreateInfo.image = image;
-    VK_CHECK_RESULT(vkCreateImageView(vlg_instance->device->logicalDevice, &viewCreateInfo, nullptr, &view));
+    VK_CHECK_RESULT(vkCreateImageView(GetImpl().device->logicalDevice, &viewCreateInfo, nullptr, &view));
 
     return view;
 }
 
 void Vulgine::Memory::Image::transitImageLayout(VkImageLayout oldLayout, VkImageLayout newLayout) {
-    VkCommandBuffer transitCmd = vlg_instance->device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+    VkCommandBuffer transitCmd = GetImpl().device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barrier.oldLayout = oldLayout;
@@ -163,12 +163,12 @@ void Vulgine::Memory::Image::transitImageLayout(VkImageLayout oldLayout, VkImage
             1, &barrier
     );
 
-    vlg_instance->device->flushCommandBuffer(transitCmd, vlg_instance->transferQueue, true);
+    GetImpl().device->flushCommandBuffer(transitCmd, GetImpl().transferQueue, true);
 
 }
 
 void Vulgine::Memory::Image::copyFromBuffer(VkBuffer buffer, uint32_t width, uint32_t height, uint32_t depth) {
-    VkCommandBuffer copyCmd = vlg_instance->device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+    VkCommandBuffer copyCmd = GetImpl().device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
     VkBufferImageCopy region{};
     region.bufferOffset = 0;
@@ -196,7 +196,7 @@ void Vulgine::Memory::Image::copyFromBuffer(VkBuffer buffer, uint32_t width, uin
             &region
     );
 
-    vlg_instance->device->flushCommandBuffer(copyCmd, vlg_instance->transferQueue, true);
+    GetImpl().device->flushCommandBuffer(copyCmd, GetImpl().transferQueue, true);
 
 }
 
@@ -226,23 +226,23 @@ void Vulgine::Memory::ImmutableBuffer::create(void *pData, size_t size, VkBuffer
 
     void* mappedData;
 
-    vmaMapMemory(vlg_instance->allocator, stagingBuffer.allocation, &mappedData);
+    vmaMapMemory(GetImpl().allocator, stagingBuffer.allocation, &mappedData);
 
     memcpy(mappedData, pData, size);
 
-    vmaUnmapMemory(vlg_instance->allocator, stagingBuffer.allocation);
+    vmaUnmapMemory(GetImpl().allocator, stagingBuffer.allocation);
 
 
     // Copy from staging buffers
 
-    VkCommandBuffer copyCmd = vlg_instance->device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+    VkCommandBuffer copyCmd = GetImpl().device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
     VkBufferCopy copyRegion = {};
 
     copyRegion.size = size;
     vkCmdCopyBuffer(copyCmd, stagingBuffer.buffer, buffer, 1, &copyRegion);
 
-    vlg_instance->device->flushCommandBuffer(copyCmd, vlg_instance->transferQueue, true);
+    GetImpl().device->flushCommandBuffer(copyCmd, GetImpl().transferQueue, true);
 
 }
 
@@ -265,7 +265,7 @@ void Vulgine::Memory::DynamicBuffer::create(size_t size, VkBufferUsageFlagBits u
     assert(size && "Invalid data description");
 
     if(allocated) {
-        vmaUnmapMemory(vlg_instance->allocator, allocation);
+        vmaUnmapMemory(GetImpl().allocator, allocation);
         free();
     }
 
@@ -276,12 +276,12 @@ void Vulgine::Memory::DynamicBuffer::create(size_t size, VkBufferUsageFlagBits u
 
     allocate(bufferCI, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-    vmaMapMemory(vlg_instance->allocator, allocation, &mapped);
+    vmaMapMemory(GetImpl().allocator, allocation, &mapped);
 }
 
 Vulgine::Memory::DynamicBuffer::~DynamicBuffer() {
     if(allocated)
-        vmaUnmapMemory(vlg_instance->allocator, allocation);
+        vmaUnmapMemory(GetImpl().allocator, allocation);
 }
 
 void Vulgine::Memory::DynamicBuffer::push(void* data, size_t size, size_t offset) {
@@ -296,7 +296,7 @@ void Vulgine::Memory::DynamicBuffer::push(void* data, size_t size, size_t offset
 }
 
 void Vulgine::Memory::DynamicBuffer::free() {
-    vmaUnmapMemory(vlg_instance->allocator, allocation);
+    vmaUnmapMemory(GetImpl().allocator, allocation);
     Buffer::free();
 }
 
@@ -328,7 +328,7 @@ void Vulgine::Memory::StagingBuffer::create(uint32_t size) {
 
     allocate(bufferCI, VMA_MEMORY_USAGE_CPU_ONLY);
 
-    vmaMapMemory(vlg_instance->allocator, allocation, &mapped);
+    vmaMapMemory(GetImpl().allocator, allocation, &mapped);
 }
 
 void Vulgine::Memory::StagingBuffer::fill(const void *data) {
@@ -341,5 +341,5 @@ void Vulgine::Memory::StagingBuffer::fill(const void *data) {
 
 Vulgine::Memory::StagingBuffer::~StagingBuffer() {
     if(allocated)
-        vmaUnmapMemory(vlg_instance->allocator, allocation);
+        vmaUnmapMemory(GetImpl().allocator, allocation);
 }

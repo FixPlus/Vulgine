@@ -13,16 +13,16 @@ void Vulgine::FrameBufferImpl::createImpl() {
     frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     frameBufferCreateInfo.pNext = NULL;
     frameBufferCreateInfo.renderPass = renderPass->renderPass;
-    framebuffers.resize(vlg_instance->swapChain.imageCount);
+    framebuffers.resize(GetImpl().swapChain.imageCount);
     frameBufferCreateInfo.width = width;
     frameBufferCreateInfo.height = height;
     frameBufferCreateInfo.layers = 1;
 
-    for(int i = 0; i < vlg_instance->swapChain.imageCount; i++) {
+    for(int i = 0; i < GetImpl().swapChain.imageCount; i++) {
 
         frameBufferCreateInfo.attachmentCount = attachments.at(i).size();
         frameBufferCreateInfo.pAttachments = attachments.at(i).data();
-        VK_CHECK_RESULT(vkCreateFramebuffer(vlg_instance->device->logicalDevice, &frameBufferCreateInfo, nullptr,
+        VK_CHECK_RESULT(vkCreateFramebuffer(GetImpl().device->logicalDevice, &frameBufferCreateInfo, nullptr,
                                             &framebuffers[i]));
     }
 
@@ -30,12 +30,12 @@ void Vulgine::FrameBufferImpl::createImpl() {
 
 void Vulgine::FrameBufferImpl::destroyImpl() {
     for(auto framebuffer: framebuffers)
-        vkDestroyFramebuffer(vlg_instance->device->logicalDevice, framebuffer, nullptr);
+        vkDestroyFramebuffer(GetImpl().device->logicalDevice, framebuffer, nullptr);
 
     if(!renderPass->onscreen)
         for(auto& attachmentFrame: attachments)
             for(auto attachment: attachmentFrame)
-                vkDestroyImageView(vlg_instance->device->logicalDevice, attachment, nullptr);
+                vkDestroyImageView(GetImpl().device->logicalDevice, attachment, nullptr);
 
     attachments.clear();
     attachmentsImages.clear();
@@ -45,22 +45,22 @@ void Vulgine::FrameBufferImpl::destroyImpl() {
 Vulgine::FrameBufferImpl::~FrameBufferImpl() {
     if(isCreated()) {
         for (auto framebuffer: framebuffers)
-            vkDestroyFramebuffer(vlg_instance->device->logicalDevice, framebuffer, nullptr);
+            vkDestroyFramebuffer(GetImpl().device->logicalDevice, framebuffer, nullptr);
 
         if(!renderPass->onscreen)
             for(auto& attachmentFrame: attachments)
                 for(auto attachment: attachmentFrame)
-                    vkDestroyImageView(vlg_instance->device->logicalDevice, attachment, nullptr);
+                    vkDestroyImageView(GetImpl().device->logicalDevice, attachment, nullptr);
     }
 }
 
 Vulgine::Image *Vulgine::FrameBufferImpl::addAttachment(Type type) {
-    attachments.resize(vlg_instance->swapChain.imageCount);
+    attachments.resize(GetImpl().swapChain.imageCount);
 
     if(type == FrameBuffer::Type::DEPTH_STENCIL){
         if(std::any_of(attachmentsImages.begin(), attachmentsImages.end(),
                        [](std::pair<const uint32_t , DynamicImageImpl> const& image){
-            return image.second.images.at(0).imageInfo.format == vlg_instance->device->getSupportedDepthFormat(true);})){
+            return image.second.images.at(0).imageInfo.format == GetImpl().device->getSupportedDepthFormat(true);})){
             errs("Cannot bind more than one depth attachment to framebuffer");
             return nullptr;
         }
@@ -82,7 +82,7 @@ Vulgine::Image *Vulgine::FrameBufferImpl::addAttachment(Type type) {
     if(type == Type::COLOR)
         imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB; // TODO: is it right format for framebuffer?...
     else
-        imageInfo.format = vlg_instance->device->getSupportedDepthFormat(true);
+        imageInfo.format = GetImpl().device->getSupportedDepthFormat(true);
 
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -100,7 +100,7 @@ Vulgine::Image *Vulgine::FrameBufferImpl::addAttachment(Type type) {
     image.create();
 
     // create on view per every swap chain image
-    for(int i = 0; i < vlg_instance->swapChain.imageCount; ++i) {
+    for(int i = 0; i < GetImpl().swapChain.imageCount; ++i) {
         VkImageView view;
         VkImageViewCreateInfo viewCreateInfo = {};
         viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -116,7 +116,7 @@ Vulgine::Image *Vulgine::FrameBufferImpl::addAttachment(Type type) {
         // Only set mip map count if optimal tiling is used
         viewCreateInfo.subresourceRange.levelCount = 1;
         viewCreateInfo.image = image.images.at(i).image;
-        VK_CHECK_RESULT(vkCreateImageView(vlg_instance->device->logicalDevice, &viewCreateInfo, nullptr, &view));
+        VK_CHECK_RESULT(vkCreateImageView(GetImpl().device->logicalDevice, &viewCreateInfo, nullptr, &view));
         attachments.at(i).push_back(view);
     }
 
@@ -138,12 +138,12 @@ uint32_t Vulgine::FrameBufferImpl::attachmentCount() {
 }
 
 void Vulgine::FrameBufferImpl::addOnsrceenAttachment(std::vector<VkImageView> const& views) {
-    assert(views.size() == vlg_instance->swapChain.imageCount && "Must provide one view per swapChain image");
+    assert(views.size() == GetImpl().swapChain.imageCount && "Must provide one view per swapChain image");
 
     if(attachments.empty())
-        attachments.resize(vlg_instance->swapChain.imageCount);
+        attachments.resize(GetImpl().swapChain.imageCount);
 
-    for(int i = 0; i < vlg_instance->swapChain.imageCount; i++)
+    for(int i = 0; i < GetImpl().swapChain.imageCount; i++)
         attachments.at(i).push_back(views.at(i));
 }
 

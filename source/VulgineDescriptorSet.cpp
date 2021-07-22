@@ -69,7 +69,7 @@ void Vulgine::DescriptorSet::clearDescriptors() {
 
 void Vulgine::DescriptorSet::addCombinedImageSampler(Image *image, VkShaderStageFlagBits stage, Sampler* sampler) {
     if(sets.empty())
-        sets.resize(vlg_instance->swapChain.imageCount);
+        sets.resize(GetImpl().swapChain.imageCount);
 
     auto* samplerImpl = dynamic_cast<SamplerImpl*>(sampler);
 
@@ -98,7 +98,7 @@ void Vulgine::DescriptorSet::addCombinedImageSampler(Image *image, VkShaderStage
 
 void Vulgine::DescriptorSet::addUniformBuffer(UniformBuffer *buffer, VkShaderStageFlagBits stage) {
     if(sets.empty())
-        sets.resize(vlg_instance->swapChain.imageCount);
+        sets.resize(GetImpl().swapChain.imageCount);
 
     if(buffer->dynamic){
         auto& ubo = *dynamic_cast<UniformBufferImpl*>(buffer);

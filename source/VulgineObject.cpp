@@ -131,10 +131,10 @@ uint32_t ObjectImpl::count(Type type) { return countMap.count(type) ? countMap.a
         if(auto* renderPass = dynamic_cast<RenderPassImpl*>(object)){
             if(renderPass->onscreen)
                 return true;
-            auto maxColorAttachments = vlg_instance->device->properties.limits.maxColorAttachments;
+            auto maxColorAttachments = GetImpl().device->properties.limits.maxColorAttachments;
             uint32_t colorAttachmentCount = 0;
             for(auto const& attachment: renderPass->frameBuffer.attachmentsImages){
-                if(attachment.second.createInfo.format != vlg_instance->depthFormat)
+                if(attachment.second.createInfo.format != GetImpl().depthFormat)
                     colorAttachmentCount++;
             }
 
@@ -146,7 +146,7 @@ uint32_t ObjectImpl::count(Type type) { return countMap.count(type) ? countMap.a
         }
 
         if(auto* mesh = dynamic_cast<MeshImpl*>(object)){
-            auto maxVertexInputAttachments = vlg_instance->device->properties.limits.maxVertexInputAttributes;
+            auto maxVertexInputAttachments = GetImpl().device->properties.limits.maxVertexInputAttributes;
             auto vertexInputAttachments = mesh->vertexStageInfo.vertexFormat.perInstanceAttributes.size() +
                                           mesh->vertexStageInfo.vertexFormat.perVertexAttributes.size();
 

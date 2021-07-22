@@ -54,7 +54,7 @@ Vulgine::FrameBuffer *Vulgine::RenderPassImpl::getFrameBuffer() {
 
 Vulgine::RenderPassImpl::~RenderPassImpl() {
     if(isCreated())
-        vkDestroyRenderPass(vlg_instance->device->logicalDevice, renderPass, nullptr);
+        vkDestroyRenderPass(GetImpl().device->logicalDevice, renderPass, nullptr);
 }
 
 void Vulgine::RenderPassImpl::createImpl() {
@@ -62,5 +62,5 @@ void Vulgine::RenderPassImpl::createImpl() {
 }
 
 void Vulgine::RenderPassImpl::destroyImpl() {
-    vkDestroyRenderPass(vlg_instance->device->logicalDevice, renderPass, nullptr);
+    vkDestroyRenderPass(GetImpl().device->logicalDevice, renderPass, nullptr);
 }

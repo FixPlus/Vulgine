@@ -56,7 +56,7 @@ namespace Vulgine {
 
         VkBool32 getSupportedDepthFormat();
     protected:
-        class Window : public ObjectImpl {
+        class Window {
             static std::map<GLFWwindow *, Window*> windowMap;
 
             // callbacks
@@ -70,8 +70,6 @@ namespace Vulgine {
 
             GLFWwindow *instance_ = nullptr;
 
-            void createImpl() override;
-            void destroyImpl() override;
 
             struct{
                 int xPos = 0, yPos = 0, width = 0, height = 0;
@@ -79,7 +77,6 @@ namespace Vulgine {
 
         public:
 
-            Window(): ObjectImpl(Object::Type::UNKNOWN, ObjectImpl::claimId()){}
 
             const GLFWvidmode* monitorVideoModes = nullptr;
             const GLFWvidmode* selectedVideoMode = nullptr;
@@ -94,6 +91,9 @@ namespace Vulgine {
 
             bool resized = false;
 
+            void init();
+
+            void terminate();
 
             [[nodiscard]] GLFWwindow* instance() const { return instance_;};
 
@@ -102,7 +102,6 @@ namespace Vulgine {
 
             void setWindowTitle(std::string const& title);
 
-            ~Window() override;
         } window;
 
         struct FpsCounter{
@@ -323,8 +322,8 @@ namespace Vulgine {
         void loadCustomShader(const char* filename, const char* name, ShaderStage stage) override;
 
         bool initialize();
-        explicit VulgineImpl();
-        ~VulgineImpl() override;
+        void terminate();
+
         bool cycle() override;
         double lastFrameTime() const override;
         void updateMSAA(VkSampleCountFlagBits newValue);
@@ -332,7 +331,8 @@ namespace Vulgine {
 
         friend class UserInterface;
     };
-    extern VulgineImpl* vlg_instance;
+
+    VulgineImpl& GetImpl();
 
 
 

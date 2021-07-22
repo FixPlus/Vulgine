@@ -54,7 +54,7 @@ void Vulgine::Pipeline::createImpl() {
         pPipelineLayoutCreateInfo.pPushConstantRanges = &push_constant;
         pPipelineLayoutCreateInfo.pushConstantRangeCount = 1;
 
-        VK_CHECK_RESULT(vkCreatePipelineLayout(vlg_instance->device->logicalDevice, &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout));
+        VK_CHECK_RESULT(vkCreatePipelineLayout(GetImpl().device->logicalDevice, &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout));
 
 
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
@@ -63,7 +63,7 @@ void Vulgine::Pipeline::createImpl() {
         VkPipelineColorBlendStateCreateInfo colorBlendState = initializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
         VkPipelineDepthStencilStateCreateInfo depthStencilState = initializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
         VkPipelineViewportStateCreateInfo viewportState = initializers::pipelineViewportStateCreateInfo(1, 1, 0);
-        VkPipelineMultisampleStateCreateInfo multisampleState = initializers::pipelineMultisampleStateCreateInfo(renderPass == vlg_instance->onscreenRenderPass ? vlg_instance->settings.msaa : VK_SAMPLE_COUNT_1_BIT, 0);
+        VkPipelineMultisampleStateCreateInfo multisampleState = initializers::pipelineMultisampleStateCreateInfo(renderPass == GetImpl().onscreenRenderPass ? GetImpl().settings.msaa : VK_SAMPLE_COUNT_1_BIT, 0);
         std::vector<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
         VkPipelineDynamicStateCreateInfo dynamicState = initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables, 0);
         std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages {};
@@ -88,10 +88,10 @@ void Vulgine::Pipeline::createImpl() {
 
         auto const& vertexShaderName = mesh ? mesh->vertexStageInfo.vertexShader : "vert_background";
 
-        if(vlg_instance->vertexShaders.count(vertexShaderName) == 0){
+        if(GetImpl().vertexShaders.count(vertexShaderName) == 0){
             Utilities::ExitFatal(-1,"Mesh has unknown vertex shader");
         }
-        auto& vertexShader = vlg_instance->vertexShaders[vertexShaderName];
+        auto& vertexShader = GetImpl().vertexShaders[vertexShaderName];
 
 
         shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -117,10 +117,10 @@ void Vulgine::Pipeline::createImpl() {
             }
         }
 
-        if(vlg_instance->fragmentShaders.count(defaultFragmentShader) == 0){
+        if(GetImpl().fragmentShaders.count(defaultFragmentShader) == 0){
             Utilities::ExitFatal(-1,"Error loading default fragment shader");
         }
-        auto& fragmentShader = vlg_instance->fragmentShaders[defaultFragmentShader];
+        auto& fragmentShader = GetImpl().fragmentShaders[defaultFragmentShader];
 
 
         shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -130,15 +130,15 @@ void Vulgine::Pipeline::createImpl() {
 
 
         VK_CHECK_RESULT(
-                vkCreateGraphicsPipelines(vlg_instance->device->logicalDevice, vlg_instance->pipelineCache, 1, &pipelineCI, nullptr, &pipeline));
+                vkCreateGraphicsPipelines(GetImpl().device->logicalDevice, GetImpl().pipelineCache, 1, &pipelineCI, nullptr, &pipeline));
 
 
 
 }
 
 void Vulgine::Pipeline::destroyImpl() {
-    vkDestroyPipelineLayout(vlg_instance->device->logicalDevice, pipelineLayout, nullptr);
-    vkDestroyPipeline(vlg_instance->device->logicalDevice, pipeline, nullptr);
+    vkDestroyPipelineLayout(GetImpl().device->logicalDevice, pipelineLayout, nullptr);
+    vkDestroyPipeline(GetImpl().device->logicalDevice, pipeline, nullptr);
 
     pipeline = VK_NULL_HANDLE;
     pipelineLayout = VK_NULL_HANDLE;
@@ -147,8 +147,8 @@ void Vulgine::Pipeline::destroyImpl() {
 
 Vulgine::Pipeline::~Pipeline() {
     if(isCreated()) {
-        vkDestroyPipelineLayout(vlg_instance->device->logicalDevice, pipelineLayout, nullptr);
-        vkDestroyPipeline(vlg_instance->device->logicalDevice, pipeline, nullptr);
+        vkDestroyPipelineLayout(GetImpl().device->logicalDevice, pipelineLayout, nullptr);
+        vkDestroyPipeline(GetImpl().device->logicalDevice, pipeline, nullptr);
 
         pipeline = VK_NULL_HANDLE;
         pipelineLayout = VK_NULL_HANDLE;

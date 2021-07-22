@@ -11,7 +11,7 @@ namespace Vulgine {
 
     ImGuiTextBuffer UserInterface::logBuf;
     void UserInterface::draw() {
-        auto &vlg = *vlg_instance;
+        auto &vlg = GetImpl();
 
         //ImGui::ShowDemoWindow(nullptr);
 
@@ -93,7 +93,7 @@ namespace Vulgine {
 
 
     void UserInterface::drawMetricsViewerWindow() {
-        auto &vlg = *vlg_instance;
+        auto &vlg = GetImpl();
         if (ImGui::Begin("Metrics Viewer", &metricsViewerOpened)) {
             ImGui::BulletText("FPS: %.1f (%.2fms)", vlg.fpsCounter.fps, 1000.0f / (float) vlg.fpsCounter.fps);
             ImGui::Separator();
@@ -105,7 +105,7 @@ namespace Vulgine {
     }
 
     void UserInterface::drawSystemPropertiesWindow() {
-        auto &vlg = *vlg_instance;
+        auto &vlg = GetImpl();
         if (ImGui::Begin("System properties", &systemPropertiesOpened)) {
             auto const &props = vlg.device->properties;
             ImGui::BulletText("Vulkan API version: %d.%d", props.apiVersion >> 22, (props.apiVersion >> 12) & 1023);
@@ -118,7 +118,7 @@ namespace Vulgine {
     }
 
     void UserInterface::drawAboutWindow() {
-        auto &vlg = *vlg_instance;
+        auto &vlg = GetImpl();
         if (ImGui::Begin("About", &aboutOpened)) {
             ImGui::Text(getStringVersion().c_str());
             ImGui::Separator();
@@ -138,7 +138,7 @@ namespace Vulgine {
     }
 
     void UserInterface::drawLogWindow() {
-        auto &vlg = *vlg_instance;
+        auto &vlg = GetImpl();
         if (ImGui::Begin("Log", &logOpened)) {
             ImGui::BeginChild("output");
             ImGui::TextUnformatted(logBuf.begin(), logBuf.end());
@@ -169,7 +169,7 @@ namespace Vulgine {
         if(!opened)
             return;
 
-        auto &vlg = *vlg_instance;
+        auto &vlg = GetImpl();
         auto & io = ImGui::GetIO();
         ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.y / 3.0f, 0));
         ImGui::SetNextWindowPos(ImVec2(0, mainMenuBarSize.y));

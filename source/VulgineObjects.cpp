@@ -53,7 +53,7 @@ namespace Vulgine{
         cachedVertices.pData = vertices.pData;
         cachedVertices.count = vertices.count;
 
-        int framebufferCount = vlg_instance->settings.framesInFlight;
+        int framebufferCount = GetImpl().settings.framesInFlight;
 
         if(vertices.dynamic){
 
@@ -121,7 +121,7 @@ namespace Vulgine{
             }
         }
 
-        set.pool = &vlg_instance->perMeshPool;
+        set.pool = &GetImpl().perMeshPool;
 
         if(!set.empty()){
             set.create();
@@ -147,8 +147,8 @@ namespace Vulgine{
     }
 
     void MeshImpl::draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass *pass, int currentFrame) {
-        int vertBufId = vertices.dynamic ? vlg_instance->currentFrame : 0;
-        int instanceBufId = instances.dynamic ? vlg_instance->currentFrame : 0;
+        int vertBufId = vertices.dynamic ? GetImpl().currentFrame : 0;
+        int instanceBufId = instances.dynamic ? GetImpl().currentFrame : 0;
 
         auto& vertexBuf = perVertex.at(vertBufId);
         if(vertexBuf.second) {
@@ -171,7 +171,7 @@ namespace Vulgine{
 
         if(indices.empty()) {
             auto* material = dynamic_cast<MaterialImpl *>(primitives[0].material);
-            auto& boundPipeline = vlg_instance->pipelineMap.bind({this, dynamic_cast<MaterialImpl *>(primitives[0].material),
+            auto& boundPipeline = GetImpl().pipelineMap.bind({this, dynamic_cast<MaterialImpl *>(primitives[0].material),
                                             dynamic_cast<SceneImpl *>(parent()), dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
 
             dynamic_cast<SceneImpl*>(parent())->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
@@ -188,7 +188,7 @@ namespace Vulgine{
             indexBuffer.bind(commandBuffer);
             for (auto primitive: primitives) {
                 auto* material = dynamic_cast<MaterialImpl *>(primitive.material);
-                auto& boundPipeline = vlg_instance->pipelineMap.bind({this, material,
+                auto& boundPipeline = GetImpl().pipelineMap.bind({this, material,
                                                 dynamic_cast<SceneImpl *>(parent()), dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
 
                 dynamic_cast<SceneImpl*>(parent())->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
@@ -223,20 +223,20 @@ namespace Vulgine{
                 buf.second = true;
         }
         else{
-            vkQueueWaitIdle(vlg_instance->queue);
+            vkQueueWaitIdle(GetImpl().queue);
             perVertex.at(0).first->free();
             auto* statVert = dynamic_cast<Memory::StaticVertexBuffer*>(perVertex.at(0).first);
             statVert->create(vertices.pData, vertices.count * vertexStageInfo.vertexFormat.perVertexSize());
         }
 
-        vlg_instance->cmdBuffersOutdated = true;
+        GetImpl().cmdBuffersOutdated = true;
     }
 
     void MeshImpl::updateIndexBuffer() {
         indexBuffer.free();
         indexBuffer.create(indices.data(), indices.size());
 
-        vlg_instance->cmdBuffersOutdated = true;
+        GetImpl().cmdBuffersOutdated = true;
     }
 
     void MeshImpl::updateInstanceBuffer() {
@@ -245,19 +245,19 @@ namespace Vulgine{
                 buf.second = true;
         }
         else{
-            vkQueueWaitIdle(vlg_instance->queue);
+            vkQueueWaitIdle(GetImpl().queue);
             perInstance.at(0).first->free();
             auto* statVert = dynamic_cast<Memory::StaticVertexBuffer*>(perInstance.at(0).first);
             statVert->create(instances.pData, instances.count * vertexStageInfo.vertexFormat.perInstanceSize());
         }
 
-        vlg_instance->cmdBuffersOutdated = true;
+        GetImpl().cmdBuffersOutdated = true;
 
     }
 
     void MaterialImpl::createImpl() {
 
-        set.pool = &vlg_instance->perMaterialPool;
+        set.pool = &GetImpl().perMaterialPool;
 
         if(!custom) {
             assert(!texture.normalMap ||
@@ -481,7 +481,7 @@ namespace Vulgine{
     }
 
     ShaderModule::~ShaderModule() {
-        vkDestroyShaderModule(vlg_instance->device->logicalDevice, module, nullptr);
+        vkDestroyShaderModule(GetImpl().device->logicalDevice, module, nullptr);
     }
 
     void ShaderModule::createImpl() {
@@ -489,7 +489,7 @@ namespace Vulgine{
     }
 
     void ShaderModule::destroyImpl() {
-        vkDestroyShaderModule(vlg_instance->device->logicalDevice, module, nullptr);
+        vkDestroyShaderModule(GetImpl().device->logicalDevice, module, nullptr);
         module = VK_NULL_HANDLE;
     }
 
@@ -517,12 +517,12 @@ namespace Vulgine{
         matrices.viewMatrix = projection * rotM * transM;
         matrices.position = position;
 
-        vlg_instance->cmdBuffersOutdated = true;
+        GetImpl().cmdBuffersOutdated = true;
     }
 
     void UniformBufferImpl::createImpl() {
         if(dynamic){
-            int imageCount = vlg_instance->swapChain.imageCount;
+            int imageCount = GetImpl().swapChain.imageCount;
             for(int i = 0; i < imageCount; i++) {
                 auto *dynBuffer = new Memory::DynamicBuffer{};
                 dynBuffer->create(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
@@ -564,7 +564,7 @@ namespace Vulgine{
         if(!dynamic)
             return;
 
-        int curFrame = vlg_instance->currentBuffer;
+        int curFrame = GetImpl().currentBuffer;
 
         if(updated.at(curFrame)){
              auto* buf = dynamic_cast<Memory::DynamicBuffer*>(buffers.at(curFrame));
@@ -600,20 +600,20 @@ namespace Vulgine{
         // Max level-of-detail should match mip level count
         samplerCreateInfo.maxLod = 0.0f;
         // Only enable anisotropic filtering if enabled on the device
-        samplerCreateInfo.maxAnisotropy = vlg_instance->device->enabledFeatures.samplerAnisotropy ? vlg_instance->device->properties.limits.maxSamplerAnisotropy : 1.0f;
-        samplerCreateInfo.anisotropyEnable = vlg_instance->device->enabledFeatures.samplerAnisotropy;
+        samplerCreateInfo.maxAnisotropy = GetImpl().device->enabledFeatures.samplerAnisotropy ? GetImpl().device->properties.limits.maxSamplerAnisotropy : 1.0f;
+        samplerCreateInfo.anisotropyEnable = GetImpl().device->enabledFeatures.samplerAnisotropy;
         samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-        VK_CHECK_RESULT(vkCreateSampler(vlg_instance->device->logicalDevice, &samplerCreateInfo, nullptr, &sampler));
+        VK_CHECK_RESULT(vkCreateSampler(GetImpl().device->logicalDevice, &samplerCreateInfo, nullptr, &sampler));
 
     }
 
     SamplerImpl::~SamplerImpl() {
         if(isCreated())
-            vkDestroySampler(vlg_instance->device->logicalDevice, sampler, nullptr);
+            vkDestroySampler(GetImpl().device->logicalDevice, sampler, nullptr);
     }
 
     void SamplerImpl::destroyImpl() {
-        vkDestroySampler(vlg_instance->device->logicalDevice, sampler, nullptr);
+        vkDestroySampler(GetImpl().device->logicalDevice, sampler, nullptr);
         sampler = VK_NULL_HANDLE;
     }
 }

@@ -59,7 +59,7 @@ namespace Vulgine{
         // draw background
 
         if(background.created){
-            auto& pipeline = vlg_instance->pipelineMap.bind({nullptr, &background.material, this, dynamic_cast<RenderPassImpl*>(pass)}, commandBuffer);
+            auto& pipeline = GetImpl().pipelineMap.bind({nullptr, &background.material, this, dynamic_cast<RenderPassImpl*>(pass)}, commandBuffer);
             if(set.isCreated()){
                 set.bind(0, commandBuffer, pipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
             }
@@ -95,7 +95,7 @@ namespace Vulgine{
         lightUBO.update();
 
         set.addUniformBuffer(&lightUBO, VK_SHADER_STAGE_FRAGMENT_BIT);
-        set.pool = &vlg_instance->perScenePool;
+        set.pool = &GetImpl().perScenePool;
         set.create();
 
     }

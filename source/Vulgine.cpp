@@ -13,23 +13,99 @@
 #include "imgui/imgui.h"
 #include <thread>
 
+namespace {
+    Vulgine::VulgineImpl impl;
+    bool impl_created = false;
+}
+
 namespace Vulgine{
+
+    bool Init(){
+        // if no specific log file is set, proceed using standard output file
+
+        if(logger.hasNullLogFile())
+            logger.changeLogFile(&std::cout);
+
+        if(!impl_created){
+            impl_created = true;
+
+            // check version compatibility
+
+            int major, minor, revision;
+
+            int h_major, h_minor, h_revision;
+
+            getVersion(&major, &minor, &revision);
+#if 0
+            getHeaderVersion(&h_major, &h_minor, &h_revision);
+
+            if(major != h_major){
+                errs("Loaded VulGine library version is incompatible: expected " + std::to_string(h_major) + ", loaded " + std::to_string(major));
+                return nullptr;
+            }
+
+            if(minor < h_minor){
+                errs("Loaded VulGine library version is incompatible: expected not less " +
+                        std::to_string(major) + "." + std::to_string(h_minor) + ", loaded " + std::to_string(major) + "." + std::to_string(minor));
+                return nullptr;
+            }
+#endif
+            logger("Loaded compatible VulGine version: " + getStringVersion());
+
+            // checking if loaded GLFW library has compatible version
+
+
+            glfwGetVersion(&major, &minor, &revision);
+            if(major != GLFW_VERSION_MAJOR) {
+                errs("Unsupported GLFW version: " + std::to_string(major) + "(expected " +
+                     std::to_string(GLFW_VERSION_MAJOR) + ")");
+                return false;
+            }
+            if(minor < GLFW_VERSION_MINOR){
+                errs("Incompatible GLFW version: " + std::to_string(major) + "." + std::to_string(minor)
+                     + "(minimum required " + std::to_string(GLFW_VERSION_MAJOR) + "." +std::to_string(GLFW_VERSION_MINOR) +")");
+                return false;
+            }
+            logger("Proper GLFW version loaded: " + std::string(glfwGetVersionString()));
+
+            ObjectImpl::fillTypeNameTable();
+
+
+            bool initComplete = impl.initialize();
+
+            return initComplete;
+
+        }else{
+            errs("Vulgine Instance has been already created");
+            return false;
+        }
+    }
+
+    Vulgine* Get(){
+        if(impl_created)
+            return &impl;
+        else
+            return nullptr;
+    }
+
+    VulgineImpl& GetImpl(){
+        return impl;
+    }
+
+    void Terminate(){
+        if(impl_created) {
+            impl.terminate();
+            impl_created = false;
+        }
+    }
 
     std::map<GLFWwindow *, VulgineImpl::Window*> VulgineImpl::Window::windowMap;
 
-    VulgineImpl* vlg_instance = nullptr;
     std::string err_message = "";
 
     Initializers initializeInfo;
 
-    VulgineImpl::VulgineImpl(){
 
-        uint32_t extensionCount = 0;
-        vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-
-        std::cout << extensionCount << " extensions supported\n";
-
-    }
 
     bool VulgineImpl::cycle() {
 
@@ -58,7 +134,7 @@ namespace Vulgine{
         return true;
     }
 
-    VulgineImpl::~VulgineImpl() {
+    void VulgineImpl::terminate() {
 
         scenes.clear();
         materials.clear();
@@ -106,7 +182,7 @@ namespace Vulgine{
         delete device;
         vkDestroyInstance(instance, nullptr);
 
-        window.destroy();
+        window.terminate();
 
         glfwTerminate();
     }
@@ -124,94 +200,6 @@ namespace Vulgine{
 
     void error_callback(int code, const char* description){
         errs("GLFW error: " + std::string(description) + "(Error code: " + std::to_string(code) + ")");
-    }
-
-    Vulgine* Vulgine::createInstance(){
-
-        // if no specific log file is set, proceed using standard output file
-
-        if(logger.hasNullLogFile())
-            logger.changeLogFile(&std::cout);
-
-        if(vlg_instance == nullptr){
-
-            // check version compatibility
-
-            int major, minor, revision;
-
-            int h_major, h_minor, h_revision;
-
-            getVersion(&major, &minor, &revision);
-#if 0
-            getHeaderVersion(&h_major, &h_minor, &h_revision);
-
-            if(major != h_major){
-                errs("Loaded VulGine library version is incompatible: expected " + std::to_string(h_major) + ", loaded " + std::to_string(major));
-                return nullptr;
-            }
-
-            if(minor < h_minor){
-                errs("Loaded VulGine library version is incompatible: expected not less " +
-                        std::to_string(major) + "." + std::to_string(h_minor) + ", loaded " + std::to_string(major) + "." + std::to_string(minor));
-                return nullptr;
-            }
-#endif
-            logger("Loaded compatible VulGine version: " + getStringVersion());
-
-            // checking if loaded GLFW library has compatible version
-
-
-            glfwGetVersion(&major, &minor, &revision);
-            if(major != GLFW_VERSION_MAJOR) {
-                errs("Unsupported GLFW version: " + std::to_string(major) + "(expected " +
-                        std::to_string(GLFW_VERSION_MAJOR) + ")");
-                return nullptr;
-            }
-            if(minor < GLFW_VERSION_MINOR){
-                errs("Incompatible GLFW version: " + std::to_string(major) + "." + std::to_string(minor)
-                        + "(minimum required " + std::to_string(GLFW_VERSION_MAJOR) + "." +std::to_string(GLFW_VERSION_MINOR) +")");
-                return nullptr;
-            }
-            logger("Proper GLFW version loaded: " + std::string(glfwGetVersionString()));
-
-            ObjectImpl::fillTypeNameTable();
-
-            VulgineImpl* vlg_instance_impl;
-            try{
-                vlg_instance_impl = new VulgineImpl();
-                vlg_instance = vlg_instance_impl;
-            }
-            catch (std::bad_alloc const& e){
-                vlg_instance = nullptr;
-                errs("Can't create VulGine instance: out of RAM");
-                return nullptr;
-            }
-            logger("VulGine Instance allocated");
-
-            bool initComplete = vlg_instance_impl->initialize();
-
-            if(!initComplete){
-                delete vlg_instance;
-                return nullptr;
-            }
-            return vlg_instance;
-
-        }else{
-            errs("Vulgine Instance has been already created");
-            return nullptr;
-        }
-
-
-    }
-
-    void Vulgine::freeInstance(Vulgine* instance){
-        if(instance == nullptr || instance != vlg_instance)
-            errs("Invalid pointer");
-        else {
-            delete vlg_instance;
-            vlg_instance = nullptr;
-            logger("VulGine instance freed");
-        }
     }
 
     bool VulgineImpl::initialize() {
@@ -233,7 +221,7 @@ namespace Vulgine{
         glfwSetErrorCallback(error_callback);
 
 
-        window.create();
+        window.init();
 
         glfwGetCursorPos(window.instance(), &mouseState.cursor.posX, &mouseState.cursor.posY);
 
@@ -897,7 +885,7 @@ namespace Vulgine{
             // Only set mip map count if optimal tiling is used
             viewCreateInfo.subresourceRange.levelCount = 1;
             viewCreateInfo.image = msaaImage.image.image;
-            VK_CHECK_RESULT(vkCreateImageView(vlg_instance->device->logicalDevice, &viewCreateInfo, nullptr, &msaaImage.view));
+            VK_CHECK_RESULT(vkCreateImageView(GetImpl().device->logicalDevice, &viewCreateInfo, nullptr, &msaaImage.view));
 
         }
 
@@ -1457,7 +1445,7 @@ namespace Vulgine{
     }
 
 
-    void VulgineImpl::Window::createImpl() {
+    void VulgineImpl::Window::init() {
         // creating window
 
 
@@ -1522,17 +1510,11 @@ namespace Vulgine{
 
     }
 
-    void VulgineImpl::Window::destroyImpl() {
+    void VulgineImpl::Window::terminate() {
         glfwDestroyWindow(instance_);
         windowMap.erase(instance_);
     }
 
-    VulgineImpl::Window::~Window() {
-        if(isCreated()){
-            glfwDestroyWindow(instance_);
-            windowMap.erase(instance_);
-        }
-    }
 
     void VulgineImpl::Window::windowSizeChanged(GLFWwindow *window, int width, int height) {
         auto windowWrap = windowMap.find(window)->second;
@@ -1550,15 +1532,15 @@ namespace Vulgine{
 
         switch(action){
             case GLFW_PRESS:{
-                vlg_instance->keyDown(wrappedWindow, key);
+                GetImpl().keyDown(wrappedWindow, key);
                 break;
             }
             case GLFW_RELEASE:{
-                vlg_instance->keyUp(wrappedWindow, key);
+                GetImpl().keyUp(wrappedWindow, key);
                 break;
             }
             case GLFW_REPEAT:{
-                vlg_instance->keyPressed(wrappedWindow, key);
+                GetImpl().keyPressed(wrappedWindow, key);
                 break;
             }
             default: break;
@@ -1601,15 +1583,15 @@ namespace Vulgine{
 
     void VulgineImpl::Window::cursorPosition(GLFWwindow* window, double xPos, double yPos) {
         auto* wrappedWindow = windowMap.at(window);
-        vlg_instance->mouseMoved(wrappedWindow, xPos, yPos);
+        GetImpl().mouseMoved(wrappedWindow, xPos, yPos);
     }
 
     void VulgineImpl::Window::mouseInput(GLFWwindow *window, int button, int action, int mods) {
         auto* wrappedWindow = windowMap.at(window);
         if(action == GLFW_PRESS){
-            vlg_instance->mouseBtnDown(wrappedWindow, button);
+            GetImpl().mouseBtnDown(wrappedWindow, button);
         } else {
-            vlg_instance->mouseBtnUp(wrappedWindow, button);
+            GetImpl().mouseBtnUp(wrappedWindow, button);
         }
 
 
@@ -1617,12 +1599,12 @@ namespace Vulgine{
 
     void VulgineImpl::Window::scrollInput(GLFWwindow *window, double xoffset, double yoffset) {
         auto* wrappedWindow = windowMap.at(window);
-        vlg_instance->mouseScroll(wrappedWindow, xoffset, yoffset);
+        GetImpl().mouseScroll(wrappedWindow, xoffset, yoffset);
     }
 
     void VulgineImpl::Window::charInput(GLFWwindow *window, uint32_t unicode) {
         auto* wrappedWindow = windowMap.at(window);
-        vlg_instance->charInput(wrappedWindow, unicode);
+        GetImpl().charInput(wrappedWindow, unicode);
     }
 
     void VulgineImpl::FpsCounter::update(double deltaT) {
@@ -1665,11 +1647,11 @@ namespace Vulgine{
     }
 
     void Vulgine::MouseState::disableCursor() {
-        vlg_instance->disableCursor();
+        GetImpl().disableCursor();
     }
 
     void Vulgine::MouseState::enableCursor() {
-        vlg_instance->enableCursor();
+        GetImpl().enableCursor();
     }
 
 }

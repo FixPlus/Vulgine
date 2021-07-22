@@ -82,12 +82,12 @@ bool Vulgine::StaticImageImpl::loadFromPixelData(const unsigned char *pixels, in
 
     image.transitImageLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    vlg_instance->gui.addTexturedImage(&image);
+    GetImpl().gui.addTexturedImage(&image);
     return true;
 }
 
 Vulgine::StaticImageImpl::~StaticImageImpl() {
-    vlg_instance->gui.deleteTexturedImage(&image);
+    GetImpl().gui.deleteTexturedImage(&image);
     if(image.allocated)
         image.free();
 }
@@ -101,7 +101,7 @@ void Vulgine::StaticImageImpl::destroyImpl() {
 }
 
 void Vulgine::DynamicImageImpl::createImpl() {
-    auto imageCount = vlg_instance->swapChain.imageCount;
+    auto imageCount = GetImpl().swapChain.imageCount;
     images.reserve(imageCount);
     for(int i = 0; i < imageCount; ++i){
         auto& image = images.emplace_back();

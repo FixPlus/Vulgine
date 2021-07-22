@@ -217,7 +217,12 @@ int main(int argc, char** argv){
 
     glm::vec4 shift;
 
-    auto* vulgine = Vulgine::Vulgine::createInstance();
+    if(!Vulgine::Init()){
+        std::cout << "Failed to init VulGine. Aborting execution." << std::endl;
+        return -1;
+    }
+
+    auto* vulgine = Vulgine::Get();
 
     auto* scene = vulgine->initNewScene();
 
@@ -256,7 +261,7 @@ int main(int argc, char** argv){
     ubo->create();
 
     if(!texture->loadFromFile("image.jpg", Vulgine::Image::FILE_FORMAT_JPEG)){
-        Vulgine::Vulgine::freeInstance(vulgine);
+        Vulgine::Terminate();
         return 0;
     }
 
@@ -408,7 +413,7 @@ int main(int argc, char** argv){
 
     while(vulgine->cycle());
 
-    Vulgine::Vulgine::freeInstance(vulgine);
+    Vulgine::Terminate();
 
     return 0;
 }
