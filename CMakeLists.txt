@@ -129,7 +129,9 @@ set_property(TARGET test PROPERTY CXX_STANDARD 20)
 
 set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--export-all-symbols")
 
+include(cmake/compileShaders.cmake)
 
+compileShaders(${CMAKE_CURRENT_SOURCE_DIR}/source/shaders ${CMAKE_CURRENT_BINARY_DIR} test)
 
 target_link_libraries(${LIB_NAME} ${Vulkan_LIBRARY} ${GLFW_LIBRARY})
 
