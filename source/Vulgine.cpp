@@ -457,8 +457,7 @@ namespace Vulgine{
         uniformBuffers.iterate([](UniformBufferImpl& buffer){ buffer.sync();});
         scenes.iterate([](SceneImpl& scene){ scene.lightUBO.sync();});
 
-        if(cmdBuffersOutdated)
-            buildCommandBuffers(currentBuffer);
+        buildCommandBuffers(currentBuffer);
 
         if (swapChainFences[currentBuffer] != VK_NULL_HANDLE) {
             vkWaitForFences(device->logicalDevice, 1, &swapChainFences[currentBuffer], VK_TRUE, UINT64_MAX);

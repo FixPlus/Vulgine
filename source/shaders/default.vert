@@ -4,6 +4,7 @@ layout(location = 0) out vec3 outPos;
 layout(location = 1) out vec3 outNorm;
 layout(location = 2) out vec2 outUV;
 layout(location = 3) out vec3 outViewPos;
+layout(location = 4) out vec3 outColor;
 
 layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec3 inNorm;
@@ -31,4 +32,5 @@ void main() {
     outNorm = (model * vec4(inNorm, 0.0f)).xyz;
 
     outUV = inUV;
+    outColor = vec3(1.0f);
 }

@@ -5,6 +5,7 @@ layout (location = 0) in vec3 inPos;
 layout (location = 1) in vec3 inNorm;
 layout (location = 2) in vec2 inUV;
 layout (location = 3) in vec3 inViewVec;
+layout (location = 4) in vec3 inColor;
 
 layout (location = 0) out vec4 outFragColor;
 
@@ -31,5 +32,5 @@ void main()
     }
     totalBrightness.w = 1.0f;
     totalSpecular.w = 0.0f;
-    outFragColor = texture(colorMap, inUV) * totalBrightness + totalSpecular;
+    outFragColor = vec4(inColor, 1.0f) * texture(colorMap, inUV) * totalBrightness + totalSpecular;
 }

@@ -155,18 +155,23 @@ namespace Vulgine{
             pushVertexBuffer(vertBufId);
             vertexBuf.second = false;
         }
-        auto& instanceBuf = perInstance.at(instanceBufId);
-        if(instanceBuf.second) {
-            pushInstanceBuffer(instanceBufId);
-            instanceBuf.second = false;
-        }
 
         vertexBuf.first->bind(commandBuffer);
 
+        if(instances.count > 0) {
+            auto &instanceBuf = perInstance.at(instanceBufId);
+            if (instanceBuf.second) {
+                pushInstanceBuffer(instanceBufId);
+                instanceBuf.second = false;
+            }
+            if (!perInstance.empty())
+                instanceBuf.first->bind(commandBuffer);
+        }
+
+
         bool hasMeshDescriptors = set.isCreated();
 
-        if(!perInstance.empty())
-            instanceBuf.first->bind(commandBuffer);
+
         uint32_t instCount = instances.count == 0 ? 1 : instances.count;
 
         if(indices.empty()) {
