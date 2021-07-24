@@ -139,3 +139,11 @@ void Vulgine::DescriptorSet::addInputAttachment(const std::vector<VkImageView> &
     }
 }
 
+void Vulgine::DescriptorSet::freeSets() {
+    assert(pool->returnable && "Can't free set if pool is not in returnable state");
+    for(auto const& set: sets)
+        pool->freeSet(set.set);
+
+    clearDescriptors();
+}
+

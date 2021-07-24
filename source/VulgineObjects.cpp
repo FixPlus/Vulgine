@@ -152,6 +152,7 @@ namespace Vulgine{
         for(auto buf: perInstance)
             delete buf.first;
         if(set) {
+            set->freeSets();
             set.value().destroy();
             set.value().clearDescriptors();
         }
@@ -234,8 +235,10 @@ namespace Vulgine{
                 delete buf.first;
             for (auto buf: perInstance)
                 delete buf.first;
-            if(set)
+            if(set) {
+                set->freeSets();
                 set.value().destroy();
+            }
         }
     }
 

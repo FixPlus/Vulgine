@@ -45,6 +45,8 @@ namespace Vulgine{
 
         void clearDescriptors();
 
+        void freeSets();
+
         ~DescriptorSet() override;
     };
 }

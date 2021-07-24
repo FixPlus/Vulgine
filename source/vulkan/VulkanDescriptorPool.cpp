@@ -86,13 +86,16 @@ void Vulgine::DescriptorPool::freeSet(uint32_t id) {
     assert(returnable && "Individual descriptor allocation return is not implemented yet");
 
     auto descriptor = sets.at(id);
-    VK_CHECK_RESULT(vkFreeDescriptorSets(GetImpl().device->logicalDevice, allocatedIn.at(sets.at(id)), 0, &descriptor))
+    VK_CHECK_RESULT(vkFreeDescriptorSets(GetImpl().device->logicalDevice, allocatedIn.at(sets.at(id)), 1, &descriptor))
 
     allocatedIn.erase(descriptor);
 
     vkDestroyDescriptorSetLayout(GetImpl().device->logicalDevice, layouts.at(descriptor), nullptr);
     layouts.erase(descriptor);
     sets.erase(id);
+
+    freeIds.push(id);
+    setCount--;
 
 }
 

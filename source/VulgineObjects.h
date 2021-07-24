@@ -44,7 +44,6 @@ namespace Vulgine{
 
         std::optional<DescriptorSet> set;
 
-        VkPipelineVertexInputStateCreateInfo vertexInputStateCI{};
 
         struct{
             void* pData = nullptr;

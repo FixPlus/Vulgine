@@ -340,6 +340,8 @@ void Vulgine::Memory::StagingBuffer::fill(const void *data) {
 }
 
 Vulgine::Memory::StagingBuffer::~StagingBuffer() {
-    if(allocated)
+    if(allocated) {
         vmaUnmapMemory(GetImpl().allocator, allocation);
+        Buffer::free();
+    }
 }

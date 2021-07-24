@@ -859,6 +859,8 @@ namespace Vulgine{
         types1[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER] = 1 * 1024;
         types1[VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER] = 1 * 1024;
 
+        perMeshPool.returnable = true;
+
         perMeshPool.maxSets = 1024;
 
         perMeshPool.descriptorsCapacity = std::move(types1);

@@ -16,7 +16,7 @@ namespace Vulgine{
         std::vector<VkDescriptorPool> pools{};
         uint32_t setCount = 0;
 
-        std::map<VkDescriptorType, uint32_t> descriptorsStored{};
+        std::map<VkDescriptorType, uint32_t> descriptorsStored{}; // don't work properly now
 
         std::map<uint32_t, VkDescriptorSet> sets{};
         std::map<VkDescriptorSet, VkDescriptorPool> allocatedIn{};
