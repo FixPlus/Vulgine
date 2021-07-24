@@ -7,7 +7,7 @@
 #include "Vulgine.h"
 
 void Vulgine::DescriptorSet::createImpl() {
-    assert(pool && "Descriptor pool must be specified for descriptor set before create() invokation");
+    assert(pool && "Descriptor pool must be specified for descriptor set before create() invocation");
 
     for(auto& set: sets){
         std::vector<VkDescriptorSetLayoutBinding> bindings;
@@ -27,6 +27,7 @@ void Vulgine::DescriptorSet::createImpl() {
 
             switch(descriptor->descriptorType){
                 case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+                case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
                 case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: break;
                 default: assert(0 && "Descriptor type isn't supported");
             }
@@ -46,7 +47,7 @@ void Vulgine::DescriptorSet::createImpl() {
 }
 
 void Vulgine::DescriptorSet::destroyImpl() {
-    // cannot deallocate descriptor Sets individually yet
+    //assert(0 && "cannot deallocate descriptor Sets individually yet");
 }
 
 Vulgine::DescriptorSet::~DescriptorSet() {
@@ -63,6 +64,7 @@ void Vulgine::DescriptorSet::clearDescriptors() {
             descriptor->destroyDescriptor();
             delete descriptor;
         }
+        set.descriptors.clear();
     }
 
 }
@@ -123,5 +125,17 @@ void Vulgine::DescriptorSet::addUniformBuffer(UniformBuffer *buffer, VkShaderSta
 VkDescriptorSetLayout Vulgine::DescriptorSet::layout() const {
     assert(isCreated() && "Cannot return layout if descriptor set is not created");
     return pool->getLayout(sets.back().set);
+}
+
+void Vulgine::DescriptorSet::addInputAttachment(const std::vector<VkImageView> &views, VkShaderStageFlagBits stage) {
+    if(sets.empty())
+        sets.resize(GetImpl().swapChain.imageCount);
+    int i = 0;
+    for(auto& set: sets){
+        auto* desc = set.descriptors.emplace_back(new DInputAttachment{views.at(i)});
+        desc->stage = stage;
+        desc->setupDescriptor();
+        i++;
+    }
 }
 

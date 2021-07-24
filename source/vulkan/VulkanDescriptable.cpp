@@ -47,3 +47,21 @@ VkWriteDescriptorSet Vulgine::DUniformBuffer::write(int binding) {
     VkWriteDescriptorSet ret = initializers::writeDescriptorSet(VK_NULL_HANDLE, descriptorType, binding, &descriptor);
     return ret;
 }
+
+Vulgine::DInputAttachment::DInputAttachment(VkImageView view) : DImage(nullptr), Descriptable(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT) {
+    descriptor.imageView = view;
+}
+
+VkWriteDescriptorSet Vulgine::DInputAttachment::write(int binding) {
+    VkWriteDescriptorSet ret = initializers::writeDescriptorSet(VK_NULL_HANDLE, descriptorType, binding, &descriptor);
+    return ret;
+}
+
+void Vulgine::DInputAttachment::setupDescriptor() {
+
+    descriptor.imageLayout = claimedLayout;
+    descriptor.sampler = VK_NULL_HANDLE;
+}
+
+void Vulgine::DInputAttachment::destroyDescriptor() {
+}

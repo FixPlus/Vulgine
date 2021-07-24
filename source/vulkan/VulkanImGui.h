@@ -21,7 +21,7 @@ namespace Vulgine{
     class GUI{
 
         VkSampleCountFlagBits rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-        uint32_t subpass = 0;
+
 
         std::vector<Memory::DynamicVertexBuffer> vertexBuffers;
         std::vector<Memory::DynamicIndexBuffer> indexBuffers;
@@ -57,6 +57,8 @@ namespace Vulgine{
         } pushConstBlock;
 
     public:
+
+        uint32_t subpass = 0;
 
         bool visible = true;
         bool updated = false;

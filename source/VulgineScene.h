@@ -17,7 +17,6 @@ namespace Vulgine{
     struct RenderPass;
 
     struct SceneImpl: public Scene, public ObjectImplNoMove{
-        DescriptorSet set;
 
         struct{
             struct{
@@ -56,9 +55,12 @@ namespace Vulgine{
 
         void draw(VkCommandBuffer commandBuffer, CameraImpl* camera, RenderPass* pass, int currentFrame);
 
+        void drawBackground(VkCommandBuffer commandBuffer, CameraImpl* camera, RenderPass* pass, int currentFrame);
         ~SceneImpl() override = default;
 
         void updateLight(uint32_t light);
+
+        bool hasDynamicLights() const { return !lights.empty();};
 
     protected:
         void createImpl() override;

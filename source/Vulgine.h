@@ -120,12 +120,6 @@ namespace Vulgine {
             std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<double>> tEnd;
         } timeMarkers;
 
-        // contains actual viewport dimensions (may differ from window dimensions if window size has just changed)
-
-        struct{
-            uint32_t width;
-            uint32_t height;
-        } vieportInfo;
 
         VkInstance instance = VK_NULL_HANDLE;
 
@@ -170,38 +164,19 @@ namespace Vulgine {
 
 
 
-        struct{
-            Memory::Image image;
-            VkImageView view;
-        } msaaImage;
-
-
-        // depth/stencil image used by onscreen renderPass (only one for all frame buffers)
-
-        struct {
-            VkImage image;
-            VkDeviceMemory mem;
-            VkImageView view;
-        } depthStencil;
-
-
-
-
-
         void createVkInstance();
         void createVulkanDevice();
         void createCommandBuffers();
         void createSyncPrimitives();
         void destroySyncPrimitives();
-        void setupDepthStencil();
         void setupSwapChain();
         void setupDescriptorPools();
         void destroyDescriptorPools();
         void createCommandPool();
         void createPipelineCache();
-
-        void destroyRenderPasses();
         void destroyCommandBuffers();
+        void recreateOnscreenFramebuffers();
+        void destroyRenderPasses();
 
         void initFields();
         void renderFrame();
@@ -209,8 +184,7 @@ namespace Vulgine {
         void buildRenderPass(RenderPassImpl* pass);
         void buildRenderPasses() override;
         void buildCommandBuffers(int imageIndex);
-        void createOnscreenFrameBuffers();
-        void destroyOnscreenFrameBuffers();
+
 
         void loadShaders();
         void destroyShaders();
@@ -220,6 +194,13 @@ namespace Vulgine {
         void updateGUI();
 
     public:
+        // contains actual viewport dimensions (may differ from window dimensions if window size has just changed)
+
+        struct{
+            uint32_t width;
+            uint32_t height;
+        } vieportInfo;
+
         // Active frame buffer index
         uint32_t currentBuffer = 0;
 
@@ -255,20 +236,20 @@ namespace Vulgine {
         IdentifiableContainer<UniformBufferImpl> uniformBuffers;
         IdentifiableContainer<SamplerImpl> samplers;
 
-        DescriptorPool perScenePool;    // set 0
-        DescriptorPool perMaterialPool; // set 1
-        DescriptorPool perMeshPool;     // set 2
+        DescriptorPool perRenderPassPool;
+        DescriptorPool perMaterialPool;
+        DescriptorPool perMeshPool;
 
         // Container for pipelines
 
         struct PipelineMap{
 
 
-            std::map<PipelineKey , Pipeline> map;
+            std::map<PipelineKey , GeneralPipeline> map;
 
             void add(PipelineKey key);
 
-            Pipeline const& bind(PipelineKey key, VkCommandBuffer cmdBuffer);
+            GeneralPipeline const& bind(PipelineKey key, VkCommandBuffer cmdBuffer);
 
             void clear();
 

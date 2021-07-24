@@ -56,20 +56,6 @@ namespace Vulgine{
 
     void SceneImpl::draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass* pass, int currentFrame) {
 
-        // draw background
-
-        if(background.created){
-            auto& pipeline = GetImpl().pipelineMap.bind({nullptr, &background.material, this, dynamic_cast<RenderPassImpl*>(pass)}, commandBuffer);
-            if(set.isCreated()){
-                set.bind(0, commandBuffer, pipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
-            }
-
-            if(background.material.set.isCreated()){
-                background.material.set.bind(1, commandBuffer, pipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
-            }
-            vkCmdDraw(commandBuffer, 4, 1, 0, 0);
-        }
-
         // draw all the meshes
 
         for(auto& mesh: meshes)
@@ -94,9 +80,6 @@ namespace Vulgine{
         lightUBO.create();
         lightUBO.update();
 
-        set.addUniformBuffer(&lightUBO, VK_SHADER_STAGE_FRAGMENT_BIT);
-        set.pool = &GetImpl().perScenePool;
-        set.create();
 
     }
 
@@ -105,8 +88,7 @@ namespace Vulgine{
         cameras.clear();
         meshes.clear();
         lightUBO.destroy();
-        set.destroy();
-        set.clearDescriptors();
+
     }
 
     void SceneImpl::updateLight(uint32_t light) {
@@ -143,6 +125,19 @@ namespace Vulgine{
 
         background.created = false;
         background.material.destroy();
+    }
+
+    void SceneImpl::drawBackground(VkCommandBuffer commandBuffer, CameraImpl* camera, RenderPass* pass, int currentFrame) {
+        // draw background
+
+        if(background.created){
+            auto& pipeline = GetImpl().pipelineMap.bind({nullptr, &background.material, this, dynamic_cast<RenderPassImpl*>(pass)}, commandBuffer);
+
+            if(background.material.set.isCreated()){
+                background.material.set.bind(0, commandBuffer, pipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+            }
+            vkCmdDraw(commandBuffer, 4, 1, 0, 0);
+        }
     }
 
 

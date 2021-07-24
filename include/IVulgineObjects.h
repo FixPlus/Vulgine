@@ -233,6 +233,8 @@ namespace Vulgine{
     struct Material: virtual public Object{
 
 
+        bool alpha_transparent = false;
+
         struct{
             ::Vulgine::Sampler* sampler = nullptr;
             ::Vulgine::Image* colorMap = nullptr;

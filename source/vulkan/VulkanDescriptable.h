@@ -48,5 +48,13 @@ namespace Vulgine{
         void destroyDescriptor() override;
     };
 
+    struct DInputAttachment: public DImage {
+
+        explicit  DInputAttachment(VkImageView view);
+        VkWriteDescriptorSet write(int binding) override;
+        void setupDescriptor() override;
+        void destroyDescriptor() override;
+    };
+
 }
 #endif //TEST_EXE_VULKANDESCRIPTABLE_H

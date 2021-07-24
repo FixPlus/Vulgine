@@ -157,16 +157,6 @@ namespace Vulgine{
 
         swapChain.cleanup();
 
-
-        vkDestroyImageView(device->logicalDevice, depthStencil.view, nullptr);
-        vkDestroyImage(device->logicalDevice, depthStencil.image, nullptr);
-        vkFreeMemory(device->logicalDevice, depthStencil.mem, nullptr);
-
-        if(msaaImage.image.allocated){
-            vkDestroyImageView(device->logicalDevice, msaaImage.view, nullptr);
-            msaaImage.image.free();
-        }
-
         destroyDescriptorPools();
 
         destroyCommandBuffers();
@@ -264,9 +254,7 @@ namespace Vulgine{
 
         createCommandBuffers();
 
-        setupDepthStencil();
-
-        logger("Command buffer and depth stencil image allocated");
+        logger("Command buffers allocated");
 
         createPipelineCache();
 
@@ -526,46 +514,6 @@ namespace Vulgine{
         return false;
     }
 
-    void VulgineImpl::setupDepthStencil()
-    {
-        VkImageCreateInfo imageCI{};
-        imageCI.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        imageCI.imageType = VK_IMAGE_TYPE_2D;
-        imageCI.format = depthFormat;
-        imageCI.extent = { vieportInfo.width, vieportInfo.height, 1 };
-        imageCI.mipLevels = 1;
-        imageCI.arrayLayers = 1;
-        imageCI.samples = settings.msaa;
-        imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
-        imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-
-        VK_CHECK_RESULT(vkCreateImage(device->logicalDevice, &imageCI, nullptr, &depthStencil.image));
-        VkMemoryRequirements memReqs{};
-        vkGetImageMemoryRequirements(device->logicalDevice, depthStencil.image, &memReqs);
-
-        VkMemoryAllocateInfo memAllloc{};
-        memAllloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        memAllloc.allocationSize = memReqs.size;
-        memAllloc.memoryTypeIndex = device->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        VK_CHECK_RESULT(vkAllocateMemory(device->logicalDevice, &memAllloc, nullptr, &depthStencil.mem));
-        VK_CHECK_RESULT(vkBindImageMemory(device->logicalDevice, depthStencil.image, depthStencil.mem, 0));
-
-        VkImageViewCreateInfo imageViewCI{};
-        imageViewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        imageViewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        imageViewCI.image = depthStencil.image;
-        imageViewCI.format = depthFormat;
-        imageViewCI.subresourceRange.baseMipLevel = 0;
-        imageViewCI.subresourceRange.levelCount = 1;
-        imageViewCI.subresourceRange.baseArrayLayer = 0;
-        imageViewCI.subresourceRange.layerCount = 1;
-        imageViewCI.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        // Stencil aspect should only be set on depth + stencil formats (VK_FORMAT_D16_UNORM_S8_UINT..VK_FORMAT_D32_SFLOAT_S8_UINT
-        if (depthFormat >= VK_FORMAT_D16_UNORM_S8_UINT) {
-            imageViewCI.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-        }
-        VK_CHECK_RESULT(vkCreateImageView(device->logicalDevice, &imageViewCI, nullptr, &depthStencil.view));
-    }
 
     void VulgineImpl::destroyRenderPasses() {
         renderPasses.clear();
@@ -590,195 +538,7 @@ namespace Vulgine{
 
     void VulgineImpl::buildRenderPass(RenderPassImpl* renderPass){
 
-        renderPass->destroy();
-
-        CHECK_DEVICE_LIMITS(renderPass)
-
-        if(renderPass->onscreen) { // TODO: generalize onscreen render pass creation
-
-            std::array<VkAttachmentDescription, 3> attachments = {};
-
-            // Color attachment
-            attachments[0].format = swapChain.colorFormat;
-            attachments[0].samples = settings.msaa;
-            attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-            attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-            attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            attachments[0].finalLayout = settings.msaa > 1 ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL :
-                                         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-            // Depth attachment
-            attachments[1].format = depthFormat;
-            attachments[1].samples = settings.msaa;
-            attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-            attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-            // Reslove color attachment for multisampling image
-
-            if (settings.msaa > 1) {
-                attachments[2].format = swapChain.colorFormat;
-                attachments[2].samples = VK_SAMPLE_COUNT_1_BIT;
-                attachments[2].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-                attachments[2].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                attachments[2].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                attachments[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-                attachments[2].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-            }
-
-            VkAttachmentReference colorReference = {};
-            colorReference.attachment = 0;
-            colorReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-            VkAttachmentReference depthReference = {};
-            depthReference.attachment = 1;
-            depthReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-            VkAttachmentReference colorAttachmentResolveRef{};
-            colorAttachmentResolveRef.attachment = 2;
-            colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-
-            VkSubpassDescription subpassDescription = {};
-            subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-            subpassDescription.colorAttachmentCount = 1;
-            subpassDescription.pColorAttachments = &colorReference;
-            subpassDescription.pDepthStencilAttachment = &depthReference;
-            subpassDescription.inputAttachmentCount = 0;
-            subpassDescription.pInputAttachments = nullptr;
-            subpassDescription.preserveAttachmentCount = 0;
-            subpassDescription.pPreserveAttachments = nullptr;
-            subpassDescription.pResolveAttachments = settings.msaa > 1 ? &colorAttachmentResolveRef : nullptr;
-
-            // Subpass dependencies for layout transitions
-            std::array<VkSubpassDependency, 2> dependencies{};
-
-            dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-            dependencies[0].dstSubpass = 0;
-            dependencies[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-            dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            dependencies[0].srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-            dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-            dependencies[1].srcSubpass = 0;
-            dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-            dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            dependencies[1].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-            dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            dependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-            dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-            VkRenderPassCreateInfo renderPassInfo = {};
-            renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-            renderPassInfo.attachmentCount = static_cast<uint32_t>(settings.msaa > 1 ? attachments.size() :
-                                                                   attachments.size() - 1);
-            renderPassInfo.pAttachments = attachments.data();
-            renderPassInfo.subpassCount = 1;
-            renderPassInfo.pSubpasses = &subpassDescription;
-            renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
-            renderPassInfo.pDependencies = dependencies.data();
-
-            VK_CHECK_RESULT(
-                    vkCreateRenderPass(device->logicalDevice, &renderPassInfo, nullptr, &renderPass->renderPass));
-        } else{
-
-
-            if(renderPass->frameBuffer.attachmentsImages.empty()){
-                Utilities::ExitFatal(-1, "Cannot create render pass with empty attachments");
-            }
-
-            std::vector<VkAttachmentDescription> attachments = {};
-            std::optional<VkAttachmentReference> depthAttachemntRef;
-            std::vector<VkAttachmentReference> colorAttachmentRefs{};
-            attachments.resize(renderPass->frameBuffer.attachmentCount());
-
-            for(auto& it: renderPass->frameBuffer.attachmentsImages) {
-                auto binding = it.first;
-                auto& image = it.second;
-
-
-                attachments.at(binding).format = image.createInfo.format;
-                attachments.at(binding).samples = VK_SAMPLE_COUNT_1_BIT; // no multisampling for offscreen rendering yet
-                attachments.at(binding).loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                attachments.at(binding).storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-                attachments.at(binding).stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                attachments.at(binding).stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-
-                // for now we consider it to be shader read-only optimal
-
-                attachments.at(binding).initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-                // for now we consider it to be used as sampled image
-
-                attachments.at(binding).finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                if(image.createInfo.format == depthFormat){
-                    depthAttachemntRef.emplace();
-                    depthAttachemntRef->attachment = binding;
-                    depthAttachemntRef->layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-                } else{
-                    auto& colRef = colorAttachmentRefs.emplace_back();
-                    colRef.attachment = binding;
-                    colRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                }
-            }
-
-
-            VkSubpassDescription subpassDescription = {};
-            subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-            subpassDescription.colorAttachmentCount = colorAttachmentRefs.size();
-            subpassDescription.pColorAttachments = colorAttachmentRefs.data();
-            subpassDescription.pDepthStencilAttachment = depthAttachemntRef.has_value() ? &depthAttachemntRef.value() : nullptr;
-            subpassDescription.inputAttachmentCount = 0;
-            subpassDescription.pInputAttachments = nullptr;
-            subpassDescription.preserveAttachmentCount = 0;
-            subpassDescription.pPreserveAttachments = nullptr;
-            subpassDescription.pResolveAttachments = nullptr;
-
-            // Subpass dependencies for layout transitions
-            std::array<VkSubpassDependency, 2> dependencies{};
-
-            // TODO: deduct external dependencies by framebuffer images use info
-
-            dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-            dependencies[0].dstSubpass = 0;
-            dependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            dependencies[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-            dependencies[1].srcSubpass = 0;
-            dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-            dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            dependencies[1].dstStageMask = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
-            dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-            VkRenderPassCreateInfo renderPassInfo = {};
-            renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-            renderPassInfo.attachmentCount = attachments.size();
-
-            renderPassInfo.pAttachments = attachments.data();
-            renderPassInfo.subpassCount = 1;
-            renderPassInfo.pSubpasses = &subpassDescription;
-            renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
-            renderPassInfo.pDependencies = dependencies.data();
-
-            VK_CHECK_RESULT(
-                    vkCreateRenderPass(device->logicalDevice, &renderPassInfo, nullptr, &renderPass->renderPass));
-
-            renderPass->frameBuffer.renderPass = renderPass;
-            renderPass->frameBuffer.create();
-        }
-
+        renderPass->buildPass();
 
         renderPassLine.push_front(renderPass);
 
@@ -813,14 +573,12 @@ namespace Vulgine{
 
         buildRenderPass(onscreenRenderPass); // TODO: parse dependency graph to detect loops
 
-        //recreate on screen framebuffers
-
-        destroyOnscreenFrameBuffers();
-        createOnscreenFrameBuffers();
 
         // every pipeline should be recreated here because it's state depends on render pass state
 
         pipelineMap.clear();
+
+        gui.subpass = onscreenRenderPass->deferredEnabled ? 2 : 0;
 
         gui.preparePipeline(onscreenRenderPass->renderPass);
 
@@ -836,131 +594,6 @@ namespace Vulgine{
         VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
         pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
         VK_CHECK_RESULT(vkCreatePipelineCache(device->logicalDevice, &pipelineCacheCreateInfo, nullptr, &pipelineCache));
-    }
-
-    void VulgineImpl::createOnscreenFrameBuffers() {
-
-        if(onscreenRenderPass == nullptr)
-            return;
-
-        auto& frameBuffer = onscreenRenderPass->frameBuffer;
-
-        frameBuffer.destroy();
-
-
-        if(settings.msaa > 1){
-
-            // TODO: move this somewhere else
-
-            VkImageCreateInfo imageInfo{};
-            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-            imageInfo.imageType = VK_IMAGE_TYPE_2D;
-            imageInfo.extent.width = static_cast<uint32_t>(vieportInfo.width);
-            imageInfo.extent.height = static_cast<uint32_t>(vieportInfo.height);
-            imageInfo.extent.depth = 1;
-            imageInfo.mipLevels = 1;
-            imageInfo.arrayLayers = 1;
-
-            imageInfo.format = swapChain.colorFormat;
-            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-            imageInfo.samples = settings.msaa;
-            imageInfo.flags = 0; // Optional
-
-
-            msaaImage.image.allocate(imageInfo, VMA_MEMORY_USAGE_GPU_ONLY, 0, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-            VkImageViewCreateInfo viewCreateInfo = {};
-            viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-
-
-            viewCreateInfo.format = imageInfo.format;
-            viewCreateInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
-            viewCreateInfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-            // Linear tiling usually won't support mip maps
-            // Only set mip map count if optimal tiling is used
-            viewCreateInfo.subresourceRange.levelCount = 1;
-            viewCreateInfo.image = msaaImage.image.image;
-            VK_CHECK_RESULT(vkCreateImageView(GetImpl().device->logicalDevice, &viewCreateInfo, nullptr, &msaaImage.view));
-
-        }
-
-        frameBuffer.width = vieportInfo.width;
-        frameBuffer.height = vieportInfo.height;
-
-
-
-        std::vector<VkImageView> views{};
-        if(settings.msaa > 1) {
-
-            // color attachment (binding 0)
-
-            for (int i = 0; i < swapChain.imageCount; i++) {
-                views.push_back(msaaImage.view);
-            }
-
-            frameBuffer.addOnsrceenAttachment(views);
-
-            views.clear();
-
-            // depth attachment (binding 1)
-
-            for (int i = 0; i < swapChain.imageCount; i++) {
-                views.push_back(depthStencil.view);
-            }
-
-            frameBuffer.addOnsrceenAttachment(views);
-
-            views.clear();
-
-            // resolved color attachment (binding 2)
-
-            for (int i = 0; i < swapChain.imageCount; i++) {
-                views.push_back(swapChain.buffers[i].view);
-            }
-
-            frameBuffer.addOnsrceenAttachment(views);
-
-        } else {
-            // color attachment (binding 0)
-
-            for (int i = 0; i < swapChain.imageCount; i++) {
-                views.push_back(swapChain.buffers[i].view);
-            }
-
-            frameBuffer.addOnsrceenAttachment(views);
-
-            views.clear();
-
-            // depth attachment (binding 1)
-
-            for (int i = 0; i < swapChain.imageCount; i++) {
-                views.push_back(depthStencil.view);
-            }
-
-            frameBuffer.addOnsrceenAttachment(views);
-
-        }
-
-        frameBuffer.renderPass = onscreenRenderPass;
-
-        frameBuffer.create();
-
-    }
-
-    void VulgineImpl::destroyOnscreenFrameBuffers() {
-        if(onscreenRenderPass == nullptr)
-            return;
-
-        if(msaaImage.image.allocated){
-            vkDestroyImageView(device->logicalDevice, msaaImage.view, nullptr);
-            msaaImage.image.free();
-        }
-
-        onscreenRenderPass->frameBuffer.destroy();
     }
 
     VkShaderModule loadShader(const char *fileName, VkDevice device)
@@ -1020,6 +653,12 @@ namespace Vulgine{
         shader = loadShader("backgroundTextured.frag.spv", device->logicalDevice);
         fragmentShaders.emplace(std::piecewise_construct, std::forward_as_tuple("frag_background_textured"), std::forward_as_tuple(shader, "frag_background_textured"));
 
+        shader = loadShader("composite.frag.spv", device->logicalDevice);
+        fragmentShaders.emplace(std::piecewise_construct, std::forward_as_tuple("frag_composite"), std::forward_as_tuple(shader, "frag_composite"));
+
+        shader = loadShader("g-buffer-textured.frag.spv", device->logicalDevice);
+        fragmentShaders.emplace(std::piecewise_construct, std::forward_as_tuple("frag_gbuffer_textured"), std::forward_as_tuple(shader, "frag_gbuffer_textured"));
+
     }
 
     void VulgineImpl::destroyShaders() {
@@ -1075,22 +714,9 @@ namespace Vulgine{
         vieportInfo.height = window.height;
         setupSwapChain();
 
-        // Recreate the frame buffers
-        vkDestroyImageView(device->logicalDevice, depthStencil.view, nullptr);
-        vkDestroyImage(device->logicalDevice, depthStencil.image, nullptr);
-        vkFreeMemory(device->logicalDevice, depthStencil.mem, nullptr);
-        setupDepthStencil();
-
-        destroyOnscreenFrameBuffers();
-        createOnscreenFrameBuffers();
+        recreateOnscreenFramebuffers();
 
 
-        // Command buffers need to be recreated as they may store
-        // references to the recreated frame buffer
-        destroyCommandBuffers();
-        createCommandBuffers();
-        for(int i = 0; i < swapChain.imageCount; ++i)
-            buildCommandBuffers(i);
 
         vkDeviceWaitIdle(device->logicalDevice);
 
@@ -1238,19 +864,19 @@ namespace Vulgine{
 
         std::map<VkDescriptorType, uint32_t> types2;
 
-        types2[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER] = 1 * 1024;
+        types2[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER] = 1 * 20;
+        types2[VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT] = 4 * 20;
 
+        perRenderPassPool.maxSets = 20;
 
-        perScenePool.maxSets = 1024;
-
-        perScenePool.descriptorsCapacity = std::move(types2);
+        perRenderPassPool.descriptorsCapacity = std::move(types2);
 
 
     }
 
     void VulgineImpl::destroyDescriptorPools() {
         perMaterialPool.clear();
-        perScenePool.clear();
+        perRenderPassPool.clear();
         perMeshPool.clear();
     }
 
@@ -1361,13 +987,16 @@ namespace Vulgine{
         settings.msaa = newValue;
 
 
-        vkDestroyImageView(device->logicalDevice, depthStencil.view, nullptr);
-        vkDestroyImage(device->logicalDevice, depthStencil.image, nullptr);
-        vkFreeMemory(device->logicalDevice, depthStencil.mem, nullptr);
+        if(onscreenRenderPass){
+            auto& onscreenFb = onscreenRenderPass->frameBuffer;
+            if(onscreenFb.isCreated()){
+                onscreenFb.destroy();
+            }
 
-        setupDepthStencil();
+            onscreenRenderPass->buildPass();
+            onscreenRenderPass->create();
+        }
 
-        buildRenderPasses();
 
 
     }
@@ -1376,8 +1005,7 @@ namespace Vulgine{
         vkDeviceWaitIdle(device->logicalDevice);
         settings.vsync = !settings.vsync;
         setupSwapChain();
-        destroyOnscreenFrameBuffers();
-        createOnscreenFrameBuffers();
+        recreateOnscreenFramebuffers();
     }
 
     RenderPass *VulgineImpl::initNewRenderPass() {
@@ -1415,6 +1043,31 @@ namespace Vulgine{
 
     void VulgineImpl::deleteSampler(Sampler *sampler) {
         samplers.free(dynamic_cast<SamplerImpl*>(sampler));
+    }
+
+    void VulgineImpl::recreateOnscreenFramebuffers() {
+        if(onscreenRenderPass){
+            auto& onscreenFb = onscreenRenderPass->frameBuffer;
+            if(onscreenFb.isCreated()){
+
+                onscreenRenderPass->destroyFramebuffer();
+
+                onscreenFb.width = vieportInfo.width;
+                onscreenFb.height = vieportInfo.height;
+
+                onscreenRenderPass->createFramebuffer();
+                onscreenFb.create();
+
+                // Command buffers need to be recreated as they may store
+                // references to the recreated frame buffer
+                destroyCommandBuffers();
+                createCommandBuffers();
+                for(int i = 0; i < swapChain.imageCount; ++i)
+                    buildCommandBuffers(i);
+            }
+
+
+        }
     }
 
     void disableLog(){
@@ -1630,11 +1283,11 @@ namespace Vulgine{
 
     }
 
-    Pipeline const& VulgineImpl::PipelineMap::bind(PipelineKey key, VkCommandBuffer cmdBuffer) {
+    GeneralPipeline const& VulgineImpl::PipelineMap::bind(PipelineKey key, VkCommandBuffer cmdBuffer) {
         if(!map.count(key)){
             add(key);
         }
-        Pipeline& pipeline = map.find(key)->second;
+        GeneralPipeline& pipeline = map.find(key)->second;
 
         pipeline.bind(cmdBuffer);
 

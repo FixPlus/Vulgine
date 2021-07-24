@@ -37,6 +37,8 @@ namespace Vulgine{
 
         void addUniformBuffer(UniformBuffer* buffer, VkShaderStageFlagBits stage);
 
+        void addInputAttachment(std::vector<VkImageView> const& views, VkShaderStageFlagBits stage);
+
         VkDescriptorSetLayout layout() const;
 
         bool empty() const { return sets.empty();};

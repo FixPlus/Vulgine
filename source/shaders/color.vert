@@ -17,7 +17,7 @@ layout(push_constant) uniform constants{
     vec3 cameraPosition;
 } PushConstants;
 
-layout(binding = 0, set = 2) uniform UBO
+layout(binding = 0, set = 1) uniform UBO
 {
     vec4 shift;
 } ubo;

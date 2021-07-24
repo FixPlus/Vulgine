@@ -14,11 +14,19 @@ namespace Vulgine{
     class RenderPassImpl;
 
     class FrameBufferImpl: public FrameBuffer, public ObjectImplNoMove{
+        bool hasDepth = false;
     protected:
         void createImpl() override;
         void destroyImpl() override;
     public:
+        Image* createAttachment(VkFormat format, VkImageUsageFlags usage, VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT);
 
+
+        static const VkFormat GBufferAlbedoFormat = VK_FORMAT_R8G8B8A8_UNORM;
+        static const VkFormat GBufferPosFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+        static const VkFormat GBufferNormFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+
+        static const VkFormat ColorBufferFormat = VK_FORMAT_R8G8B8A8_SRGB;
 
         std::unordered_map<uint32_t, DynamicImageImpl> attachmentsImages;
         std::vector<std::vector<VkImageView>> attachments;
@@ -26,8 +34,10 @@ namespace Vulgine{
         Image* addAttachment(Type type) override;
 
         void addOnsrceenAttachment(std::vector<VkImageView> const& views);
+        void createGBuffer();
 
         uint32_t attachmentCount() override;
+        uint32_t colorAttachmentCount();
 
         Image* getAttachment(uint32_t binding) override;
 
