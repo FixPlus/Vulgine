@@ -128,7 +128,7 @@ namespace Vulgine{
 
         updateGUI();
 
-        if (prepared)
+        if (prepared && !glfwGetWindowAttrib(window.instance(), GLFW_ICONIFIED))
             renderFrame();
 
         return true;
@@ -1046,7 +1046,7 @@ namespace Vulgine{
     }
 
     void VulgineImpl::recreateOnscreenFramebuffers() {
-        if(onscreenRenderPass){
+        if(onscreenRenderPass && !glfwGetWindowAttrib(window.instance(), GLFW_ICONIFIED)){
             auto& onscreenFb = onscreenRenderPass->frameBuffer;
             if(onscreenFb.isCreated()){
 

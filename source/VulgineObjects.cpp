@@ -174,7 +174,7 @@ namespace Vulgine{
 
         uint32_t instCount = instances.count == 0 ? 1 : instances.count;
 
-        if(indices.empty()) {
+        if(!indexBuffer.allocated) {
             auto* material = dynamic_cast<MaterialImpl *>(primitives[0].material);
             auto& boundPipeline = GetImpl().pipelineMap.bind({this, dynamic_cast<MaterialImpl *>(primitives[0].material),
                                             dynamic_cast<SceneImpl *>(parent()), dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);

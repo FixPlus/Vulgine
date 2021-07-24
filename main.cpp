@@ -353,7 +353,7 @@ int main(int argc, char** argv){
     auto* attachmentImage = offscreenRenderPass->getFrameBuffer()->addAttachment();
     //offscreenRenderPass->getFrameBuffer()->addAttachment(Vulgine::FrameBuffer::Type::DEPTH_STENCIL);
 
-#if 0
+#if 1
     scene->createBackGround("frag_background_textured",
                             {{Vulgine::DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER, 0,
                               sampler,

@@ -23,8 +23,8 @@ namespace Vulgine{
 
 
         static const VkFormat GBufferAlbedoFormat = VK_FORMAT_R8G8B8A8_UNORM;
-        static const VkFormat GBufferPosFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
-        static const VkFormat GBufferNormFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+        static const VkFormat GBufferPosFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
+        static const VkFormat GBufferNormFormat = GBufferPosFormat;
 
         static const VkFormat ColorBufferFormat = VK_FORMAT_R8G8B8A8_SRGB;
 
