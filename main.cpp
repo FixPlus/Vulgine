@@ -135,13 +135,13 @@ struct Camera{
     };
 };
 
-void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material, Vulgine::UniformBuffer* ubo){
+void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Geometry* geometry, Vulgine::Material* material, Vulgine::UniformBuffer* ubo){
     Vulgine::VertexFormat format;
     format.perVertexAttributes = {Vulgine::AttributeFormat::RGB32SF, Vulgine::AttributeFormat::RGB32SF, Vulgine::AttributeFormat::RG32SF};
     format.perInstanceAttributes = {Vulgine::AttributeFormat::MAT4F};
 
-    mesh->vertexStageInfo.vertexFormat = format;
-    mesh->vertexStageInfo.vertexShader = "vert_color";
+    geometry->vertexFormat = format;
+    geometry->vertexShader = "vert_color";
     mesh->vertices.pData = vertexAttributes;
     mesh->vertices.count = sizeof(vertexAttributes) / sizeof(VertexAttribute);
     mesh->instances.pData = instancesAttributes;
@@ -161,28 +161,33 @@ void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Material* material, Vulgine:
     mesh->primitives.push_back(primitive);
 
     Vulgine::DescriptorInfo info{};
-
+    Vulgine::Descriptor desc{};
 
     info.binding = 0;
-    info.image = nullptr;
-    info.ubo = ubo;
+    desc.image = nullptr;
+    desc.ubo = ubo;
     info.type = Vulgine::DescriptorInfo::Type::UNIFORM_BUFFER;
 
-    mesh->vertexStageInfo.descriptors.push_back(info);
+    mesh->descriptors.push_back(desc);
+    geometry->descriptors.push_back(info);
 
     mesh->vertices.dynamic = false;
     mesh->instances.dynamic = false;
 
+    mesh->geometry = geometry;
+
+    geometry->create();
+
     mesh->create();
 }
 
-void createOffscreenProjectedMesh(Vulgine::Mesh* mesh, Vulgine::Material* material){
+void createOffscreenProjectedMesh(Vulgine::Mesh* mesh, Vulgine::Geometry* geometry, Vulgine::Material* material){
     Vulgine::VertexFormat format;
     format.perVertexAttributes = {Vulgine::AttributeFormat::RGB32SF, Vulgine::AttributeFormat::RGB32SF, Vulgine::AttributeFormat::RG32SF};
     format.perInstanceAttributes = {Vulgine::AttributeFormat::MAT4F};
 
-    mesh->vertexStageInfo.vertexFormat = format;
-    mesh->vertexStageInfo.vertexShader = "vert_default";
+    geometry->vertexFormat = format;
+    geometry->vertexShader = "vert_default";
     mesh->vertices.pData = vertexAttributes;
     mesh->vertices.count = sizeof(vertexAttributes) / sizeof(VertexAttribute);
     mesh->instances.pData = &standaloneCube;
@@ -203,6 +208,9 @@ void createOffscreenProjectedMesh(Vulgine::Mesh* mesh, Vulgine::Material* materi
 
     mesh->vertices.dynamic = false;
     mesh->instances.dynamic = false;
+    mesh->geometry = geometry;
+
+    geometry->create();
 
     mesh->create();
 
@@ -211,7 +219,7 @@ int main(int argc, char** argv){
 
     Vulgine::initializeInfo.windowName = "HELLO THERE";
     Vulgine::initializeInfo.windowSize = {1200, 800};
-    Vulgine::initializeInfo.enableVulkanValidationLayers = false;
+    Vulgine::initializeInfo.enableVulkanValidationLayers = true;
     Vulgine::initializeInfo.vsync = false;
     Vulgine::initializeInfo.fullscreen = false;
 
@@ -337,8 +345,9 @@ int main(int argc, char** argv){
 
 
     auto* mesh = scene->createEmptyMesh();
+    auto* geometry = vulgine->initNewGeometry();
 
-    createSampleMesh(mesh, material, ubo);
+    createSampleMesh(mesh, geometry, material, ubo);
 
     auto* renderPass = vulgine->initNewRenderPass();
 
@@ -355,9 +364,9 @@ int main(int argc, char** argv){
 
 #if 1
     scene->createBackGround("frag_background_textured",
-                            {{Vulgine::DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER, 0,
-                              sampler,
-                              attachmentImage, nullptr}});
+                            {{{Vulgine::DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER, 0},
+                              {nullptr, sampler,
+                              attachmentImage}}});
 #endif
     auto* cube = scene->createEmptyMesh();
     cube->setName("Cube");
@@ -370,7 +379,9 @@ int main(int argc, char** argv){
 
     standaloneCube.transform = glm::translate(glm::vec3{0.0f, -5.0f, 0.0f});
 
-    createOffscreenProjectedMesh(cube, offscreenProjector);
+    auto* geometry1 = Vulgine::Get()->initNewGeometry();
+
+    createOffscreenProjectedMesh(cube, geometry1, offscreenProjector);
 
 
 

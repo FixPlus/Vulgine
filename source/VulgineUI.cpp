@@ -236,6 +236,10 @@ namespace Vulgine {
                 displayImageInfo();
                 break;
             }
+            case Object::Type::GEOMETRY: {
+                displayGeometryInfo();
+                break;
+            }
             case Object::Type::UBO: {
                 displayUBOInfo();
                 break;
@@ -434,82 +438,38 @@ namespace Vulgine {
         ImGui::Text("Parent: ");
         ImGui::SameLine();
         selectable(dynamic_cast<ObjectImpl*>(mesh.parent()));
-        if (ImGui::CollapsingHeader("Vertex Input Layout")) {
-            ImGui::Text("Per-Vertex:");
-            int location = 0;
-            auto iterate = [&location](AttributeFormat attr) {
-                std::string format;
-                int curLoc = location;
-                switch (attr) {
-                    case AttributeFormat::RGBA32SF: {
-                        format = "vec4";
-                        location++;
-                        break;
-                    }
-                    case AttributeFormat::RGB32SF: {
-                        format = "vec3";
-                        location++;
-                        break;
-                    }
-                    case AttributeFormat::RG32SF: {
-                        format = "vec2";
-                        location++;
-                        break;
-                    }
-                    case AttributeFormat::R32SF: {
-                        format = "float";
-                        location++;
-                        break;
-                    }
-                    case AttributeFormat::MAT4F: {
-                        format = "mat4";
-                        location += 4;
-                        break;
-                    }
-                    default:
-                        format = "???";
-                }
+        ImGui::Text("Geometry: ");
+        ImGui::SameLine();
+        selectable(dynamic_cast<ObjectImpl*>(mesh.geometry));
 
-                ImGui::BulletText("location = %d, %s", curLoc, format.c_str());
-
-            };
-
-            for (auto attr: mesh.vertexStageInfo.vertexFormat.perVertexAttributes)
-                iterate(attr);
-
-            if (mesh.vertexStageInfo.vertexFormat.perVertexAttributes.empty())
-                ImGui::Text("empty");
-
-            ImGui::Separator();
-
-            ImGui::Text("Per-Instance:");
-
-            for (auto attr: mesh.vertexStageInfo.vertexFormat.perInstanceAttributes)
-                iterate(attr);
-
-            if (mesh.vertexStageInfo.vertexFormat.perInstanceAttributes.empty())
-                ImGui::Text("empty");
-
-        }
         if (ImGui::CollapsingHeader("Vertices")) {
             std::string type = mesh.vertices.dynamic ? "dynamic" : "static";
 
-            ImGui::Text("Buffer type: %s", type.c_str());
-            ImGui::Text("Count: %d", mesh.vertices.count);
-            ImGui::Text("Size: %d bytes",
-                        mesh.vertexStageInfo.vertexFormat.perVertexSize() * mesh.vertices.count);
+            if(mesh.geometry) {
+                ImGui::Text("Buffer type: %s", type.c_str());
+                ImGui::Text("Count: %d", mesh.vertices.count);
+                ImGui::Text("Size: %d bytes",
+                            mesh.geometry->vertexFormat.perVertexSize() * mesh.vertices.count);
+            } else {
+                ImGui::Text("Empty");
+            }
         }
         if (ImGui::CollapsingHeader("Instances")) {
             std::string type = mesh.instances.dynamic ? "dynamic" : "static";
-
-            ImGui::Text("Buffer type: %s", type.c_str());
-            ImGui::Text("Count: %d", mesh.instances.count);
-            ImGui::Text("Size: %d bytes",
-                        mesh.vertexStageInfo.vertexFormat.perInstanceSize() * mesh.instances.count);
+            if(mesh.geometry) {
+                ImGui::Text("Buffer type: %s", type.c_str());
+                ImGui::Text("Count: %d", mesh.instances.count);
+                ImGui::Text("Size: %d bytes",
+                            mesh.geometry->vertexFormat.perInstanceSize() * mesh.instances.count);
+            } else {
+                ImGui::Text("Empty");
+            }
 
         }
-        if (ImGui::CollapsingHeader("Descriptor layout")) {
-            for (auto const &descriptor: mesh.vertexStageInfo.descriptors) {
+
+        if(ImGui::CollapsingHeader("Geometry Descriptors")) {
+            auto descIt = mesh.descriptors.begin();
+            for (auto const &descriptor: mesh.geometry->descriptors) {
                 std::string type;
                 switch (descriptor.type) {
                     case DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER: {
@@ -524,27 +484,30 @@ namespace Vulgine {
                         type = "unknown";
                 }
                 ImGui::Text("Binding %d: %s", descriptor.binding, type.c_str());
+                ImGui::Separator();
                 switch (descriptor.type) {
                     case DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER: {
                         ImGui::BulletText("Resource: ");
                         ImGui::SameLine();
-                        if(auto* image = dynamic_cast<StaticImageImpl*>(descriptor.image))
+                        if (auto *image = dynamic_cast<StaticImageImpl *>(descIt->image))
                             selectable(image);
                         else {
-                            selectable(dynamic_cast<DynamicImageImpl*>(descriptor.image));
+                            selectable(dynamic_cast<DynamicImageImpl *>(descIt->image));
                         }
                         break;
                     }
                     case DescriptorInfo::Type::UNIFORM_BUFFER: {
                         ImGui::BulletText("Resource: ");
                         ImGui::SameLine();
-                        selectable(dynamic_cast<UniformBufferImpl*>(descriptor.ubo));
+                        selectable(dynamic_cast<UniformBufferImpl *>(descIt->ubo));
                         break;
                     }
                     default:;
                 }
-                ImGui::Separator();
+
+                ++descIt;
             }
+
         }
 
 
@@ -614,6 +577,90 @@ namespace Vulgine {
 
         ImGui::DragFloat2("Direction", reinterpret_cast<float*>(&light.direction));
         ImGui::ColorPicker3("Color", reinterpret_cast<float*>(&light.color));
+    }
+
+    void ObjectInspector::displayGeometryInfo() {
+        auto* pGeometry = dynamic_cast<GeometryImpl*>(selectedObject);
+        assert(pGeometry && "Expected dynamic type match LightImpl");
+        auto& geometry = *pGeometry;
+
+        if (ImGui::CollapsingHeader("Vertex Input Layout")) {
+            ImGui::Text("Per-Vertex:");
+            int location = 0;
+            auto iterate = [&location](AttributeFormat attr) {
+                std::string format;
+                int curLoc = location;
+                switch (attr) {
+                    case AttributeFormat::RGBA32SF: {
+                        format = "vec4";
+                        location++;
+                        break;
+                    }
+                    case AttributeFormat::RGB32SF: {
+                        format = "vec3";
+                        location++;
+                        break;
+                    }
+                    case AttributeFormat::RG32SF: {
+                        format = "vec2";
+                        location++;
+                        break;
+                    }
+                    case AttributeFormat::R32SF: {
+                        format = "float";
+                        location++;
+                        break;
+                    }
+                    case AttributeFormat::MAT4F: {
+                        format = "mat4";
+                        location += 4;
+                        break;
+                    }
+                    default:
+                        format = "???";
+                }
+
+                ImGui::BulletText("location = %d, %s", curLoc, format.c_str());
+
+            };
+
+            for (auto attr: geometry.vertexFormat.perVertexAttributes)
+                iterate(attr);
+
+            if (geometry.vertexFormat.perVertexAttributes.empty())
+                ImGui::Text("empty");
+
+            ImGui::Separator();
+
+            ImGui::Text("Per-Instance:");
+
+            for (auto attr: geometry.vertexFormat.perInstanceAttributes)
+                iterate(attr);
+
+            if (geometry.vertexFormat.perInstanceAttributes.empty())
+                ImGui::Text("empty");
+
+        }
+        if (ImGui::CollapsingHeader("Descriptor layout")) {
+            for (auto const &descriptor: geometry.descriptors) {
+                std::string type;
+                switch (descriptor.type) {
+                    case DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER: {
+                        type = "combined image sampler";
+                        break;
+                    }
+                    case DescriptorInfo::Type::UNIFORM_BUFFER: {
+                        type = "uniform buffer";
+                        break;
+                    }
+                    default:
+                        type = "unknown";
+                }
+                ImGui::Text("Binding %d: %s", descriptor.binding, type.c_str());
+                ImGui::Separator();
+            }
+        }
+
     }
 
 }

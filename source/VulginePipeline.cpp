@@ -30,8 +30,8 @@ void Vulgine::GeneralPipeline::createImpl() {
 
         if(material->set.isCreated())
             layouts.push_back(material->set.layout());
-        if(mesh && mesh->set.isCreated())
-            layouts.push_back(mesh->set.layout());
+        if(geometry && geometry->layout != VK_NULL_HANDLE)
+            layouts.push_back(geometry->layout);
 
         VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo =
                 initializers::pipelineLayoutCreateInfo(
@@ -57,7 +57,7 @@ void Vulgine::GeneralPipeline::createImpl() {
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
         VkPipelineRasterizationStateCreateInfo rasterizationState = initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE,0);
         VkPipelineColorBlendAttachmentState blendAttachmentState[10];
-        auto colorAttachmentsCount = mesh == nullptr ? 1 : renderPass->frameBuffer.colorAttachmentCount();
+        auto colorAttachmentsCount = geometry == nullptr ? 1 : renderPass->frameBuffer.colorAttachmentCount();
         for(int i = 0; i < colorAttachmentsCount; i++)
             blendAttachmentState[i] = initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
 
@@ -78,10 +78,10 @@ void Vulgine::GeneralPipeline::createImpl() {
         pipelineCI.pDynamicState = &dynamicState;
         pipelineCI.stageCount = shaderStages.size();
         pipelineCI.pStages = shaderStages.data();
-        pipelineCI.pVertexInputState = mesh ? &mesh->vertexInputStateCI :  emptyVertexState();
+        pipelineCI.pVertexInputState = geometry ? &geometry->vertexInputStateCI :  emptyVertexState();
 
         pipelineCI.subpass = 0;
-        if(mesh == nullptr){
+        if(geometry == nullptr){
             pipelineCI.subpass = renderPass->deferredEnabled ? 2 : 0;
             rasterizationState.cullMode = VK_CULL_MODE_NONE;
             depthStencilState.depthWriteEnable = VK_FALSE;
@@ -89,7 +89,7 @@ void Vulgine::GeneralPipeline::createImpl() {
 
         // binding vertex shader
 
-        auto const& vertexShaderName = mesh ? mesh->vertexStageInfo.vertexShader : "vert_background";
+        auto const& vertexShaderName = geometry ? geometry->vertexShader : "vert_background";
 
         if(GetImpl().vertexShaders.count(vertexShaderName) == 0){
             Utilities::ExitFatal(-1,"Mesh has unknown vertex shader");
@@ -166,9 +166,9 @@ void Vulgine::GeneralPipeline::bind(VkCommandBuffer cmdBuffer) const {
 }
 
 bool Vulgine::PipelineKey::operator<(PipelineKey const& another) const {
-    if(mesh < another.mesh)
+    if(geometry < another.geometry)
         return true;
-    if(mesh == another.mesh) {
+    if(geometry == another.geometry) {
         if(material < another.material)
             return true;
         if(material == another.material){

@@ -22,14 +22,15 @@ uint32_t Vulgine::DescriptorPool::allocateSet(const VkDescriptorSetLayoutBinding
 
     setCount++;
 
-    if(std::any_of(descriptorsStored.begin(), descriptorsStored.end(),
-                   [this](std::map<VkDescriptorType, uint32_t> ::value_type const& elem){
-        return elem.second > pools.size() * descriptorsCapacity.at(elem.first);
-    }) || maxSets * pools.size() < setCount){
+    if(pools.empty()){
         std::vector<VkDescriptorPoolSize> poolSizes;
         for(auto cap: descriptorsCapacity)
             poolSizes.push_back({cap.first, cap.second});
         VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = initializers::descriptorPoolCreateInfo(poolSizes, maxSets);
+
+        if(returnable)
+            descriptorPoolCreateInfo.flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+
         auto& newPool = pools.emplace_back();
         VK_CHECK_RESULT( vkCreateDescriptorPool(GetImpl().device->logicalDevice, &descriptorPoolCreateInfo, nullptr, &newPool))
     }
@@ -42,7 +43,30 @@ uint32_t Vulgine::DescriptorPool::allocateSet(const VkDescriptorSetLayoutBinding
 
     VkDescriptorSet descriptorSet;
 
-    VK_CHECK_RESULT(vkAllocateDescriptorSets(GetImpl().device->logicalDevice, &allocateInfo, &descriptorSet))
+    bool created = false;
+    for(int i = 0; i < 2; i++){
+        allocateInfo.descriptorPool = pools.back();
+        auto result = vkAllocateDescriptorSets(GetImpl().device->logicalDevice, &allocateInfo, &descriptorSet);
+        if(result == VK_SUCCESS){
+            created = true;
+            break;
+        } else {
+            std::vector<VkDescriptorPoolSize> poolSizes;
+            for(auto cap: descriptorsCapacity)
+                poolSizes.push_back({cap.first, cap.second});
+            VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = initializers::descriptorPoolCreateInfo(poolSizes, maxSets);
+
+            if(returnable)
+                descriptorPoolCreateInfo.flags |= VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+
+            auto& newPool = pools.emplace_back();
+            VK_CHECK_RESULT( vkCreateDescriptorPool(GetImpl().device->logicalDevice, &descriptorPoolCreateInfo, nullptr, &newPool))
+        }
+    }
+
+    if(!created)
+        Utilities::ExitFatal(-1, "Failed to allocate set");
+
     uint32_t id;
     if(freeIds.empty())
        id = sets.size();
@@ -59,7 +83,17 @@ uint32_t Vulgine::DescriptorPool::allocateSet(const VkDescriptorSetLayoutBinding
 }
 
 void Vulgine::DescriptorPool::freeSet(uint32_t id) {
-    assert(0 && "Individual descriptor allocation return is not implemented yet");
+    assert(returnable && "Individual descriptor allocation return is not implemented yet");
+
+    auto descriptor = sets.at(id);
+    VK_CHECK_RESULT(vkFreeDescriptorSets(GetImpl().device->logicalDevice, allocatedIn.at(sets.at(id)), 0, &descriptor))
+
+    allocatedIn.erase(descriptor);
+
+    vkDestroyDescriptorSetLayout(GetImpl().device->logicalDevice, layouts.at(descriptor), nullptr);
+    layouts.erase(descriptor);
+    sets.erase(id);
+
 }
 
 void Vulgine::DescriptorPool::clear() {

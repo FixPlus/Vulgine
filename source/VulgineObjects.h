@@ -38,15 +38,11 @@ namespace Vulgine{
     };
 
     class MeshImpl: public Mesh, public ObjectImplNoMove{
-        VkVertexInputBindingDescription vertexAttrBindingInfo[2] = {};
 
-        std::vector<VkVertexInputAttributeDescription> attributesDesc{};
-
-        void compileVertexInputState();
 
     public:
 
-        DescriptorSet set;
+        std::optional<DescriptorSet> set;
 
         VkPipelineVertexInputStateCreateInfo vertexInputStateCI{};
 
@@ -139,6 +135,24 @@ namespace Vulgine{
         explicit SamplerImpl(uint32_t id): ObjectImplNoMove(Object::Type::SAMPLER, id){}
 
         ~SamplerImpl() override;
+    protected:
+        void createImpl() override;
+        void destroyImpl() override;
+    };
+
+    struct GeometryImpl: public Geometry, public ObjectImplNoMove{
+        VkVertexInputBindingDescription vertexAttrBindingInfo[2] = {};
+
+        std::vector<VkVertexInputAttributeDescription> attributesDesc{};
+
+        void compileVertexInputState();
+    public:
+        VkDescriptorSetLayout layout = VK_NULL_HANDLE;
+        VkPipelineVertexInputStateCreateInfo vertexInputStateCI{};
+
+        explicit GeometryImpl(uint32_t id): ObjectImplNoMove(Type::GEOMETRY, id) {}
+
+        ~GeometryImpl() override;
     protected:
         void createImpl() override;
         void destroyImpl() override;

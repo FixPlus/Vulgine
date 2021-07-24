@@ -13,7 +13,7 @@
 namespace Vulgine{
 
 
-    class DescriptorSet: public ObjectImplNoMove{
+    class DescriptorSet: public ObjectImpl{
         struct Set{
             uint32_t set = UINT32_MAX;
             std::vector<Descriptable*> descriptors;
@@ -29,7 +29,7 @@ namespace Vulgine{
 
 
 
-        DescriptorSet(): ObjectImplNoMove(Type::UNKNOWN, ObjectImpl::claimId()){}
+        DescriptorSet(): ObjectImpl(Type::DESCRIPTOR_SET, ObjectImpl::claimId()){}
 
         void bind(uint32_t set, VkCommandBuffer buffer, VkPipelineLayout layout, VkPipelineBindPoint bindPoint,uint32_t currentFrame);
 

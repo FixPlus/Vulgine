@@ -15,7 +15,7 @@ namespace Vulgine{
     class RenderPassImpl;
 
     struct PipelineKey{
-        MeshImpl* mesh = nullptr;
+        GeometryImpl* geometry = nullptr;
         MaterialImpl* material = nullptr;
         SceneImpl* scene = nullptr;
         RenderPassImpl* renderPass = nullptr;
@@ -62,14 +62,14 @@ namespace Vulgine{
      */
 
     struct GeneralPipeline: public Pipeline{
-        MaterialImpl* material;
+        GeometryImpl* geometry;
         SceneImpl* scene;
         RenderPassImpl* renderPass;
-        MeshImpl* mesh;
+        MaterialImpl* material;
 
 
         explicit GeneralPipeline(PipelineKey key = {}):
-            mesh(key.mesh), material(key.material), renderPass(key.renderPass), scene(key.scene){};
+                geometry(key.geometry), material(key.material), renderPass(key.renderPass), scene(key.scene){};
         GeneralPipeline& operator=(GeneralPipeline&& another) = default;
         void createImpl() override;
         void destroyImpl() override;

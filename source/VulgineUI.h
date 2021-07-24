@@ -43,6 +43,7 @@ namespace Vulgine{
         void displayImageInfo();
         void displayUBOInfo();
         void displayMeshInfo();
+        void displayGeometryInfo();
         void displayRenderPassInfo();
         void displayFrameBufferInfo();
         void displayCameraInfo();

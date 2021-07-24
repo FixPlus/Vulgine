@@ -103,7 +103,7 @@ namespace Vulgine{
         lightUBO.update();
     }
 
-    void SceneImpl::createBackGround(const char *fragmentShaderModule, const std::vector<DescriptorInfo> &descriptors) {
+    void SceneImpl::createBackGround(const char *fragmentShaderModule, const std::vector<std::pair<DescriptorInfo, Descriptor>> &descriptors) {
         if(background.created)
             return;
 

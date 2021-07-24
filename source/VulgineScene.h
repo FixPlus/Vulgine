@@ -43,7 +43,7 @@ namespace Vulgine{
         std::unordered_map<uint32_t, LightImpl> lights;
         std::unordered_map<uint32_t, CameraImpl> cameras;
 
-        void createBackGround(const char* fragmentShaderModule, std::vector<DescriptorInfo> const& descriptors) override;
+        void createBackGround(const char* fragmentShaderModule, std::vector<std::pair<DescriptorInfo, Descriptor>> const& descriptors) override;
         void deleteBackGround() override;
         Light* createLightSource() override;
         Mesh* createEmptyMesh() override;

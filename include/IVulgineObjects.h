@@ -64,8 +64,10 @@ namespace Vulgine{
             FRAME_BUFFER,
             PIPELINE,           // internal only
             SHADER_MODULE,      // internal only (yet)
+            DESCRIPTOR_SET,     // internal only (maybe public in future)
             NONE,
             SAMPLER,
+            GEOMETRY,
             UNKNOWN             // other uncategorized internal only objects
         };
 
@@ -194,12 +196,15 @@ namespace Vulgine{
         enum class Filtering{NONE, LINEAR} filtering = Filtering::LINEAR;
     };
 
+    struct Descriptor{
+        UniformBuffer* ubo = nullptr;
+        Sampler* sampler = nullptr;
+        Image* image = nullptr;
+    };
+
     struct DescriptorInfo{
         enum class Type{ UNIFORM_BUFFER, COMBINED_IMAGE_SAMPLER} type;
         int binding;
-        Sampler* sampler = nullptr;
-        Image* image = nullptr;
-        UniformBuffer* ubo = nullptr;
     };
 
 
@@ -246,7 +251,7 @@ namespace Vulgine{
         struct {
 
             std::vector<AttributeFormat> inputAttributes = {};
-            std::vector<DescriptorInfo> descriptors = {};
+            std::vector<std::pair<DescriptorInfo, Descriptor>> descriptors = {};
             std::string fragmentShader = "frag_default";
 
         } customMaterialInfo;
@@ -277,6 +282,13 @@ namespace Vulgine{
     };
 
 
+    struct Geometry: virtual public Object{
+        VertexFormat vertexFormat;
+        std::string vertexShader = "vert_default";
+        std::vector<DescriptorInfo> descriptors{};
+    };
+
+
     /**
      *
      * @brief rendered object
@@ -289,12 +301,10 @@ namespace Vulgine{
 
         Mesh(Scene* parent): parent_(parent){}
 
-        struct {
-            VertexFormat vertexFormat{};
-            std::string vertexShader = "vert_default";
+        Geometry* geometry = nullptr;
 
-            std::vector<DescriptorInfo> descriptors{};
-        } vertexStageInfo;
+        std::vector<Descriptor> descriptors{0};
+
         /**
          * @brief vertices
          *

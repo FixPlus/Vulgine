@@ -141,6 +141,7 @@ namespace Vulgine{
         images.clear();
         uniformBuffers.clear();
         samplers.clear();
+        geometries.clear();
 
 
 
@@ -1068,6 +1069,14 @@ namespace Vulgine{
 
 
         }
+    }
+
+    Geometry *VulgineImpl::initNewGeometry() {
+        return geometries.emplace();
+    }
+
+    void VulgineImpl::deleteGeometry(Geometry *geometry) {
+        geometries.free(dynamic_cast<GeometryImpl*>(geometry));
     }
 
     void disableLog(){

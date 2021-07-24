@@ -27,6 +27,7 @@ namespace Vulgine{
     public:
         std::map<VkDescriptorType, uint32_t> descriptorsCapacity{};
         uint32_t maxSets = 0;
+        bool returnable = false;
 
         uint32_t allocateSet(const VkDescriptorSetLayoutBinding*, uint32_t bindingCount);
 

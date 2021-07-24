@@ -145,6 +145,9 @@ namespace Vulgine {
         virtual Sampler* initNewSampler() = 0;
         virtual void deleteSampler(Sampler* sampler) = 0;
 
+        virtual Geometry* initNewGeometry() = 0;
+        virtual void deleteGeometry(Geometry* geometry) = 0;
+
         virtual void loadCustomShader(const char* filename, const char* name, ShaderStage stage) = 0;
 
 

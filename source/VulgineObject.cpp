@@ -54,7 +54,9 @@ uint32_t ObjectImpl::count(Type type) { return countMap.count(type) ? countMap.a
         typeNames.emplace(Type::RENDER_PASS,   "Render pass");
         typeNames.emplace(Type::FRAME_BUFFER,  "Framebuffer");
         typeNames.emplace(Type::PIPELINE,      "Pipeline");
-        typeNames.emplace(Type::SAMPLER,      "Sampler");
+        typeNames.emplace(Type::SAMPLER,       "Sampler");
+        typeNames.emplace(Type::GEOMETRY,      "Geometry");
+        typeNames.emplace(Type::DESCRIPTOR_SET,"Descriptor Set");
         typeNames.emplace(Type::UNKNOWN,       "Unknown object");
     }
 
@@ -145,13 +147,13 @@ uint32_t ObjectImpl::count(Type type) { return countMap.count(type) ? countMap.a
             }
         }
 
-        if(auto* mesh = dynamic_cast<MeshImpl*>(object)){
+        if(auto* geometry = dynamic_cast<GeometryImpl*>(object)){
             auto maxVertexInputAttachments = GetImpl().device->properties.limits.maxVertexInputAttributes;
-            auto vertexInputAttachments = mesh->vertexStageInfo.vertexFormat.perInstanceAttributes.size() +
-                                          mesh->vertexStageInfo.vertexFormat.perVertexAttributes.size();
+            auto vertexInputAttachments = geometry->vertexFormat.perInstanceAttributes.size() +
+                    geometry->vertexFormat.perVertexAttributes.size();
 
             if(vertexInputAttachments > maxVertexInputAttachments){
-                errs(mesh->objectLabel() + " exceeds device.limits.maxVertexInputAttributes(" + std::to_string(maxVertexInputAttachments) +
+                errs(geometry->objectLabel() + " exceeds device.limits.maxVertexInputAttributes(" + std::to_string(maxVertexInputAttachments) +
                 ") by having" + std::to_string(vertexInputAttachments) + " of them");
                 return false;
             }

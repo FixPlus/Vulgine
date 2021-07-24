@@ -15,7 +15,7 @@ namespace Vulgine{
 
 
         virtual void createBackGround(const char* fragmentShaderModule = "frag_background"
-                , std::vector<DescriptorInfo> const& descriptors = {}) = 0;
+                , std::vector<std::pair<DescriptorInfo, Descriptor>> const& descriptors = {}) = 0;
         virtual void deleteBackGround() = 0;
 
         virtual Light* createLightSource() = 0;

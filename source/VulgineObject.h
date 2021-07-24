@@ -9,7 +9,14 @@
 #include <stack>
 #include <functional>
 
+#define SELF_CHECK_DEVICE_LIMITS() assert(checkDeviceLimits(this) && "object exceeds device limits");
+
 namespace Vulgine{
+
+    class ObjectImpl;
+
+    bool checkDeviceLimits(ObjectImpl* object);
+
     class ObjectImpl: public virtual Object{
     private:
 
@@ -42,6 +49,7 @@ namespace Vulgine{
         void create() final {
             if(created)
                 return;
+            SELF_CHECK_DEVICE_LIMITS();
             createImpl();
             created = true;
         };
@@ -73,9 +81,9 @@ namespace Vulgine{
         ~ObjectImpl() override;
     };
 
-    bool checkDeviceLimits(ObjectImpl* object);
 
-#define SELF_CHECK_DEVICE_LIMITS() assert(checkDeviceLimits(this) && "object exceeds device limits");
+
+
 #define CHECK_DEVICE_LIMITS(OBJ) assert(checkDeviceLimits(OBJ) && "object exceeds device limits");
 
     struct ObjectImplNoMove: public ObjectImpl{
