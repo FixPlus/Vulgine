@@ -158,9 +158,9 @@ Vulgine::Image *Vulgine::FrameBufferImpl::createAttachment(VkFormat format, VkIm
 
 void Vulgine::FrameBufferImpl::createGBuffer() {
 
-    createAttachment(GBufferPosFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);	// (World space) Positions
-    createAttachment(GBufferNormFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);		// (World space) Normals
-    createAttachment(GBufferAlbedoFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);			// Albedo (color)
+    createAttachment(GBufferPosFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT);	// (World space) Positions
+    createAttachment(GBufferNormFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT);		// (World space) Normals
+    createAttachment(GBufferAlbedoFormat, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT);			// Albedo (color)
 
 }
 

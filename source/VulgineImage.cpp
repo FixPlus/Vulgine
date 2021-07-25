@@ -105,7 +105,10 @@ void Vulgine::DynamicImageImpl::createImpl() {
     images.reserve(imageCount);
     for(int i = 0; i < imageCount; ++i){
         auto& image = images.emplace_back();
-        image.allocate(createInfo, VMA_MEMORY_USAGE_GPU_ONLY, 0, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_GPU_ONLY;
+        uint32_t reqs = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+        image.allocate(createInfo, memUsage, 0, reqs);
         image.transitImageLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 }

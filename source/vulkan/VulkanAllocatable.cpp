@@ -42,8 +42,9 @@ void Vulgine::Memory::Buffer::free() {
 
 void Vulgine::Memory::Image::allocate(VkImageCreateInfo imageCI, VmaMemoryUsage memoryUsageFlags, VmaAllocationCreateFlags allocFlags, VkMemoryPropertyFlags reqFlags, VkMemoryPropertyFlags prefFlags) {
     if(allocated){
-        vmaDestroyImage(GetImpl().allocator, image, allocation);
+        free();
     }
+
     imageInfo = imageCI;
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = memoryUsageFlags;
@@ -51,7 +52,7 @@ void Vulgine::Memory::Image::allocate(VkImageCreateInfo imageCI, VmaMemoryUsage 
     allocInfo.requiredFlags = reqFlags;
     allocInfo.flags = allocFlags;
 
-    vmaCreateImage(GetImpl().allocator, &imageCI, &allocInfo, &image, &allocation, nullptr);
+    VK_CHECK_RESULT(vmaCreateImage(GetImpl().allocator, &imageCI, &allocInfo, &image, &allocation, nullptr))
 
     allocated = true;
 
