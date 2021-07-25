@@ -48,6 +48,7 @@ namespace Vulgine{
         void displayFrameBufferInfo();
         void displayCameraInfo();
         void displayLightInfo();
+        void displayDescriptorSetInfo();
 
         void select(uint32_t id);
 

@@ -308,6 +308,10 @@ namespace Vulgine{
     struct Geometry: virtual public Object{
         VertexFormat vertexFormat;
         std::string vertexShader = "vert_default";
+
+        enum CullMode {NONE, CLOCKWISE, COUNTER_CLOCKWISE} cullMode = COUNTER_CLOCKWISE;
+        enum FillMode {FILL, LINE, POINT} fillMode = FILL;
+
         std::vector<DescriptorInfo> descriptors{};
     };
 

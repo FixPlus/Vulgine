@@ -266,6 +266,10 @@ namespace Vulgine {
                 displayLightInfo();
                 break;
             }
+            case Object::Type::DESCRIPTOR_SET:{
+                displayDescriptorSetInfo();
+                break;
+            }
             default:
                 ImGui::Text("Cannot display any information for this type of object yet");
                 break;
@@ -471,6 +475,12 @@ namespace Vulgine {
         }
 
         if(ImGui::CollapsingHeader("Geometry Descriptors")) {
+            if(mesh.set) {
+                ImGui::Text("Mesh Set: ");
+                ImGui::SameLine();
+                selectable(&mesh.set.value());
+                ImGui::Separator();
+            }
             auto descIt = mesh.descriptors.begin();
             for (auto const &descriptor: mesh.geometry->descriptors) {
                 std::string type;
@@ -582,10 +592,37 @@ namespace Vulgine {
         ImGui::ColorPicker3("Color", reinterpret_cast<float*>(&light.color));
     }
 
+    void ObjectInspector::displayDescriptorSetInfo(){
+        auto* pDescriptorSet = dynamic_cast<DescriptorSet*>(ObjectImpl::get(selectedObject.value()));
+        assert(pDescriptorSet && "Expected dynamic type match DescriptorSet");
+        auto& set = *pDescriptorSet;
+
+        ImGui::Text("Empty here for now");
+    }
+
     void ObjectInspector::displayGeometryInfo() {
         auto* pGeometry = dynamic_cast<GeometryImpl*>(ObjectImpl::get(selectedObject.value()));
-        assert(pGeometry && "Expected dynamic type match LightImpl");
+        assert(pGeometry && "Expected dynamic type match GeometryImpl");
         auto& geometry = *pGeometry;
+
+        const char* cullMode, *fillMode;
+
+        switch (geometry.cullMode) {
+            case Geometry::NONE: cullMode = "None"; break;
+            case Geometry::CLOCKWISE: cullMode = "Front face clockwise"; break;
+            case Geometry::COUNTER_CLOCKWISE: cullMode = "Front face counter-clockwise"; break;
+        }
+
+        switch (geometry.fillMode) {
+            case Geometry::FillMode::FILL: fillMode = "Fill"; break;
+            case Geometry::FillMode::LINE: fillMode = "BorderLine"; break;
+            case Geometry::FillMode::POINT: fillMode = "Point"; break;
+        }
+
+        ImGui::Text("Cull mode: %s", cullMode);
+        ImGui::Text("Fill mode: %s", fillMode);
+
+        ImGui::Separator();
 
         if (ImGui::CollapsingHeader("Vertex Input Layout")) {
             ImGui::Text("Per-Vertex:");

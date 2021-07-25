@@ -56,6 +56,21 @@ void Vulgine::GeneralPipeline::createImpl() {
 
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
         VkPipelineRasterizationStateCreateInfo rasterizationState = initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE,0);
+
+        if(geometry) {
+            switch (geometry->cullMode) {
+                case Geometry::NONE: rasterizationState.cullMode = VK_CULL_MODE_NONE; break;
+                case Geometry::CLOCKWISE: rasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE; break;
+                case Geometry::COUNTER_CLOCKWISE: rasterizationState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE; break;
+            }
+
+            switch (geometry->fillMode) {
+                case Geometry::FILL: rasterizationState.polygonMode = VK_POLYGON_MODE_FILL; break;
+                case Geometry::LINE: rasterizationState.polygonMode = VK_POLYGON_MODE_LINE; break;
+                case Geometry::POINT: rasterizationState.polygonMode = VK_POLYGON_MODE_POINT; break;
+            }
+        }
+
         VkPipelineColorBlendAttachmentState blendAttachmentState[10];
         auto colorAttachmentsCount = geometry == nullptr ? 1 : renderPass->frameBuffer.colorAttachmentCount();
         for(int i = 0; i < colorAttachmentsCount; i++)
