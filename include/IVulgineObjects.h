@@ -261,6 +261,10 @@ namespace Vulgine{
             ::Vulgine::ImageRef normalMap = nullptr;
         } texture;
 
+        glm::vec4 baseColor = glm::vec4(1.0f); // used when colorMap == nullptr
+        float specular = 1.0f;
+
+        virtual void update() = 0;
         bool custom = false;
 
         struct {

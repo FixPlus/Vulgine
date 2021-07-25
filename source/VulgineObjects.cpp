@@ -284,22 +284,30 @@ namespace Vulgine{
 
         set.pool = &GetImpl().perMaterialPool;
 
+
+
         if(!custom) {
             assert(!texture.normalMap ||
                    (texture.colorMap && texture.normalMap) && "Standalone normal maps aren't supported");
             assert(((texture.colorMap && texture.sampler) || !texture.colorMap) && "Cannot create material texture without sampler");
+
+            ubo = GetImpl().uniformBuffers.getImpl(GetImpl().initNewUniformBuffer()->id());
+            ubo->size = sizeof(specular);
+            ubo->pData = &specular;
+            ubo->dynamic = true;
+            ubo->create();
+            ubo->update();
+
             if (texture.colorMap) {
                 set.addCombinedImageSampler(texture.colorMap, VK_SHADER_STAGE_FRAGMENT_BIT, texture.sampler);
-
             }
             if (texture.normalMap) {
                 set.addCombinedImageSampler(texture.normalMap, VK_SHADER_STAGE_FRAGMENT_BIT, texture.sampler);
-
             }
+            set.addUniformBuffer(ubo, VK_SHADER_STAGE_FRAGMENT_BIT);
 
-            if (texture.colorMap) {
-                set.create();
-            }
+            set.create();
+
         } else{
             for(auto& descriptor: customMaterialInfo.descriptors){
                 switch(descriptor.first.type){
@@ -491,6 +499,10 @@ namespace Vulgine{
 
     MaterialImpl::~MaterialImpl() {
 
+    }
+
+    void MaterialImpl::update() {
+        ubo->update();
     }
 
     void LightImpl::createImpl() {

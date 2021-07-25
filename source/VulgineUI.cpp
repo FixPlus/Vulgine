@@ -305,6 +305,10 @@ namespace Vulgine {
 
     void ObjectInspector::displayMaterialInfo() {
         auto &material = *dynamic_cast<MaterialImpl*>(ObjectImpl::get(selectedObject.value()));
+
+        if(ImGui::SliderFloat("Specular", &material.specular, 0.0f, 1.0f)){
+            material.update();
+        }
         if (ImGui::CollapsingHeader("Texture")) {
             ImGui::BulletText("Color Map: ");
             ImGui::SameLine();

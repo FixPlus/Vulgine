@@ -11,6 +11,9 @@ layout (location = 0) out vec4 outFragColor;
 
 layout(binding = 0, set = 0) uniform sampler2D colorMap;
 
+layout(binding = 1, set = 0) uniform UBO{
+    float specular;
+}   ubo;
 
 void main()
 {
@@ -26,5 +29,5 @@ void main()
     totalBrightness.w = 1.0f;
     totalSpecular.w = 0.0f;
 
-    outFragColor = vec4(inColor, 1.0f) * texture(colorMap, inUV) * totalBrightness + totalSpecular;
+    outFragColor = vec4(inColor, 1.0f) * texture(colorMap, inUV) * totalBrightness + ubo.specular * totalSpecular;
 }

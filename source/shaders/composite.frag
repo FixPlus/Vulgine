@@ -78,7 +78,8 @@ void main() {
 
     totalBrightness.w = 1.0f;
     totalSpecular.w = 0.0f;
-    outColor =  albedo * totalBrightness + totalSpecular;
+    totalSpecular *= albedo.a;
+    outColor =  vec4(albedo.rgb, 1.0f) * totalBrightness + totalSpecular;
 
 
 }

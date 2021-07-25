@@ -106,6 +106,9 @@ namespace Vulgine{
 
     struct MaterialImpl: public Material, public ObjectImplNoMove{
         DescriptorSet set;
+        SharedRef<UniformBufferImpl> ubo = nullptr;
+
+        void update() override;
 
         explicit MaterialImpl(uint32_t id): ObjectImplNoMove(Type::MATERIAL, id){}
         void createImpl() override;

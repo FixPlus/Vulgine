@@ -17,6 +17,10 @@ layout (constant_id = 1) const float FAR_PLANE = 256.0f;
 
 layout(binding = 0, set = 0) uniform sampler2D colorMap;
 
+layout(binding = 1, set = 0) uniform UBO{
+    float specular;
+}   material;
+
 float linearDepth(float depth)
 {
     float z = depth * 2.0f - 1.0f;
@@ -30,12 +34,18 @@ void main()
     vec3 N = normalize(inNorm);
     N.y = -N.y;
     outNormal = vec4(N, 1.0);
+    // Write color attachments to avoid undefined behaviour (validation error)
+    outColor = vec4(0.0);
+
+    if(texture(colorMap, inUV).a == 0.0f){
+        discard;
+    }
 
     outAlbedo.rgb = inColor * texture(colorMap, inUV).rgb;
+    outAlbedo.a = material.specular;
 
     // Store linearized depth in alpha component
     outPosition.a = linearDepth(gl_FragCoord.z);
 
-    // Write color attachments to avoid undefined behaviour (validation error)
-    outColor = vec4(0.0);
+
 }
