@@ -36,7 +36,7 @@ namespace Vulgine{
 
     class ObjectInspector: public ContentWindow{
 
-        ObjectImpl* selectedObject;
+        std::optional<uint32_t> selectedObject;
 
         void displaySceneInfo();
         void displayMaterialInfo();
@@ -49,7 +49,7 @@ namespace Vulgine{
         void displayCameraInfo();
         void displayLightInfo();
 
-        void select(ObjectImpl* object);
+        void select(uint32_t id);
 
 
         void selectable(ObjectImpl* object);

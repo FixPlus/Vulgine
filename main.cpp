@@ -68,7 +68,7 @@ VertexAttribute vertexAttributes[24] = {
                                        };
 
 struct Camera{
-    Vulgine::Camera* cameraImpl;
+    Vulgine::CameraRef cameraImpl;
 
     struct
     {
@@ -135,7 +135,7 @@ struct Camera{
     };
 };
 
-void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Geometry* geometry, Vulgine::Material* material, Vulgine::UniformBuffer* ubo){
+void createSampleMesh(Vulgine::MeshRef const& mesh, Vulgine::GeometryRef const& geometry, Vulgine::MaterialRef const& material, Vulgine::UniformBufferRef const& ubo){
     Vulgine::VertexFormat format;
     format.perVertexAttributes = {Vulgine::AttributeFormat::RGB32SF, Vulgine::AttributeFormat::RGB32SF, Vulgine::AttributeFormat::RG32SF};
     format.perInstanceAttributes = {Vulgine::AttributeFormat::MAT4F};
@@ -181,7 +181,7 @@ void createSampleMesh(Vulgine::Mesh* mesh, Vulgine::Geometry* geometry, Vulgine:
     mesh->create();
 }
 
-void createOffscreenProjectedMesh(Vulgine::Mesh* mesh, Vulgine::Geometry* geometry, Vulgine::Material* material){
+void createOffscreenProjectedMesh(Vulgine::MeshRef const& mesh, Vulgine::GeometryRef const& geometry, Vulgine::MaterialRef const& material){
     Vulgine::VertexFormat format;
     format.perVertexAttributes = {Vulgine::AttributeFormat::RGB32SF, Vulgine::AttributeFormat::RGB32SF, Vulgine::AttributeFormat::RG32SF};
     format.perInstanceAttributes = {Vulgine::AttributeFormat::MAT4F};
@@ -232,197 +232,229 @@ int main(int argc, char** argv){
 
     auto* vulgine = Vulgine::Get();
 
-    auto* scene = vulgine->initNewScene();
 
-    scene->create();
+    {
+        Vulgine::MeshRef mesh, cube;
 
-    auto* sampler = vulgine->initNewSampler();
+        auto scene = vulgine->initNewScene();
 
-    sampler->create();
+        scene->create();
 
-    auto* light1 = scene->createLightSource();
+        auto sampler = vulgine->initNewSampler();
 
-    light1->direction = glm::vec2{0.0f, 0.0f};
-    light1->color = glm::vec3{1.0f, 0.5f, 0.2f};
-    light1->update();
+        sampler->create();
 
-    auto* light2 = scene->createLightSource();
+        auto light1 = scene->createLightSource();
 
-    light2->direction = glm::vec2{0.0f, 0.0f};
-    light2->color = glm::vec3{1.0f, 1.0f, 1.0f};
-    light2->update();
+        light1->direction = glm::vec2{0.0f, 0.0f};
+        light1->color = glm::vec3{1.0f, 0.5f, 0.2f};
+        light1->update();
 
-    auto* material = vulgine->initNewMaterial();
+        auto light2 = scene->createLightSource();
 
+        light2->direction = glm::vec2{0.0f, 0.0f};
+        light2->color = glm::vec3{1.0f, 1.0f, 1.0f};
+        light2->update();
 
-
-    material->setName("Wario Surface");
-
-    auto* texture = vulgine->initNewImage();
+        auto material = vulgine->initNewMaterial();
 
 
-    auto* ubo = vulgine->initNewUniformBuffer();
+        material->setName("Wario Surface");
 
-    ubo->dynamic = true;
-    ubo->pData = &shift;
-    ubo->size = sizeof(shift);
-    ubo->create();
-
-    if(!texture->loadFromFile("image.jpg", Vulgine::Image::FILE_FORMAT_JPEG)){
-        Vulgine::Terminate();
-        return 0;
-    }
+        auto texture = vulgine->initNewImage();
 
 
-    material->texture.colorMap = texture;
-    material->texture.sampler = sampler;
+        auto ubo = vulgine->initNewUniformBuffer();
 
-    material->create();
+        ubo->dynamic = true;
+        ubo->pData = &shift;
+        ubo->size = sizeof(shift);
+        ubo->create();
 
-    Camera camera;
+        if (!texture->loadFromFile("image.jpg", Vulgine::Image::FILE_FORMAT_JPEG)) {
+            Vulgine::Terminate();
+            return 0;
+        }
 
-    camera.cameraImpl = scene->createCamera();
 
-    for(int i = 0; i < metaCubesize; i++)
-        for(int j = 0; j < metaCubesize; j++)
-            for(int k = 0; k < metaCubesize; k++)
-                instancesAttributes[i * metaCubesize * metaCubesize + j * metaCubesize + k].transform = glm::translate(glm::vec3{i * 2.0f, j * 2.0f, k * 2.0f});
+        material->texture.colorMap = texture;
+        material->texture.sampler = sampler;
 
-    double timer = 0.0f, deltaT = 0.0f;
+        material->create();
 
-    vulgine->keyboardState.onKeyDown = [&camera, vulgine](int key){
-        switch(key){
+        Camera camera;
 
-            case GLFW_KEY_W: camera.keys.up = true; break;
-            case GLFW_KEY_S: camera.keys.down = true; break;
-            case GLFW_KEY_A: camera.keys.left = true; break;
-            case GLFW_KEY_D: camera.keys.right = true; break;
-            case GLFW_KEY_SPACE: camera.keys.space = true; break;
-            case GLFW_KEY_LEFT_SHIFT:
-            case GLFW_KEY_RIGHT_SHIFT: camera.keys.shift = true; break;
-            case GLFW_KEY_C: {
-                if(vulgine->mouseState.cursor.enabled)
-                    vulgine->mouseState.disableCursor();
-                else
-                    vulgine->mouseState.enableCursor();
+        camera.cameraImpl = scene->createCamera();
 
-                break;
+        for (int i = 0; i < metaCubesize; i++)
+            for (int j = 0; j < metaCubesize; j++)
+                for (int k = 0; k < metaCubesize; k++)
+                    instancesAttributes[i * metaCubesize * metaCubesize + j * metaCubesize +
+                                        k].transform = glm::translate(glm::vec3{i * 2.0f, j * 2.0f, k * 2.0f});
+
+        double timer = 0.0f, deltaT = 0.0f;
+
+        vulgine->keyboardState.onKeyDown = [&camera, vulgine](int key) {
+            switch (key) {
+
+                case GLFW_KEY_W:
+                    camera.keys.up = true;
+                    break;
+                case GLFW_KEY_S:
+                    camera.keys.down = true;
+                    break;
+                case GLFW_KEY_A:
+                    camera.keys.left = true;
+                    break;
+                case GLFW_KEY_D:
+                    camera.keys.right = true;
+                    break;
+                case GLFW_KEY_SPACE:
+                    camera.keys.space = true;
+                    break;
+                case GLFW_KEY_LEFT_SHIFT:
+                case GLFW_KEY_RIGHT_SHIFT:
+                    camera.keys.shift = true;
+                    break;
+                case GLFW_KEY_C: {
+                    if (vulgine->mouseState.cursor.enabled)
+                        vulgine->mouseState.disableCursor();
+                    else
+                        vulgine->mouseState.enableCursor();
+
+                    break;
+                }
+                default:
+                    break;
             }
-            default: break;
-        }
 
-    };
+        };
 
-    vulgine->keyboardState.onKeyUp = [&camera](int key){
-        switch(key){
-            case GLFW_KEY_W: camera.keys.up = false; break;
-            case GLFW_KEY_S: camera.keys.down = false; break;
-            case GLFW_KEY_A: camera.keys.left = false; break;
-            case GLFW_KEY_D: camera.keys.right = false; break;
-            case GLFW_KEY_SPACE: camera.keys.space = false; break;
-            case GLFW_KEY_LEFT_SHIFT:
-            case GLFW_KEY_RIGHT_SHIFT: camera.keys.shift = false; break;
+        vulgine->keyboardState.onKeyUp = [&camera](int key) {
+            switch (key) {
+                case GLFW_KEY_W:
+                    camera.keys.up = false;
+                    break;
+                case GLFW_KEY_S:
+                    camera.keys.down = false;
+                    break;
+                case GLFW_KEY_A:
+                    camera.keys.left = false;
+                    break;
+                case GLFW_KEY_D:
+                    camera.keys.right = false;
+                    break;
+                case GLFW_KEY_SPACE:
+                    camera.keys.space = false;
+                    break;
+                case GLFW_KEY_LEFT_SHIFT:
+                case GLFW_KEY_RIGHT_SHIFT:
+                    camera.keys.shift = false;
+                    break;
 
-            default: break;
-        }
+                default:
+                    break;
+            }
 
-    };
+        };
 
-    vulgine->imgui.customGUI = [&camera](){
-        ImGui::Begin("Camera State", nullptr);
-        ImGui::Text("Velocity: %f", glm::length(camera.velocity));
-        auto const& pos = camera.cameraImpl->position;
-        ImGui::Text("Position: x:%.2f y:%.2f z:%.2f",pos.x, pos.y, pos.z);
-        ImGui::End();
-    };
+        vulgine->imgui.customGUI = [&camera]() {
+            ImGui::Begin("Camera State", nullptr);
+            ImGui::Text("Velocity: %f", glm::length(camera.velocity));
+            auto const &pos = camera.cameraImpl->position;
+            ImGui::Text("Position: x:%.2f y:%.2f z:%.2f", pos.x, pos.y, pos.z);
+            ImGui::End();
+        };
 
-    const double rotSpeed = 0.1f;
+        const double rotSpeed = 0.1f;
 
-    vulgine->mouseState.onMouseMove = [&camera, vulgine, rotSpeed](double dx, double dy, double x, double y){
-        if(!vulgine->mouseState.cursor.enabled)
-            camera.rotate(-dy * rotSpeed, -dx * rotSpeed, 0);
-    };
+        vulgine->mouseState.onMouseMove = [&camera, vulgine, rotSpeed](double dx, double dy, double x, double y) {
+            if (!vulgine->mouseState.cursor.enabled)
+                camera.rotate(-dy * rotSpeed, -dx * rotSpeed, 0);
+        };
 
 
-    auto* mesh = scene->createEmptyMesh();
-    auto* geometry = vulgine->initNewGeometry();
+        mesh = Vulgine::Get()->initNewMesh();
+        scene->drawList.push_back(mesh);
+        auto geometry = vulgine->initNewGeometry();
 
-    createSampleMesh(mesh, geometry, material, ubo);
+        createSampleMesh(mesh, geometry, material, ubo);
 
-    auto* renderPass = vulgine->initNewRenderPass();
+        auto renderPass = vulgine->initNewRenderPass();
 
-    auto* offscreenRenderPass = vulgine->initNewRenderPass();
+        auto offscreenRenderPass = vulgine->initNewRenderPass();
 
-    renderPass->onscreen = true;
-    renderPass->dependencies.push_back(offscreenRenderPass);
+        renderPass->onscreen = true;
+        renderPass->dependencies.push_back(offscreenRenderPass);
 
-    offscreenRenderPass->getFrameBuffer()->width = 500;
-    offscreenRenderPass->getFrameBuffer()->height = 500;
+        offscreenRenderPass->framebufferExtents.width = 500;
+        offscreenRenderPass->framebufferExtents.height = 500;
 
-    auto* attachmentImage = offscreenRenderPass->getFrameBuffer()->addAttachment();
-    //offscreenRenderPass->getFrameBuffer()->addAttachment(Vulgine::FrameBuffer::Type::DEPTH_STENCIL);
+        auto attachmentImage = offscreenRenderPass->addAttachment();
+        //offscreenRenderPass->getFrameBuffer()->addAttachment(Vulgine::FrameBuffer::Type::DEPTH_STENCIL);
 
 #if 1
-    scene->createBackGround("frag_background_textured",
-                            {{{Vulgine::DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER, 0},
-                              {nullptr, sampler,
-                              attachmentImage}}});
+        scene->createBackGround("frag_background_textured",
+                                {{{Vulgine::DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER, 0},
+                                         {nullptr, sampler,
+                                                 attachmentImage}}});
 #endif
-    auto* cube = scene->createEmptyMesh();
-    cube->setName("Cube");
+        cube = Vulgine::Get()->initNewMesh();
+        scene->drawList.push_back(cube);
+        cube->setName("Cube");
 
-    auto* offscreenProjector = vulgine->initNewMaterial();
-    offscreenProjector->texture.sampler = sampler;
-    offscreenProjector->texture.colorMap = attachmentImage;
-    offscreenProjector->create();
-    offscreenProjector->setName("Offscreen Projector");
+        auto offscreenProjector = vulgine->initNewMaterial();
+        offscreenProjector->texture.sampler = sampler;
+        offscreenProjector->texture.colorMap = attachmentImage;
+        offscreenProjector->create();
+        offscreenProjector->setName("Offscreen Projector");
 
-    standaloneCube.transform = glm::translate(glm::vec3{0.0f, -5.0f, 0.0f});
+        standaloneCube.transform = glm::translate(glm::vec3{0.0f, -5.0f, 0.0f});
 
-    auto* geometry1 = Vulgine::Get()->initNewGeometry();
+        auto geometry1 = Vulgine::Get()->initNewGeometry();
 
-    createOffscreenProjectedMesh(cube, geometry1, offscreenProjector);
+        createOffscreenProjectedMesh(cube, geometry1, offscreenProjector);
 
 
+        offscreenRenderPass->onscreen = false;
+        offscreenRenderPass->camera = camera.cameraImpl;
+        offscreenRenderPass->scene = scene;
 
-    offscreenRenderPass->onscreen = false;
-    offscreenRenderPass->camera = camera.cameraImpl;
-    offscreenRenderPass->scene = scene;
+        renderPass->scene = scene;
+        renderPass->camera = camera.cameraImpl;
 
-    renderPass->scene = scene;
-    renderPass->camera = camera.cameraImpl;
+        vulgine->buildRenderPasses();
 
-    vulgine->buildRenderPasses();
+        bool skip = true;
 
-    bool skip = true;
-
-    vulgine->onCycle = [&skip, &timer, &deltaT, vulgine, mesh, &camera, &shift, light1, light2, ubo](){
-        if(skip)
-            skip = false;
-        else
-            deltaT = vulgine->lastFrameTime();
-        timer += deltaT;
-        shift = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f) * (float)sin(timer);
-        ubo->update();
-        light1->update();
-        light2->update();
+        vulgine->onCycle = [&skip, &timer, &deltaT, vulgine, &camera, &shift, &light1, &light2, &ubo]() {
+            if (skip)
+                skip = false;
+            else
+                deltaT = vulgine->lastFrameTime();
+            timer += deltaT;
+            shift = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f) * (float) sin(timer);
+            ubo->update();
+            light1->update();
+            light2->update();
 #if 0
-        for(int i = 0; i < metaCubesize; i++){
-            glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), (float)deltaT * (((i * 3 + 11) % 5) + 1),
-                                           glm::normalize(glm::vec3{1.0f, (i * 7 + 19) % 13, (i * 23 + 5) % 37}));
-            for(int j = 0; j < metaCubesize * metaCubesize; j++)
-                instancesAttributes[j * metaCubesize + i ].transform = instancesAttributes[j * metaCubesize + i].transform * rotate;
+            for(int i = 0; i < metaCubesize; i++){
+                glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), (float)deltaT * (((i * 3 + 11) % 5) + 1),
+                                               glm::normalize(glm::vec3{1.0f, (i * 7 + 19) % 13, (i * 23 + 5) % 37}));
+                for(int j = 0; j < metaCubesize * metaCubesize; j++)
+                    instancesAttributes[j * metaCubesize + i ].transform = instancesAttributes[j * metaCubesize + i].transform * rotate;
 
-        }
+            }
 
-        mesh->updateInstanceBuffer();
+            mesh->updateInstanceBuffer();
 #endif
 
-        camera.update(deltaT);
+            camera.update(deltaT);
 
-    };
+        };
 
-    while(vulgine->cycle());
+        while (vulgine->cycle());
+    }
 
     Vulgine::Terminate();
 

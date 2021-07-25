@@ -7,26 +7,24 @@
 
 #include <../include/IVulgineObjects.h>
 #include <vector>
-#include <memory>
 namespace Vulgine{
 
 
-    struct Scene: virtual public Object{
 
+    struct Scene: virtual public Object{
+        std::vector<MeshRef> drawList{};
 
         virtual void createBackGround(const char* fragmentShaderModule = "frag_background"
                 , std::vector<std::pair<DescriptorInfo, Descriptor>> const& descriptors = {}) = 0;
         virtual void deleteBackGround() = 0;
 
-        virtual Light* createLightSource() = 0;
-        virtual Mesh* createEmptyMesh() = 0;
-        virtual Camera* createCamera() = 0;
+        virtual LightRef createLightSource() = 0;
+        virtual CameraRef createCamera() = 0;
 
-        virtual void deleteMesh(Mesh* mesh) = 0;
-        virtual void deleteLightSource(Light* light) = 0;
-        virtual void deleteCamera(Camera* camera) = 0;
 
     };
+
+    using SceneRef = SharedRef<Scene>;
 
 }
 #endif //TEST_EXE_IVULGINESCENE_H

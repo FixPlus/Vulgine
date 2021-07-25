@@ -69,13 +69,13 @@ void Vulgine::DescriptorSet::clearDescriptors() {
 
 }
 
-void Vulgine::DescriptorSet::addCombinedImageSampler(Image *image, VkShaderStageFlagBits stage, Sampler* sampler) {
+void Vulgine::DescriptorSet::addCombinedImageSampler(ImageRef const& image, VkShaderStageFlagBits stage, SamplerRef const& sampler) {
     if(sets.empty())
         sets.resize(GetImpl().swapChain.imageCount);
 
-    auto* samplerImpl = dynamic_cast<SamplerImpl*>(sampler);
+    auto* samplerImpl = dynamic_cast<SamplerImpl*>(sampler.get());
 
-    if(auto* staticImage = dynamic_cast<StaticImageImpl*>(image)){
+    if(auto* staticImage = dynamic_cast<StaticImageImpl*>(image.get())){
 
         for(auto& set: sets){
             auto* desc = set.descriptors.emplace_back(new CombinedImageSampler{&staticImage->image, samplerImpl->sampler});
@@ -83,7 +83,7 @@ void Vulgine::DescriptorSet::addCombinedImageSampler(Image *image, VkShaderStage
             desc->setupDescriptor();
         }
 
-    } else if(auto* dynamicImage = dynamic_cast<DynamicImageImpl*>(image)){
+    } else if(auto* dynamicImage = dynamic_cast<DynamicImageImpl*>(image.get())){
         int i = 0;
         auto setSize = sets.size();
         for(auto& set: sets){
@@ -98,12 +98,12 @@ void Vulgine::DescriptorSet::addCombinedImageSampler(Image *image, VkShaderStage
 
 }
 
-void Vulgine::DescriptorSet::addUniformBuffer(UniformBuffer *buffer, VkShaderStageFlagBits stage) {
+void Vulgine::DescriptorSet::addUniformBuffer(UniformBufferRef const& buffer, VkShaderStageFlagBits stage) {
     if(sets.empty())
         sets.resize(GetImpl().swapChain.imageCount);
 
     if(buffer->dynamic){
-        auto& ubo = *dynamic_cast<UniformBufferImpl*>(buffer);
+        auto& ubo = *dynamic_cast<UniformBufferImpl*>(buffer.get());
         int i = 0;
         for(auto& set: sets){
             auto* desc = set.descriptors.emplace_back(new DUniformBuffer{ubo.buffers.at(i)});
@@ -113,7 +113,7 @@ void Vulgine::DescriptorSet::addUniformBuffer(UniformBuffer *buffer, VkShaderSta
         }
 
     } else {
-        auto& ubo = *dynamic_cast<UniformBufferImpl*>(buffer);
+        auto& ubo = *dynamic_cast<UniformBufferImpl*>(buffer.get());
         for(auto& set: sets){
             auto* desc = set.descriptors.emplace_back(new DUniformBuffer{ubo.buffers.at(0)});
             desc->stage = stage;

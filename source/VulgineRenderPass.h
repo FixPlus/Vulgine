@@ -74,7 +74,13 @@ namespace Vulgine{
 
         VkRenderPass renderPass = VK_NULL_HANDLE;
 
-        FrameBuffer* getFrameBuffer() override;
+        ImageRef addAttachment(AttachmentType type = AttachmentType::COLOR) override;
+
+        uint32_t attachmentCount() override;
+
+        ImageRef getAttachment(uint32_t binding) override;
+
+        void initFrameBuffer(SharedRef<RenderPassImpl> const& thisRef);
 
         void buildPass();
 
@@ -90,5 +96,7 @@ namespace Vulgine{
         void destroyImpl() override;
 
     };
+
+    using RenderPassImplRef = SharedRef<RenderPassImpl>;
 }
 #endif //TEST_EXE_VULGINERENDERPASS_H

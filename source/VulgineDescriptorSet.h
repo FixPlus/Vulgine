@@ -33,9 +33,9 @@ namespace Vulgine{
 
         void bind(uint32_t set, VkCommandBuffer buffer, VkPipelineLayout layout, VkPipelineBindPoint bindPoint,uint32_t currentFrame);
 
-        void addCombinedImageSampler(Image* image, VkShaderStageFlagBits stage, Sampler* sampler);
+        void addCombinedImageSampler(ImageRef const& image, VkShaderStageFlagBits stage, SamplerRef const& sampler);
 
-        void addUniformBuffer(UniformBuffer* buffer, VkShaderStageFlagBits stage);
+        void addUniformBuffer(UniformBufferRef const& buffer, VkShaderStageFlagBits stage);
 
         void addInputAttachment(std::vector<VkImageView> const& views, VkShaderStageFlagBits stage);
 

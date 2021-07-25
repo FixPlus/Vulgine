@@ -11,6 +11,7 @@
 #include <vulkan/VulkanAllocatable.h>
 #include <glm/vec2.hpp>
 #include <unordered_map>
+#include <memory>
 
 namespace Vulgine{
 
@@ -49,7 +50,7 @@ namespace Vulgine{
         VkDescriptorSet fontDescriptorSet;
         VkImageView fontView = VK_NULL_HANDLE;
 
-        SamplerImpl* sampler;
+        std::shared_ptr<SamplerImpl> sampler;
 
         struct PushConstBlock {
             glm::vec2 scale;

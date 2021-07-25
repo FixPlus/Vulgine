@@ -31,28 +31,23 @@ namespace Vulgine{
             MaterialImpl material{claimId()};
         } background;
 
-        UniformBufferImpl lightUBO;
+        SharedRef<UniformBufferImpl> lightUBO;
 
 
-        explicit SceneImpl(uint32_t id): lightUBO(ObjectImpl::claimId()), ObjectImplNoMove(Type::SCENE, id){};
+        explicit SceneImpl(uint32_t id): lightUBO(new UniformBufferImpl{ObjectImpl::claimId()}), ObjectImplNoMove(Type::SCENE, id){};
 
         std::unordered_map<uint32_t, uint32_t> lightMap;
         std::unordered_map<uint32_t, uint32_t> reverseLightMap;
 
-        std::unordered_map<uint32_t, MeshImpl> meshes;
-        std::unordered_map<uint32_t, LightImpl> lights;
-        std::unordered_map<uint32_t, CameraImpl> cameras;
+        std::unordered_map<uint32_t, SharedRef<LightImpl>> lights;
+        std::unordered_map<uint32_t, SharedRef<CameraImpl>> cameras;
 
         void createBackGround(const char* fragmentShaderModule, std::vector<std::pair<DescriptorInfo, Descriptor>> const& descriptors) override;
         void deleteBackGround() override;
-        Light* createLightSource() override;
-        Mesh* createEmptyMesh() override;
-        Camera* createCamera() override;
+        LightRef createLightSource() override;
+        CameraRef createCamera() override;
 
-        void deleteMesh(Mesh* mesh) override;
-        void deleteLightSource(Light* light) override;
-        void deleteCamera(Camera* camera) override;
-
+        void update();
         void draw(VkCommandBuffer commandBuffer, CameraImpl* camera, RenderPass* pass, int currentFrame);
 
         void drawBackground(VkCommandBuffer commandBuffer, CameraImpl* camera, RenderPass* pass, int currentFrame);
@@ -66,7 +61,8 @@ namespace Vulgine{
         void createImpl() override;
         void destroyImpl() override;
 
-
+    private:
+        void deleteLightSource(uint32_t id);
 
 
     };

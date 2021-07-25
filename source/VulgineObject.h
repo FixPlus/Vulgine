@@ -76,7 +76,7 @@ namespace Vulgine{
         static uint32_t count(Type type);
         static ObjectImpl* get(uint32_t id);
 
-        static void for_each(std::function<void(ObjectImpl*)> action);
+        static void for_each(std::function<void(ObjectImpl*)> const& action);
 
         ~ObjectImpl() override;
     };

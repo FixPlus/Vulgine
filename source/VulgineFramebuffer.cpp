@@ -9,13 +9,15 @@
 
 void Vulgine::FrameBufferImpl::createImpl() {
 
+    auto const& renderPassRef = *(renderPass.lock().get());
+
     VkFramebufferCreateInfo frameBufferCreateInfo = {};
     frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     frameBufferCreateInfo.pNext = NULL;
-    frameBufferCreateInfo.renderPass = renderPass->renderPass;
+    frameBufferCreateInfo.renderPass = renderPassRef.renderPass;
     framebuffers.resize(GetImpl().swapChain.imageCount);
-    frameBufferCreateInfo.width = width;
-    frameBufferCreateInfo.height = height;
+    frameBufferCreateInfo.width = renderPassRef.framebufferExtents.width;
+    frameBufferCreateInfo.height = renderPassRef.framebufferExtents.height;
     frameBufferCreateInfo.layers = 1;
 
     for(int i = 0; i < GetImpl().swapChain.imageCount; i++) {
@@ -55,23 +57,23 @@ Vulgine::FrameBufferImpl::~FrameBufferImpl() {
     }
 }
 
-Vulgine::Image *Vulgine::FrameBufferImpl::addAttachment(Type type) {
-    if(type == FrameBuffer::Type::DEPTH_STENCIL && hasDepth){
+Vulgine::ImageRef Vulgine::FrameBufferImpl::addAttachment(RenderPass::AttachmentType type) {
+    if(type == RenderPass::AttachmentType::DEPTH_STENCIL && hasDepth){
         errs("Cannot bind more than one depth attachment to framebuffer");
         return nullptr;
     }
-    auto format = type == FrameBuffer::Type::COLOR ? ColorBufferFormat : GetImpl().device->getSupportedDepthFormat(true);;
-    auto usage = type == FrameBuffer::Type::COLOR ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT:
+    auto format = type == RenderPass::AttachmentType::COLOR ? ColorBufferFormat : GetImpl().device->getSupportedDepthFormat(true);;
+    auto usage = type == RenderPass::AttachmentType::COLOR ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT:
                  VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
     return createAttachment(format, usage);
 }
 
-Vulgine::Image *Vulgine::FrameBufferImpl::getAttachment(uint32_t binding) {
+Vulgine::ImageRef Vulgine::FrameBufferImpl::getAttachment(uint32_t binding) {
     auto it = attachmentsImages.find(binding);
 
     if(it != attachmentsImages.end()) {
-        return &it->second;
+        return it->second;
     }
 
     return nullptr;
@@ -91,20 +93,21 @@ void Vulgine::FrameBufferImpl::addOnsrceenAttachment(std::vector<VkImageView> co
         attachments.at(i).push_back(views.at(i));
 }
 
-Vulgine::Image *Vulgine::FrameBufferImpl::createAttachment(VkFormat format, VkImageUsageFlags usage, VkSampleCountFlagBits samples) {
+Vulgine::ImageRef Vulgine::FrameBufferImpl::createAttachment(VkFormat format, VkImageUsageFlags usage, VkSampleCountFlagBits samples) {
     attachments.resize(GetImpl().swapChain.imageCount);
 
+    auto const& renderPassRef = *(renderPass.lock().get());
 
     auto binding = attachments.at(0).size();
 
     auto& image = attachmentsImages.emplace(std::piecewise_construct, std::forward_as_tuple(binding),
-                                            std::forward_as_tuple(ObjectImpl::claimId())).first->second;
+                                            std::forward_as_tuple(new DynamicImageImpl{ObjectImpl::claimId()})).first->second;
 
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.extent.width = static_cast<uint32_t>(width);
-    imageInfo.extent.height = static_cast<uint32_t>(height);
+    imageInfo.extent.width = static_cast<uint32_t>(renderPassRef.framebufferExtents.width);
+    imageInfo.extent.height = static_cast<uint32_t>(renderPassRef.framebufferExtents.height);
     imageInfo.extent.depth = 1;
     imageInfo.mipLevels = 1;
     imageInfo.arrayLayers = 1;
@@ -118,8 +121,8 @@ Vulgine::Image *Vulgine::FrameBufferImpl::createAttachment(VkFormat format, VkIm
     imageInfo.samples = samples;
     imageInfo.flags = 0; // Optional
 
-    image.createInfo = imageInfo;
-    image.create();
+    image->createInfo = imageInfo;
+    image->create();
     VkImageAspectFlags aspectMask = 0;
 
     if (usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
@@ -147,12 +150,12 @@ Vulgine::Image *Vulgine::FrameBufferImpl::createAttachment(VkFormat format, VkIm
         // Linear tiling usually won't support mip maps
         // Only set mip map count if optimal tiling is used
         viewCreateInfo.subresourceRange.levelCount = 1;
-        viewCreateInfo.image = image.images.at(i).image;
+        viewCreateInfo.image = image->images.at(i).image;
         VK_CHECK_RESULT(vkCreateImageView(GetImpl().device->logicalDevice, &viewCreateInfo, nullptr, &view));
         attachments.at(i).push_back(view);
     }
 
-    return &image;
+    return image;
 
 }
 

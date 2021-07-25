@@ -163,7 +163,7 @@ namespace Vulgine{
             indexBuffer.free();
     }
 
-    void MeshImpl::draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass *pass, int currentFrame) {
+    void MeshImpl::draw(VkCommandBuffer commandBuffer, SceneImpl* scene, CameraImpl *camera, RenderPass *pass, int currentFrame) {
         int vertBufId = vertices.dynamic ? GetImpl().currentFrame : 0;
         int instanceBufId = instances.dynamic ? GetImpl().currentFrame : 0;
 
@@ -192,10 +192,10 @@ namespace Vulgine{
         uint32_t instCount = instances.count == 0 ? 1 : instances.count;
 
         if(!indexBuffer.allocated) {
-            auto* material = dynamic_cast<MaterialImpl *>(primitives[0].material);
-            auto& boundPipeline = GetImpl().pipelineMap.bind({dynamic_cast<GeometryImpl*>(geometry),
-                                                              dynamic_cast<MaterialImpl *>(primitives[0].material),
-                                            dynamic_cast<SceneImpl *>(parent()), dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
+            auto* material = dynamic_cast<MaterialImpl *>(primitives[0].material.get());
+            auto& boundPipeline = GetImpl().pipelineMap.bind({dynamic_cast<GeometryImpl*>(geometry.get()),
+                                                              dynamic_cast<MaterialImpl *>(primitives[0].material.get()),
+                                            scene, dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
 
            // dynamic_cast<SceneImpl*>(parent())->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
 
@@ -210,9 +210,9 @@ namespace Vulgine{
         }else{
             indexBuffer.bind(commandBuffer);
             for (auto primitive: primitives) {
-                auto* material = dynamic_cast<MaterialImpl *>(primitive.material);
-                auto& boundPipeline = GetImpl().pipelineMap.bind({dynamic_cast<GeometryImpl*>(geometry), material,
-                                                dynamic_cast<SceneImpl *>(parent()), dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
+                auto* material = dynamic_cast<MaterialImpl *>(primitive.material.get());
+                auto& boundPipeline = GetImpl().pipelineMap.bind({dynamic_cast<GeometryImpl*>(geometry.get()), material,
+                                                scene, dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
 
                // dynamic_cast<SceneImpl*>(parent())->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
 

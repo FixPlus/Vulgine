@@ -123,30 +123,25 @@ namespace Vulgine {
          *  call or freeInstance function call(in last case all resources retrieved by initXX calls are invalidated
          *  at once). Do not de-reference and use any pointer after their invalidation.
          *
-         *  Following objects might allocate and pass their own resources as well(e.g. Scene case allocate Mesh objects).
+         *  Following objects might allocate and pass their own resources as well(e.g. Scene case allocate Light objects).
          *  Pointers to such objects obey the same rules and invalidate after owning resource being freed.
          */
 
-        virtual Scene* initNewScene() = 0;
-        virtual void deleteScene(Scene* scene) = 0;
+        virtual SceneRef initNewScene() = 0;
 
-        virtual Material* initNewMaterial() = 0;
-        virtual void deleteMaterial(Material* scene) = 0;
+        virtual MaterialRef initNewMaterial() = 0;
 
-        virtual Image* initNewImage() = 0;
-        virtual void deleteImage(Image* image) = 0;
+        virtual ImageRef initNewImage() = 0;
 
-        virtual UniformBuffer* initNewUniformBuffer() = 0;
-        virtual void deleteUniformBuffer(UniformBuffer* buffer) = 0;
+        virtual UniformBufferRef initNewUniformBuffer() = 0;
 
-        virtual RenderPass* initNewRenderPass() = 0;
-        virtual void deleteRenderPass(RenderPass* renderPass) = 0;
+        virtual RenderPassRef initNewRenderPass() = 0;
 
-        virtual Sampler* initNewSampler() = 0;
-        virtual void deleteSampler(Sampler* sampler) = 0;
+        virtual SamplerRef initNewSampler() = 0;
 
-        virtual Geometry* initNewGeometry() = 0;
-        virtual void deleteGeometry(Geometry* geometry) = 0;
+        virtual GeometryRef initNewGeometry() = 0;
+
+        virtual MeshRef initNewMesh() = 0;
 
         virtual void loadCustomShader(const char* filename, const char* name, ShaderStage stage) = 0;
 

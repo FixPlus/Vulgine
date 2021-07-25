@@ -21,6 +21,7 @@ namespace Vulgine{
 
 
     struct CameraImpl;
+    struct SceneImpl;
 
     class UniformBufferImpl: public UniformBuffer, public ObjectImplNoMove{
     public:
@@ -60,7 +61,7 @@ namespace Vulgine{
 
         Memory::StaticIndexBuffer indexBuffer;
 
-        explicit MeshImpl(Scene* parent, uint32_t id): Mesh(parent), ObjectImplNoMove(Type::MESH, id){ };
+        explicit MeshImpl(uint32_t id): ObjectImplNoMove(Type::MESH, id){ };
 
         void createImpl() override;
         void destroyImpl() override;
@@ -74,7 +75,7 @@ namespace Vulgine{
 
         void updateInstanceBuffer() override;
 
-        void draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass* pass, int currentFrame);
+        void draw(VkCommandBuffer commandBuffer, SceneImpl* scene, CameraImpl *camera, RenderPass* pass, int currentFrame);
 
 
         ~MeshImpl() override;

@@ -11,19 +11,10 @@
 
 namespace Vulgine{
 
-    Mesh* SceneImpl::createEmptyMesh() {
 
-        auto id = ObjectImpl::claimId();
 
-        return &((meshes.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(this, id)).first)->second);
-    }
 
-    void SceneImpl::deleteMesh(Mesh *mesh) {
-
-        meshes.erase(mesh->id());
-    }
-
-    Light *SceneImpl::createLightSource() {
+    LightRef SceneImpl::createLightSource() {
 
         if(lightsInfo.lightCount == MAX_LIGHTS){
             Utilities::ExitFatal(-1, "Can't create more than " +  std::to_string(MAX_LIGHTS) + " light objects per scene");
@@ -36,14 +27,14 @@ namespace Vulgine{
 
         lightsInfo.lightCount++;
 
-        return &((lights.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(this, id)).first)->second);
+        return (lights.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(new LightImpl{this, id})).first)->second;
 
     }
 
-    void SceneImpl::deleteLightSource(Light *light) {
+    void SceneImpl::deleteLightSource(uint32_t id) {
 
-        auto lightNumber = lightMap.at(light->id());
-        lightMap.erase(light->id());
+        auto lightNumber = lightMap.at(id);
+        lightMap.erase(id);
         for(auto i = lightNumber; i < lightsInfo.lightCount - 1; i++){
             reverseLightMap.at(i) = reverseLightMap.at(i + 1);
             lightMap[reverseLightMap.at(i)] = i;
@@ -51,56 +42,53 @@ namespace Vulgine{
         lightsInfo.lightCount--;
         reverseLightMap.erase(lightsInfo.lightCount);
 
-        lights.erase(light->id());
+        lights.erase(id);
     }
 
     void SceneImpl::draw(VkCommandBuffer commandBuffer, CameraImpl *camera, RenderPass* pass, int currentFrame) {
 
         // draw all the meshes
 
-        for(auto& mesh: meshes)
-            mesh.second.draw(commandBuffer, camera, pass, currentFrame);
+        for(auto& mesh: drawList)
+            dynamic_cast<MeshImpl*>(mesh.get())->draw(commandBuffer, this, camera, pass, currentFrame);
     }
 
-    Camera *SceneImpl::createCamera() {
+    CameraRef SceneImpl::createCamera() {
 
         auto id = ObjectImpl::claimId();
 
-        return &((cameras.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(this, id)).first)->second);
+        return (cameras.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(new CameraImpl{this, id})).first)->second;
     }
 
-    void SceneImpl::deleteCamera(Camera *camera) {
-        cameras.erase(camera->id());
-    }
 
     void SceneImpl::createImpl() {
-        lightUBO.dynamic = true;
-        lightUBO.size = sizeof(lightsInfo);
-        lightUBO.pData = &lightsInfo;
-        lightUBO.create();
-        lightUBO.update();
-
+        lightUBO->dynamic = true;
+        lightUBO->size = sizeof(lightsInfo);
+        lightUBO->pData = &lightsInfo;
+        lightUBO->create();
+        lightUBO->update();
 
     }
 
     void SceneImpl::destroyImpl() {
         lights.clear();
         cameras.clear();
-        meshes.clear();
-        lightUBO.destroy();
+        lightUBO->destroy();
 
     }
 
     void SceneImpl::updateLight(uint32_t light) {
         auto lightNumber = lightMap.at(light);
-        lightsInfo.lights[lightNumber].lightColor = glm::vec4{lights.at(light).color, 0.0f};
-        glm::mat4 rotate = glm::rotate(glm::radians(lights.at(light).direction.x), glm::vec3{1.0f, 0.0f, 0.0f});
-        rotate = glm::rotate(rotate,glm::radians(lights.at(light).direction.y), glm::vec3{0.0f, 1.0f, 0.0f});
+        lightsInfo.lights[lightNumber].lightColor = glm::vec4{lights.at(light)->color, 0.0f};
+        glm::mat4 rotate = glm::rotate(glm::radians(lights.at(light)->direction.x), glm::vec3{1.0f, 0.0f, 0.0f});
+        rotate = glm::rotate(rotate,glm::radians(lights.at(light)->direction.y), glm::vec3{0.0f, 1.0f, 0.0f});
         glm::vec4 direction = glm::vec4{1.0f, 0.0f, 0.0f, 0.0f};
         direction = rotate * direction;
 
         lightsInfo.lights[lightNumber].lightDirection = direction;
-        lightUBO.update();
+
+        lightUBO->update();
+
     }
 
     void SceneImpl::createBackGround(const char *fragmentShaderModule, const std::vector<std::pair<DescriptorInfo, Descriptor>> &descriptors) {
@@ -138,6 +126,18 @@ namespace Vulgine{
             }
             vkCmdDraw(commandBuffer, 4, 1, 0, 0);
         }
+    }
+
+    void SceneImpl::update() {
+        for(auto& light: lights)
+            if(light.second.use_count() == 1){
+                deleteLightSource(light.second->id());
+            }
+
+        for(auto& camera: cameras)
+            if(camera.second.use_count() == 1){
+                deleteLightSource(camera.second->id());
+            }
     }
 
 

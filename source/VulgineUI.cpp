@@ -180,16 +180,16 @@ namespace Vulgine {
         }
 
 
-        auto* selectedObjectTemp = selectedObject;
+        auto selectedObjectTemp = selectedObject;
 
         bool selectedPresent = false;
         ImGui::BeginChild("Object list", ImVec2(ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x, io.DisplaySize.y / 3.0f), true);
 
         ObjectImpl::for_each([&selectedObjectTemp, &selectedPresent](ObjectImpl* object){
-            bool selected = selectedObjectTemp == object;
+            bool selected = selectedObjectTemp.has_value() && selectedObjectTemp == object->id();
             if(ImGui::Selectable(object->objectLabel().c_str(), selected)){
                 selected = true;
-                selectedObjectTemp = object;
+                selectedObjectTemp = object->id();
             }
             if(selected)
                 selectedPresent = true;
@@ -198,7 +198,7 @@ namespace Vulgine {
         if (selectedPresent) {
             selectedObject = selectedObjectTemp;
         } else {
-            selectedObject = nullptr;
+            selectedObject.reset();
         }
 
         ImGui::EndChild();
@@ -210,20 +210,22 @@ namespace Vulgine {
 
         ImGui::BeginChild("Properties viewer", ImVec2(ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x, io.DisplaySize.y - ImGui::GetCursorPos().y - mainMenuBarSize.y), true);
 
-        if(selectedObject == nullptr){
+        if(!selectedObject.has_value()){
             ImGui::Text("No object selected");
             ImGui::EndChild();
             ImGui::End();
             return;
         }
 
-        ImGui::Text(selectedObject->objectLabel().c_str());
+        auto* selectedObj = ObjectImpl::get(selectedObject.value());
+
+        ImGui::Text(selectedObj->objectLabel().c_str());
         ImGui::SameLine();
-        ImGui::TextColored({128, 0, 0, 255}, selectedObject->typeName().c_str());
+        ImGui::TextColored({128, 0, 0, 255}, selectedObj->typeName().c_str());
         ImGui::Separator();
 
 
-        switch (selectedObject->type()) {
+        switch (selectedObj->type()) {
             case Object::Type::MATERIAL: {
                 displayMaterialInfo();
                 break;
@@ -272,55 +274,55 @@ namespace Vulgine {
         ImGui::End();
     }
 
-    void ObjectInspector::select(ObjectImpl* object){
-        selectedObject = object;
+    void ObjectInspector::select(uint32_t id){
+        selectedObject = id;
     }
 
 
     void ObjectInspector::selectable(ObjectImpl *object) {
         std::string label = object ? object->objectLabel() : "null";
         if (ImGui::Selectable(label.c_str()) && object) {
-            select(object);
+            select(object->id());
         }
     }
 
 
     void ObjectInspector::displaySceneInfo() {
-        auto &scene = *(dynamic_cast<SceneImpl*>(selectedObject));
+        auto &scene = *(dynamic_cast<SceneImpl*>(ObjectImpl::get(selectedObject.value())));
         ImGui::BeginChild("Meshes", ImVec2(150, 200), true);
 
-        for (auto &mesh: scene.meshes) {
-            selectable(&mesh.second);
+        for (auto &mesh: scene.drawList) {
+            selectable(dynamic_cast< ObjectImpl *>(mesh.get()));
         }
 
 
         ImGui::EndChild();
         ImGui::SameLine();
 
-        ImGui::Text("Total meshes: %d\nTotal cameras: %d\nTotal lights: %d", scene.meshes.size(), scene.cameras.size(), scene.lights.size());
+        ImGui::Text("Total meshes: %d\nTotal cameras: %d\nTotal lights: %d", scene.drawList.size(), scene.cameras.size(), scene.lights.size());
 
     }
 
     void ObjectInspector::displayMaterialInfo() {
-        auto &material = *dynamic_cast<MaterialImpl*>(selectedObject);
+        auto &material = *dynamic_cast<MaterialImpl*>(ObjectImpl::get(selectedObject.value()));
         if (ImGui::CollapsingHeader("Texture")) {
             ImGui::BulletText("Color Map: ");
             ImGui::SameLine();
             std::string label;
 
-            if(auto *colorMap = dynamic_cast<StaticImageImpl*>(material.texture.colorMap)) {
+            if(auto *colorMap = dynamic_cast<StaticImageImpl*>(material.texture.colorMap.get())) {
                 selectable(colorMap);
             } else {
-                selectable(dynamic_cast<DynamicImageImpl*>(material.texture.colorMap));
+                selectable(dynamic_cast<DynamicImageImpl*>(material.texture.colorMap.get()));
             }
             ImGui::BulletText("Normal Map: ");
 
             ImGui::SameLine();
 
-            if(auto *normalMap = dynamic_cast<StaticImageImpl*>(material.texture.normalMap)) {
+            if(auto *normalMap = dynamic_cast<StaticImageImpl*>(material.texture.normalMap.get())) {
                 selectable(normalMap);
             } else {
-                selectable(dynamic_cast<DynamicImageImpl*>(material.texture.normalMap));
+                selectable(dynamic_cast<DynamicImageImpl*>(material.texture.normalMap.get()));
             }
             ImGui::Separator();
         }
@@ -331,12 +333,12 @@ namespace Vulgine {
     void ObjectInspector::displayImageInfo() {
         VkImageCreateInfo imageInfo;
 
-        if(auto* image = dynamic_cast<StaticImageImpl*>(selectedObject)){
+        if(auto* image = dynamic_cast<StaticImageImpl*>(ObjectImpl::get(selectedObject.value()))){
             ImGui::Text("Static texture");
 
             imageInfo = image->image.imageInfo;
         }
-        if(auto* image = dynamic_cast<DynamicImageImpl*>(selectedObject)){
+        if(auto* image = dynamic_cast<DynamicImageImpl*>(ObjectImpl::get(selectedObject.value()))){
             ImGui::Text("Dynamic texture");
             ImGui::Text("Image Count: %d", image->images.size());
             imageInfo = image->images.at(0).imageInfo;
@@ -420,11 +422,11 @@ namespace Vulgine {
         ImGui::Text("Mip levels: %d", imageInfo.mipLevels);
         ImGui::Text("Samples: %d", imageInfo.samples);
 
-        ImGui::Image((void*)(dynamic_cast<Image*>(selectedObject)), ImVec2(150, 150));
+        ImGui::Image((void*)(dynamic_cast<Image*>(ObjectImpl::get(selectedObject.value()))), ImVec2(150, 150));
     }
 
     void ObjectInspector::displayUBOInfo() {
-        auto &ubo = *dynamic_cast<UniformBufferImpl*>(selectedObject);;
+        auto &ubo = *dynamic_cast<UniformBufferImpl*>(ObjectImpl::get(selectedObject.value()));;
 
         std::string type = ubo.dynamic ? "dynamic" : "static";
 
@@ -434,13 +436,10 @@ namespace Vulgine {
     }
 
     void ObjectInspector::displayMeshInfo() {
-        auto &mesh = *dynamic_cast<MeshImpl*>(selectedObject);
-        ImGui::Text("Parent: ");
-        ImGui::SameLine();
-        selectable(dynamic_cast<ObjectImpl*>(mesh.parent()));
+        auto &mesh = *dynamic_cast<MeshImpl*>(ObjectImpl::get(selectedObject.value()));
         ImGui::Text("Geometry: ");
         ImGui::SameLine();
-        selectable(dynamic_cast<ObjectImpl*>(mesh.geometry));
+        selectable(dynamic_cast<ObjectImpl*>(mesh.geometry.get()));
 
         if (ImGui::CollapsingHeader("Vertices")) {
             std::string type = mesh.vertices.dynamic ? "dynamic" : "static";
@@ -489,17 +488,17 @@ namespace Vulgine {
                     case DescriptorInfo::Type::COMBINED_IMAGE_SAMPLER: {
                         ImGui::BulletText("Resource: ");
                         ImGui::SameLine();
-                        if (auto *image = dynamic_cast<StaticImageImpl *>(descIt->image))
+                        if (auto *image = dynamic_cast<StaticImageImpl *>(descIt->image.get()))
                             selectable(image);
                         else {
-                            selectable(dynamic_cast<DynamicImageImpl *>(descIt->image));
+                            selectable(dynamic_cast<DynamicImageImpl *>(descIt->image.get()));
                         }
                         break;
                     }
                     case DescriptorInfo::Type::UNIFORM_BUFFER: {
                         ImGui::BulletText("Resource: ");
                         ImGui::SameLine();
-                        selectable(dynamic_cast<UniformBufferImpl *>(descIt->ubo));
+                        selectable(dynamic_cast<UniformBufferImpl *>(descIt->ubo.get()));
                         break;
                     }
                     default:;
@@ -514,17 +513,17 @@ namespace Vulgine {
     }
 
     void ObjectInspector::displayRenderPassInfo() {
-        auto* pRenderPass = dynamic_cast<RenderPassImpl*>(selectedObject);
+        auto* pRenderPass = dynamic_cast<RenderPassImpl*>(ObjectImpl::get(selectedObject.value()));
         assert(pRenderPass && "Expected dynamic type match RenderPassImpl");
         auto& renderPass = *pRenderPass;
 
         ImGui::Text("Draws: ");
         ImGui::SameLine();
-        selectable(dynamic_cast<SceneImpl*>(renderPass.scene));
+        selectable(dynamic_cast<SceneImpl*>(renderPass.scene.get()));
 
         ImGui::Text("From pov of: ");
         ImGui::SameLine();
-        selectable(dynamic_cast<CameraImpl*>(renderPass.camera));
+        selectable(dynamic_cast<CameraImpl*>(renderPass.camera.get()));
 
         ImGui::Text("To: ");
         ImGui::SameLine();
@@ -533,17 +532,17 @@ namespace Vulgine {
         ImGui::Separator();
 
         ImGui::Text("Dependencies:");
-        for(auto* depend: renderPass.dependencies)
-            selectable(dynamic_cast<RenderPassImpl*>(depend));
+        for(auto const& depend: renderPass.dependencies)
+            selectable(dynamic_cast<RenderPassImpl*>(depend.lock().get()));
 
     }
 
     void ObjectInspector::displayFrameBufferInfo() {
-        auto* pFrameBuffer = dynamic_cast<FrameBufferImpl*>(selectedObject);
+        auto* pFrameBuffer = dynamic_cast<FrameBufferImpl*>(ObjectImpl::get(selectedObject.value()));
         assert(pFrameBuffer && "Expected dynamic type match FrameBufferImpl");
         auto& frameBuffer = *pFrameBuffer;
 
-        if(frameBuffer.renderPass->onscreen){
+        if(frameBuffer.renderPass.lock()->onscreen){
             ImGui::Text("Type: onscreen");
 
         } else{
@@ -554,14 +553,14 @@ namespace Vulgine {
                 auto* image = &imageMapped.second;
                 ImGui::Text("Attachment #%d: ", imageMapped.first);
                 ImGui::SameLine();
-                selectable(image);
+                selectable(image->get());
             }
         }
 
     }
 
     void ObjectInspector::displayCameraInfo() {
-        auto* pCamera = dynamic_cast<CameraImpl*>(selectedObject);
+        auto* pCamera = dynamic_cast<CameraImpl*>(ObjectImpl::get(selectedObject.value()));
         assert(pCamera && "Expected dynamic type match CameraImpl");
         auto& camera = *pCamera;
 
@@ -570,7 +569,7 @@ namespace Vulgine {
     }
 
     void ObjectInspector::displayLightInfo() {
-        auto* pLight = dynamic_cast<LightImpl*>(selectedObject);
+        auto* pLight = dynamic_cast<LightImpl*>(ObjectImpl::get(selectedObject.value()));
         assert(pLight && "Expected dynamic type match LightImpl");
         auto& light = *pLight;
 
@@ -580,7 +579,7 @@ namespace Vulgine {
     }
 
     void ObjectInspector::displayGeometryInfo() {
-        auto* pGeometry = dynamic_cast<GeometryImpl*>(selectedObject);
+        auto* pGeometry = dynamic_cast<GeometryImpl*>(ObjectImpl::get(selectedObject.value()));
         assert(pGeometry && "Expected dynamic type match LightImpl");
         auto& geometry = *pGeometry;
 

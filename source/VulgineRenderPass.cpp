@@ -16,8 +16,8 @@ void Vulgine::RenderPassImpl::begin(VkCommandBuffer buffer, int currentFrame) {
     renderPassBeginInfo.renderPass = renderPass;
     renderPassBeginInfo.renderArea.offset.x = 0;
     renderPassBeginInfo.renderArea.offset.y = 0;
-    renderPassBeginInfo.renderArea.extent.width = frameBuffer.width;
-    renderPassBeginInfo.renderArea.extent.height = frameBuffer.height;
+    renderPassBeginInfo.renderArea.extent.width = framebufferExtents.width;
+    renderPassBeginInfo.renderArea.extent.height = framebufferExtents.height;
     renderPassBeginInfo.clearValueCount = clearValues.size();
     renderPassBeginInfo.pClearValues = clearValues.data();
     renderPassBeginInfo.framebuffer = frameBuffer.framebuffers.at(currentFrame);
@@ -33,18 +33,18 @@ void Vulgine::RenderPassImpl::end(VkCommandBuffer buffer) {
 void Vulgine::RenderPassImpl::buildCmdBuffers(VkCommandBuffer buffer, int currentFrame) {
 
 
-    VkViewport viewport = initializers::viewport((float)frameBuffer.width, (float)frameBuffer.height, 0.0f, 1.0f);
+    VkViewport viewport = initializers::viewport((float)framebufferExtents.width, (float)framebufferExtents.height, 0.0f, 1.0f);
     vkCmdSetViewport(buffer, 0, 1, &viewport);
 
-    VkRect2D scissor = initializers::rect2D(frameBuffer.width, frameBuffer.height, 0, 0);
+    VkRect2D scissor = initializers::rect2D(framebufferExtents.width, framebufferExtents.height, 0, 0);
     vkCmdSetScissor(buffer, 0, 1, &scissor);
 
     //draw scene from perspective of specified camera
 
-    dynamic_cast<SceneImpl*>(scene)->draw(buffer, dynamic_cast<CameraImpl*>(camera), this, currentFrame);
+    dynamic_cast<SceneImpl*>(scene.get())->draw(buffer, dynamic_cast<CameraImpl*>(camera.get()), this, currentFrame);
 
     if(!deferredEnabled)
-        dynamic_cast<SceneImpl*>(scene)->drawBackground(buffer, dynamic_cast<CameraImpl*>(camera), this, currentFrame);
+        dynamic_cast<SceneImpl*>(scene.get())->drawBackground(buffer, dynamic_cast<CameraImpl*>(camera.get()), this, currentFrame);
 
     if(deferredEnabled){
         vkCmdNextSubpass(buffer, VK_SUBPASS_CONTENTS_INLINE);
@@ -54,20 +54,16 @@ void Vulgine::RenderPassImpl::buildCmdBuffers(VkCommandBuffer buffer, int curren
                                                     VK_PIPELINE_BIND_POINT_GRAPHICS,
                                                     currentFrame);
 
-        auto& cameraImpl = *dynamic_cast<CameraImpl*>(camera);
+        auto& cameraImpl = *dynamic_cast<CameraImpl*>(camera.get());
         vkCmdPushConstants(buffer, deferredLightingSubpass.pipeline.pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(cameraImpl.matrices), &(cameraImpl.matrices));
         vkCmdDraw(buffer, 3, 1, 0, 0);
 
         vkCmdNextSubpass(buffer, VK_SUBPASS_CONTENTS_INLINE);
 
-        dynamic_cast<SceneImpl*>(scene)->drawBackground(buffer, dynamic_cast<CameraImpl*>(camera), this, currentFrame);
+        dynamic_cast<SceneImpl*>(scene.get())->drawBackground(buffer, dynamic_cast<CameraImpl*>(camera.get()), this, currentFrame);
         // TODO: invoke transparent material draw list in scene
     }
 
-}
-
-Vulgine::FrameBuffer *Vulgine::RenderPassImpl::getFrameBuffer() {
-    return &frameBuffer;
 }
 
 Vulgine::RenderPassImpl::~RenderPassImpl() {
@@ -97,7 +93,7 @@ void Vulgine::RenderPassImpl::buildPass() {
 
     VkFormat depthFormat = GetImpl().device->getSupportedDepthFormat(true);
 
-    deferredEnabled = dynamic_cast<SceneImpl*>(scene)->hasDynamicLights();
+    deferredEnabled = dynamic_cast<SceneImpl*>(scene.get())->hasDynamicLights();
 
     if(deferredEnabled){
         std::array<VkAttachmentDescription, 5> attachments = {};
@@ -387,7 +383,7 @@ void Vulgine::RenderPassImpl::buildPass() {
                 auto& image = it.second;
 
 
-                attachments.at(binding).format = image.createInfo.format;
+                attachments.at(binding).format = image->createInfo.format;
                 attachments.at(binding).samples = VK_SAMPLE_COUNT_1_BIT; // no multisampling for offscreen rendering yet
                 attachments.at(binding).loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
                 attachments.at(binding).storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -401,7 +397,7 @@ void Vulgine::RenderPassImpl::buildPass() {
                 // for now we consider it to be used as sampled image
 
                 attachments.at(binding).finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                if(image.createInfo.format == depthFormat){
+                if(image->createInfo.format == depthFormat){
                     depthAttachemntRef.emplace();
                     depthAttachemntRef->attachment = binding;
                     depthAttachemntRef->layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -412,7 +408,7 @@ void Vulgine::RenderPassImpl::buildPass() {
                 }
 
                 clearValues.emplace_back();
-                if(image.createInfo.format == FrameBufferImpl::ColorBufferFormat)
+                if(image->createInfo.format == FrameBufferImpl::ColorBufferFormat)
                     clearValues.back().color = {0.0f, 0.0f, 0.0f, 0.0f};
                 else
                     clearValues.back().depthStencil = {0.0f, 0};
@@ -467,14 +463,13 @@ void Vulgine::RenderPassImpl::buildPass() {
 
     }
 
-    frameBuffer.renderPass = this;
     frameBuffer.create();
 
 }
 
 void Vulgine::RenderPassImpl::createFramebuffer() {
     assert(!onscreen || (onscreen && frameBuffer.attachments.empty()) && "Cant override onscreen framebuffer");
-    bool deferred = dynamic_cast<SceneImpl*>(scene)->hasDynamicLights();
+    bool deferred = dynamic_cast<SceneImpl*>(scene.get())->hasDynamicLights();
     //assert(!deferred || (deferred && frameBuffer.attachments.empty()) && "Framebuffer must stay unmodified when using dynamic lights");
 
     bool mainColorTargetAllocated = false;
@@ -485,15 +480,15 @@ void Vulgine::RenderPassImpl::createFramebuffer() {
     if(onscreen ||  deferred){
         if(onscreen){
 
-            frameBuffer.width = GetImpl().vieportInfo.width;
-            frameBuffer.height = GetImpl().vieportInfo.height;
+            framebufferExtents.width = GetImpl().vieportInfo.width;
+            framebufferExtents.height = GetImpl().vieportInfo.height;
 
             if(!deferred)
             {
                 if(GetImpl().settings.msaa > 1) { // using MSAA here
                     frameBuffer.createAttachment(GetImpl().swapChain.colorFormat,
                                                                          VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, GetImpl().settings.msaa);
-                    frameBuffer.addAttachment(FrameBuffer::Type::DEPTH_STENCIL);
+                    frameBuffer.addAttachment(AttachmentType::DEPTH_STENCIL);
 
 
                     std::vector<VkImageView> views;
@@ -508,7 +503,7 @@ void Vulgine::RenderPassImpl::createFramebuffer() {
                     }
                     frameBuffer.addOnsrceenAttachment(views);
 
-                    frameBuffer.addAttachment(FrameBuffer::Type::DEPTH_STENCIL);
+                    frameBuffer.addAttachment(AttachmentType::DEPTH_STENCIL);
                 }
                 return;
             }
@@ -519,13 +514,13 @@ void Vulgine::RenderPassImpl::createFramebuffer() {
             frameBuffer.addOnsrceenAttachment(views);
         } else{
             if(!mainColorTargetAllocated)
-                frameBuffer.addAttachment(FrameBuffer::Type::COLOR);
+                frameBuffer.addAttachment(AttachmentType::COLOR);
         }
 
         if(deferred)
             frameBuffer.createGBuffer();
 
-        frameBuffer.addAttachment(FrameBuffer::Type::DEPTH_STENCIL);
+        frameBuffer.addAttachment(AttachmentType::DEPTH_STENCIL);
     }
 
 
@@ -551,14 +546,14 @@ void Vulgine::RenderPassImpl::createFramebuffer() {
         deferredLightingSubpass.compositionSet.addInputAttachment(views1, VK_SHADER_STAGE_FRAGMENT_BIT);
         deferredLightingSubpass.compositionSet.addInputAttachment(views2, VK_SHADER_STAGE_FRAGMENT_BIT);
         deferredLightingSubpass.compositionSet.addInputAttachment(views3, VK_SHADER_STAGE_FRAGMENT_BIT);
-        deferredLightingSubpass.compositionSet.addUniformBuffer(&dynamic_cast<SceneImpl*>(scene)->lightUBO, VK_SHADER_STAGE_FRAGMENT_BIT);
+        deferredLightingSubpass.compositionSet.addUniformBuffer(dynamic_cast<SceneImpl*>(scene.get())->lightUBO, VK_SHADER_STAGE_FRAGMENT_BIT);
         deferredLightingSubpass.compositionSet.create();
 
 
         deferredLightingSubpass.transparentSet.pool = &GetImpl().perRenderPassPool;
 
         deferredLightingSubpass.transparentSet.addInputAttachment(views1, VK_SHADER_STAGE_FRAGMENT_BIT);
-        deferredLightingSubpass.transparentSet.addUniformBuffer(&dynamic_cast<SceneImpl*>(scene)->lightUBO, VK_SHADER_STAGE_FRAGMENT_BIT);
+        deferredLightingSubpass.transparentSet.addUniformBuffer(dynamic_cast<SceneImpl*>(scene.get())->lightUBO, VK_SHADER_STAGE_FRAGMENT_BIT);
         deferredLightingSubpass.transparentSet.create();
 
     }
@@ -566,4 +561,20 @@ void Vulgine::RenderPassImpl::createFramebuffer() {
 
 void Vulgine::RenderPassImpl::destroyFramebuffer() {
     frameBuffer.destroy();
+}
+
+Vulgine::ImageRef Vulgine::RenderPassImpl::addAttachment(RenderPass::AttachmentType type) {
+    return frameBuffer.addAttachment(type);
+}
+
+uint32_t Vulgine::RenderPassImpl::attachmentCount() {
+    return frameBuffer.attachmentCount();
+}
+
+Vulgine::ImageRef Vulgine::RenderPassImpl::getAttachment(uint32_t binding) {
+    return frameBuffer.getAttachment(binding);
+}
+
+void Vulgine::RenderPassImpl::initFrameBuffer(SharedRef<RenderPassImpl> const& thisRef) {
+    frameBuffer.renderPass = thisRef;
 }

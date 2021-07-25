@@ -8,7 +8,7 @@
 #include <vector>
 #include <cstdint>
 #include <unordered_map>
-
+#include <memory>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
@@ -19,6 +19,13 @@
 #include <string>
 
 namespace Vulgine{
+
+    template<typename T>
+    using SharedRef = std::shared_ptr<T>;
+    template<typename T>
+    using WeakRef = std::weak_ptr<T>;
+#define TYPEDEF_REF(X) using X ## Ref = SharedRef<X>;
+#define TYPEDEF_WEAK_REF(X) using X ## WeakRef = WeakRef<X>;
 
     /**
     * @brief General interface for most Vulgine Objects.
@@ -122,13 +129,12 @@ namespace Vulgine{
      *
      * @brief abstraction of any image object
      *
-     * @use Can be used as texture target by material, TODO: render target by render pass
+     * @use Can be used as texture target by material, render target by render pass
      *
      * @import Store data to it using load() and loadFromFile() functions
      *
      * @formats Supported importing of images: png, jpeg, bmp, TODO: ktx
      *
-     * @todo  add support for dynamic images (render targets as well)
      *
      */
 
@@ -140,7 +146,9 @@ namespace Vulgine{
         virtual bool loadFromFile(const char* filename, FileFormat fileFormat) = 0;
         virtual bool load(const unsigned char* data, uint32_t len, FileFormat fileFormat) = 0;
 
+
     };
+
 
     /**
      *
@@ -169,6 +177,9 @@ namespace Vulgine{
         virtual void update() = 0;
     };
 
+    TYPEDEF_REF(Image)
+    TYPEDEF_REF(UniformBuffer)
+
     struct Scene;
 
     /**
@@ -192,14 +203,18 @@ namespace Vulgine{
 
     };
 
+    TYPEDEF_REF(Camera)
+
     struct Sampler: virtual public Object{
         enum class Filtering{NONE, LINEAR} filtering = Filtering::LINEAR;
     };
 
+    TYPEDEF_REF(Sampler)
+
     struct Descriptor{
-        UniformBuffer* ubo = nullptr;
-        Sampler* sampler = nullptr;
-        Image* image = nullptr;
+        UniformBufferRef ubo = nullptr;
+        SamplerRef sampler = nullptr;
+        ImageRef image = nullptr;
     };
 
     struct DescriptorInfo{
@@ -241,9 +256,9 @@ namespace Vulgine{
         bool alpha_transparent = false;
 
         struct{
-            ::Vulgine::Sampler* sampler = nullptr;
-            ::Vulgine::Image* colorMap = nullptr;
-            ::Vulgine::Image* normalMap = nullptr;
+            ::Vulgine::SamplerRef sampler = nullptr;
+            ::Vulgine::ImageRef colorMap = nullptr;
+            ::Vulgine::ImageRef normalMap = nullptr;
         } texture;
 
         bool custom = false;
@@ -257,6 +272,9 @@ namespace Vulgine{
         } customMaterialInfo;
 
     };
+
+    TYPEDEF_REF(Material)
+    TYPEDEF_WEAK_REF(Material)
 
     /**
      *
@@ -281,6 +299,7 @@ namespace Vulgine{
         Scene* parent() const{ return parent_;};
     };
 
+    TYPEDEF_REF(Light)
 
     struct Geometry: virtual public Object{
         VertexFormat vertexFormat;
@@ -288,20 +307,18 @@ namespace Vulgine{
         std::vector<DescriptorInfo> descriptors{};
     };
 
-
+    TYPEDEF_REF(Geometry)
+    TYPEDEF_WEAK_REF(Geometry)
     /**
      *
      * @brief rendered object
      *
      */
     class Mesh: virtual public Object{
-    protected:
-        Scene* parent_;
     public:
 
-        Mesh(Scene* parent): parent_(parent){}
 
-        Geometry* geometry = nullptr;
+        GeometryRef geometry{};
 
         std::vector<Descriptor> descriptors{0};
 
@@ -359,7 +376,7 @@ namespace Vulgine{
          *
          */
         struct Primitive{
-            Material* material = nullptr;
+            MaterialRef material{};
             uint32_t startIdx = 0;
             uint32_t indexCount = 0;
         };
@@ -382,39 +399,45 @@ namespace Vulgine{
 
         virtual void updateInstanceBuffer() = 0;
 
-        Scene* parent() const{ return parent_;};
-
-
 
     };
 
-    struct FrameBuffer: virtual public Object{
-        enum class Type { COLOR, DEPTH_STENCIL};
-        uint32_t width, height;
+    TYPEDEF_REF(Mesh)
 
-        FrameBuffer() = default;
-        FrameBuffer& operator=(FrameBuffer&& another) = delete;
-        FrameBuffer(FrameBuffer&& another) = delete;
 
-        virtual Image* addAttachment(Type type = Type::COLOR) = 0;
+    struct RenderPass;
 
-        virtual uint32_t attachmentCount() = 0;
-
-        virtual Image* getAttachment(uint32_t binding) = 0;
-
-    };
+    TYPEDEF_WEAK_REF(RenderPass)
+    TYPEDEF_REF(Scene)
 
     struct RenderPass: virtual public Object{
 
+        enum class AttachmentType { COLOR, DEPTH_STENCIL};
+
+        struct {
+            uint32_t width, height;
+        } framebufferExtents;
+
         bool onscreen = true;
 
-        Scene* scene = nullptr;
-        Camera* camera = nullptr;
+        SceneRef scene = nullptr;
+        CameraRef camera = nullptr;
 
-        virtual FrameBuffer* getFrameBuffer() = 0;
+        virtual ImageRef addAttachment(AttachmentType type = AttachmentType::COLOR) = 0;
 
-        std::vector<RenderPass*> dependencies;
+        virtual uint32_t attachmentCount() = 0;
+
+        virtual ImageRef getAttachment(uint32_t binding) = 0;
+
+
+        std::vector<RenderPassWeakRef> dependencies;
 
     };
+
+
+    TYPEDEF_REF(RenderPass)
+
 }
+
+#undef TYPEDEF_REF
 #endif //TEST_EXE_IVULGINEOBJECTS_H

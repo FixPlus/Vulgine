@@ -142,13 +142,12 @@ namespace Vulgine{
         uniformBuffers.clear();
         samplers.clear();
         geometries.clear();
+        meshes.clear();
+        renderPassLine.clear();
+        onscreenRenderPass.reset();
 
-
-
-        gui.destroy();
 
         destroyShaders();
-
 
         pipelineMap.clear();
 
@@ -158,11 +157,13 @@ namespace Vulgine{
 
         swapChain.cleanup();
 
-        destroyDescriptorPools();
-
         destroyCommandBuffers();
 
         destroyRenderPasses();
+
+        gui.destroy();
+
+        destroyDescriptorPools();
 
         vkDestroyPipelineCache(device->logicalDevice, pipelineCache, nullptr);
 
@@ -419,6 +420,8 @@ namespace Vulgine{
     }
 
     void VulgineImpl::renderFrame() {
+        static uint32_t frame_number = 0;
+
         if(window.resized)
             windowResize();
 
@@ -444,7 +447,13 @@ namespace Vulgine{
         // synchronize dynamic buffers data
 
         uniformBuffers.iterate([](UniformBufferImpl& buffer){ buffer.sync();});
-        scenes.iterate([](SceneImpl& scene){ scene.lightUBO.sync();});
+        scenes.iterate([](SceneImpl& scene){ scene.update(); scene.lightUBO->sync();});
+
+        if(frame_number % 60){
+            materials.removeUnused();
+            samplers.removeUnused();
+            meshes.removeUnused();
+        }
 
         buildCommandBuffers(currentBuffer);
 
@@ -484,7 +493,7 @@ namespace Vulgine{
         currentFrame = (currentFrame + 1) % settings.framesInFlight;
 
 
-
+        frame_number++;
     }
 
 
@@ -520,24 +529,18 @@ namespace Vulgine{
         renderPasses.clear();
     }
 
-    Scene *VulgineImpl::initNewScene() {
+    SceneRef VulgineImpl::initNewScene() {
         return scenes.emplace();
     }
 
-    void VulgineImpl::deleteScene(Scene *scene) {
-        scenes.free(dynamic_cast<SceneImpl*>(scene));
-    }
 
-    Material *VulgineImpl::initNewMaterial() {
+    MaterialRef VulgineImpl::initNewMaterial() {
         return materials.emplace();
     }
 
-    void VulgineImpl::deleteMaterial(Material *material) {
-       materials.free(dynamic_cast<MaterialImpl*>(material));
-    }
 
 
-    void VulgineImpl::buildRenderPass(RenderPassImpl* renderPass){
+    void VulgineImpl::buildRenderPass(RenderPassImplRef const& renderPass){
 
         renderPass->buildPass();
 
@@ -545,8 +548,11 @@ namespace Vulgine{
 
         renderPass->create();
 
-        for(auto* pass: renderPass->dependencies)
-            buildRenderPass(dynamic_cast<RenderPassImpl*>(pass));
+        for(auto& pass: renderPass->dependencies) {
+            auto passRef = renderPasses.getImpl(pass.lock()->id());
+
+            buildRenderPass(passRef);
+        }
 
     }
 
@@ -555,13 +561,13 @@ namespace Vulgine{
         // Step 1: find onscreen render pass
 
         int onscreenRenderPassCount = 0;
-        RenderPassImpl* found = nullptr;
+        uint32_t found = UINT32_MAX;
         renderPassLine.clear();
 
         renderPasses.iterate([&onscreenRenderPassCount, &found](RenderPassImpl& renderPass)
         {
             if(renderPass.onscreen) {
-                found = &renderPass;
+                found = renderPass.id();
                 onscreenRenderPassCount++;
             }
         });
@@ -570,7 +576,8 @@ namespace Vulgine{
             Utilities::ExitFatal(-1, "VulGine expects exactly one onscreen render pass");
         }
 
-        onscreenRenderPass = found;
+        onscreenRenderPass = renderPasses.getImpl(found);
+
 
         buildRenderPass(onscreenRenderPass); // TODO: parse dependency graph to detect loops
 
@@ -674,7 +681,7 @@ namespace Vulgine{
 
         VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[imageIndex], &cmdBufInfo))
 
-        for(auto* renderPass: renderPassLine) {
+        for(auto const& renderPass: renderPassLine) {
             assert(renderPass->camera && "RenderPass must have bounded camera");
             assert(renderPass->scene && "RenderPass must have bounded scene");
 
@@ -883,13 +890,10 @@ namespace Vulgine{
         perMeshPool.clear();
     }
 
-    Image *VulgineImpl::initNewImage() {
+    ImageRef VulgineImpl::initNewImage() {
         return images.emplace();
     }
 
-    void VulgineImpl::deleteImage(Image *image) {
-        images.free(dynamic_cast<StaticImageImpl*>(image));
-    }
 
     void VulgineImpl::updateGUI() {
 
@@ -958,13 +962,10 @@ namespace Vulgine{
         mouseState.onMouseButtonUp(button);
     }
 
-    UniformBuffer *VulgineImpl::initNewUniformBuffer() {
+    UniformBufferRef VulgineImpl::initNewUniformBuffer() {
         return uniformBuffers.emplace();
     }
 
-    void VulgineImpl::deleteUniformBuffer(UniformBuffer *buffer) {
-        uniformBuffers.free(dynamic_cast<UniformBufferImpl*>(buffer));
-    }
 
     void VulgineImpl::mouseScroll(VulgineImpl::Window *window, double xoffset, double yoffset) {
         auto& io = ImGui::GetIO();
@@ -1011,13 +1012,14 @@ namespace Vulgine{
         recreateOnscreenFramebuffers();
     }
 
-    RenderPass *VulgineImpl::initNewRenderPass() {
-        return renderPasses.emplace();
+    RenderPassRef VulgineImpl::initNewRenderPass() {
+        auto renderPass = renderPasses.emplace();
+
+        renderPasses.getImpl(renderPass->id())->initFrameBuffer(renderPasses.getImpl(renderPass->id()));
+
+        return renderPass;
     }
 
-    void VulgineImpl::deleteRenderPass(RenderPass *renderPass) {
-        renderPasses.free(dynamic_cast<RenderPassImpl*>(renderPass));
-    }
 
     void VulgineImpl::loadCustomShader(const char *filename, const char *name, ShaderStage stage) {
         auto shader = loadShader(filename, device->logicalDevice);
@@ -1040,13 +1042,10 @@ namespace Vulgine{
 
     }
 
-    Sampler *VulgineImpl::initNewSampler() {
+    SamplerRef VulgineImpl::initNewSampler() {
         return samplers.emplace();
     }
 
-    void VulgineImpl::deleteSampler(Sampler *sampler) {
-        samplers.free(dynamic_cast<SamplerImpl*>(sampler));
-    }
 
     void VulgineImpl::recreateOnscreenFramebuffers() {
         if(onscreenRenderPass && !glfwGetWindowAttrib(window.instance(), GLFW_ICONIFIED)){
@@ -1055,8 +1054,8 @@ namespace Vulgine{
 
                 onscreenRenderPass->destroyFramebuffer();
 
-                onscreenFb.width = vieportInfo.width;
-                onscreenFb.height = vieportInfo.height;
+                onscreenRenderPass->framebufferExtents.width = vieportInfo.width;
+                onscreenRenderPass->framebufferExtents.height = vieportInfo.height;
 
                 onscreenRenderPass->createFramebuffer();
                 onscreenFb.create();
@@ -1073,13 +1072,14 @@ namespace Vulgine{
         }
     }
 
-    Geometry *VulgineImpl::initNewGeometry() {
+    GeometryRef VulgineImpl::initNewGeometry() {
         return geometries.emplace();
     }
 
-    void VulgineImpl::deleteGeometry(Geometry *geometry) {
-        geometries.free(dynamic_cast<GeometryImpl*>(geometry));
+    MeshRef VulgineImpl::initNewMesh() {
+        return meshes.emplace();
     }
+
 
     void disableLog(){
         logger.disable();

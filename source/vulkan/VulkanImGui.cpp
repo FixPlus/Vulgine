@@ -110,7 +110,7 @@ void Vulgine::GUI::init(int numberOfFrames) {
 
     buffer.free();
 
-    sampler = dynamic_cast<SamplerImpl*>(GetImpl().initNewSampler());
+    sampler = GetImpl().samplers.getImpl(GetImpl().initNewSampler()->id());
     sampler->create();
 
     // GUI has it's own descriptor pool
@@ -174,6 +174,8 @@ void Vulgine::GUI::destroy() {
     vkDestroyDescriptorPool(GetImpl().device->logicalDevice, descriptorPool, nullptr);
     vkDestroyPipelineLayout(GetImpl().device->logicalDevice, pipelineLayout, nullptr);
     vkDestroyPipeline(GetImpl().device->logicalDevice, pipeline, nullptr);
+
+    sampler.reset();
 
 }
 

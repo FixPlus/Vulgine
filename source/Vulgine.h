@@ -22,23 +22,42 @@
 
 namespace Vulgine {
 
-    template<typename T>
+    template<typename T, typename TDerived>
     class IdentifiableContainer{
-        std::unordered_map<uint32_t, T> container;
+        std::unordered_map<uint32_t, SharedRef<TDerived>> container;
     public:
-        T* emplace(){
+        SharedRef<T> emplace(){
 
             uint32_t id = ObjectImpl::claimId();
 
-            return &((container.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(id)).first)->second);
+            return SharedRef<T>{((container.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(new TDerived{id})).first)->second)};
         };
-        void free(T* obj){
-            container.erase(obj->id());
+        void removeUnused(){
+            for(auto& node: container){
+                if(node.second.use_count() == 1){
+                    container.erase(node.first);
+                }
+            }
         }
 
-        void iterate(std::function<void(T&)> operation){
+        SharedRef<T> get(uint32_t id){
+            auto elem = container.find(id);
+            if(elem == container.end())
+                throw std::out_of_range{"no element with given id in container"};
+            return SharedRef<T>{elem->second};
+        }
+
+        SharedRef<TDerived> getImpl(uint32_t id) {
+            auto elem = container.find(id);
+            if(elem == container.end())
+                throw std::out_of_range{"no element with given id in container"};
+
+            return elem->second;
+        }
+
+        void iterate(std::function<void(TDerived&)> operation){
             for(auto& obj: container)
-                operation(obj.second);
+                operation(*(dynamic_cast<TDerived*>(obj.second.get())));
         }
 
         void clear(){
@@ -181,7 +200,7 @@ namespace Vulgine {
         void initFields();
         void renderFrame();
 
-        void buildRenderPass(RenderPassImpl* pass);
+        void buildRenderPass(RenderPassImplRef const& pass);
         void buildRenderPasses() override;
         void buildCommandBuffers(int imageIndex);
 
@@ -230,12 +249,13 @@ namespace Vulgine {
         std::map<std::string, ShaderModule> vertexShaders;
         std::map<std::string, ShaderModule> fragmentShaders;
 
-        IdentifiableContainer<SceneImpl> scenes;
-        IdentifiableContainer<MaterialImpl> materials;
-        IdentifiableContainer<StaticImageImpl> images;
-        IdentifiableContainer<UniformBufferImpl> uniformBuffers;
-        IdentifiableContainer<SamplerImpl> samplers;
-        IdentifiableContainer<GeometryImpl> geometries;
+        IdentifiableContainer<Scene, SceneImpl> scenes;
+        IdentifiableContainer<Material, MaterialImpl> materials;
+        IdentifiableContainer<Image, StaticImageImpl> images;
+        IdentifiableContainer<UniformBuffer, UniformBufferImpl> uniformBuffers;
+        IdentifiableContainer<Sampler, SamplerImpl> samplers;
+        IdentifiableContainer<Geometry, GeometryImpl> geometries;
+        IdentifiableContainer<Mesh, MeshImpl> meshes;
 
         DescriptorPool perRenderPassPool;
         DescriptorPool perMaterialPool;
@@ -273,36 +293,31 @@ namespace Vulgine {
 
         // Queue of render passes. Must contain at least 1 pass (onscreen)
 
-        IdentifiableContainer<RenderPassImpl> renderPasses;
-        std::deque<RenderPassImpl*> renderPassLine;
+        IdentifiableContainer<RenderPass, RenderPassImpl> renderPasses;
+        std::deque<RenderPassImplRef> renderPassLine;
 
-        RenderPassImpl* onscreenRenderPass = nullptr;
+        RenderPassImplRef onscreenRenderPass = nullptr;
 
         GUI gui;
 
         bool cmdBuffersOutdated = false;
 
 
-        Scene* initNewScene() override;
-        void deleteScene(Scene* scene) override;
+        SceneRef initNewScene() override;
 
-        Material* initNewMaterial() override;
-        void deleteMaterial(Material* scene) override;
+        MaterialRef initNewMaterial() override;
 
-        Image* initNewImage() override;
-        void deleteImage(Image* image) override;
+        ImageRef initNewImage() override;
 
-        RenderPass* initNewRenderPass() override;
-        void deleteRenderPass(RenderPass* renderPass) override;
+        RenderPassRef initNewRenderPass() override;
 
-        UniformBuffer* initNewUniformBuffer() override;
-        void deleteUniformBuffer(UniformBuffer* buffer) override;
+        UniformBufferRef initNewUniformBuffer() override;
 
-        Sampler* initNewSampler() override;
-        void deleteSampler(Sampler* sampler) override;
+        SamplerRef initNewSampler() override;
 
-        Geometry* initNewGeometry() override;
-        void deleteGeometry(Geometry* geometry) override;
+        GeometryRef initNewGeometry() override;
+
+        MeshRef initNewMesh() override;
 
         void loadCustomShader(const char* filename, const char* name, ShaderStage stage) override;
 
