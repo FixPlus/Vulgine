@@ -12,7 +12,7 @@ namespace Vulgine{
 
 
     struct Scene: virtual public Object{
-        std::vector<MeshRef> drawList{};
+        std::vector<WeakRef<Mesh>> drawList{};
 
         virtual void createBackGround(const char* fragmentShaderModule = "frag_background"
                 , std::vector<std::pair<DescriptorInfo, Descriptor>> const& descriptors = {}) = 0;

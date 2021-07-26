@@ -15,9 +15,8 @@ layout (location = 3) out vec4 outAlbedo;
 layout (constant_id = 0) const float NEAR_PLANE = 0.1f;
 layout (constant_id = 1) const float FAR_PLANE = 256.0f;
 
-layout(binding = 0, set = 0) uniform sampler2D colorMap;
 
-layout(binding = 1, set = 0) uniform UBO{
+layout(binding = 0, set = 0) uniform UBO{
     vec4 baseColor;
     float specular;
 }   material;
@@ -38,11 +37,11 @@ void main()
     // Write color attachments to avoid undefined behaviour (validation error)
     outColor = vec4(0.0);
 
-    if(texture(colorMap, inUV).a == 0.0f){
+    if(material.baseColor.a == 0.0f){
         discard;
     }
 
-    outAlbedo.rgb = inColor * texture(colorMap, inUV).rgb;
+    outAlbedo.rgb = inColor * material.baseColor.rgb;
     outAlbedo.a = material.specular;
 
     // Store linearized depth in alpha component

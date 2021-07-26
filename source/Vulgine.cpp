@@ -126,6 +126,8 @@ namespace Vulgine{
 
         glfwPollEvents();
 
+        MeshImpl::clearHighlight();
+
         updateGUI();
 
         if (prepared && !glfwGetWindowAttrib(window.instance(), GLFW_ICONIFIED))
@@ -145,6 +147,7 @@ namespace Vulgine{
         meshes.clear();
         renderPassLine.clear();
         onscreenRenderPass.reset();
+        highlightMaterial.reset();
 
 
         destroyShaders();
@@ -272,6 +275,11 @@ namespace Vulgine{
 
         gui.windowResized(window.width, window.height);
 
+        highlightMaterial = initNewMaterial();
+        highlightMaterial->setName("Highlight");
+        highlightMaterial->baseColor = glm::vec4{1.0f, 0.0f , 0.0f, 1.0f};
+
+        highlightMaterial->create();
 
 
         logger("Initialization of VulGine completed successfully");
@@ -422,6 +430,7 @@ namespace Vulgine{
     void VulgineImpl::renderFrame() {
         static uint32_t frame_number = 0;
 
+
         if(window.resized)
             windowResize();
 
@@ -441,6 +450,7 @@ namespace Vulgine{
 
         onCycle();
 
+
         if(gui.update(currentBuffer))
             cmdBuffersOutdated = true;
 
@@ -449,9 +459,12 @@ namespace Vulgine{
         uniformBuffers.iterate([](UniformBufferImpl& buffer){ buffer.sync();});
         scenes.iterate([](SceneImpl& scene){ scene.update(); scene.lightUBO->sync();});
 
-        if(frame_number % 60){
+        if(frame_number % 60 == 1){
+            vkDeviceWaitIdle(device->logicalDevice);
             materials.removeUnused();
             samplers.removeUnused();
+            uniformBuffers.removeUnused();
+            images.removeUnused();
             meshes.removeUnused();
         }
 
@@ -667,6 +680,9 @@ namespace Vulgine{
         shader = loadShader("g-buffer-textured.frag.spv", device->logicalDevice);
         fragmentShaders.emplace(std::piecewise_construct, std::forward_as_tuple("frag_gbuffer_textured"), std::forward_as_tuple(shader, "frag_gbuffer_textured"));
 
+        shader = loadShader("g-buffer-default.frag.spv", device->logicalDevice);
+        fragmentShaders.emplace(std::piecewise_construct, std::forward_as_tuple("frag_gbuffer_default"), std::forward_as_tuple(shader, "frag_gbuffer_default"));
+
     }
 
     void VulgineImpl::destroyShaders() {
@@ -679,6 +695,7 @@ namespace Vulgine{
 
         VkCommandBufferBeginInfo cmdBufInfo = initializers::commandBufferBeginInfo();
 
+        cmdBufInfo.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[imageIndex], &cmdBufInfo))
 
         for(auto const& renderPass: renderPassLine) {

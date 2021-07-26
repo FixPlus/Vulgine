@@ -349,7 +349,7 @@ namespace Vulgine{
             bool dynamic = false;
         } vertices;
 
-        std::vector<uint32_t> indices{0};
+        std::vector<uint32_t> indices{};
 
         /**
          * @brief instances

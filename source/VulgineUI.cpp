@@ -166,6 +166,8 @@ namespace Vulgine {
 
     void ObjectInspector::draw() {
 
+
+
         if(!opened)
             return;
 
@@ -296,7 +298,7 @@ namespace Vulgine {
         ImGui::BeginChild("Meshes", ImVec2(150, 200), true);
 
         for (auto &mesh: scene.drawList) {
-            selectable(dynamic_cast< ObjectImpl *>(mesh.get()));
+            selectable(dynamic_cast< ObjectImpl *>(mesh.lock().get()));
         }
 
 
@@ -445,6 +447,7 @@ namespace Vulgine {
 
     void ObjectInspector::displayMeshInfo() {
         auto &mesh = *dynamic_cast<MeshImpl*>(ObjectImpl::get(selectedObject.value()));
+        mesh.highlight();
         ImGui::Text("Geometry: ");
         ImGui::SameLine();
         selectable(dynamic_cast<ObjectImpl*>(mesh.geometry.get()));

@@ -40,8 +40,11 @@ namespace Vulgine{
 
     class MeshImpl: public Mesh, public ObjectImplNoMove{
 
-
+        static MeshImpl* highlighted;
     public:
+
+        void highlight() {highlighted = this;};
+        static void clearHighlight() { highlighted = nullptr;}
 
         std::optional<DescriptorSet> set;
 

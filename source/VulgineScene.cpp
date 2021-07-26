@@ -49,8 +49,16 @@ namespace Vulgine{
 
         // draw all the meshes
 
-        for(auto& mesh: drawList)
-            dynamic_cast<MeshImpl*>(mesh.get())->draw(commandBuffer, this, camera, pass, currentFrame);
+        for(auto it = drawList.begin(), end = drawList.end(); it != end;) {
+            auto meshPtr = it->lock();
+            if(meshPtr) {
+                dynamic_cast<MeshImpl *>(meshPtr.get())->draw(commandBuffer, this, camera, pass, currentFrame);
+                ++it;
+            } else{
+                it = drawList.erase(it);
+                end = drawList.end();
+            }
+        }
     }
 
     CameraRef SceneImpl::createCamera() {

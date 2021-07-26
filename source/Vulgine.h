@@ -24,6 +24,7 @@ namespace Vulgine {
 
     template<typename T, typename TDerived>
     class IdentifiableContainer{
+        std::unordered_map<uint32_t, uint32_t> timeToLive;
         std::unordered_map<uint32_t, SharedRef<TDerived>> container;
     public:
         SharedRef<T> emplace(){
@@ -33,10 +34,11 @@ namespace Vulgine {
             return SharedRef<T>{((container.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple(new TDerived{id})).first)->second)};
         };
         void removeUnused(){
-            for(auto& node: container){
-                if(node.second.use_count() == 1){
-                    container.erase(node.first);
-                }
+            for(auto it = container.begin(), end = container.end(); it != end;){
+                if(it->second.use_count() == 1){
+                    it = container.erase(it);
+                } else
+                    it++;
             }
         }
 
@@ -297,6 +299,7 @@ namespace Vulgine {
         std::deque<RenderPassImplRef> renderPassLine;
 
         RenderPassImplRef onscreenRenderPass = nullptr;
+        MaterialRef highlightMaterial = nullptr;
 
         GUI gui;
 

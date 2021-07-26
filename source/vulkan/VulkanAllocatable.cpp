@@ -205,6 +205,8 @@ void Vulgine::Memory::ImmutableBuffer::create(void *pData, size_t size, VkBuffer
 
     assert(pData && size && "Invalid data description");
 
+    //vkQueueWaitIdle(GetImpl().transferQueue);
+
     if(allocated)
         free();
 
@@ -245,6 +247,7 @@ void Vulgine::Memory::ImmutableBuffer::create(void *pData, size_t size, VkBuffer
 
     GetImpl().device->flushCommandBuffer(copyCmd, GetImpl().transferQueue, true);
 
+    //vkQueueWaitIdle(GetImpl().transferQueue);
 }
 
 void Vulgine::Memory::ImmutableBuffer::free() {

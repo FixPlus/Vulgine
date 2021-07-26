@@ -57,7 +57,7 @@ void Vulgine::GeneralPipeline::createImpl() {
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
         VkPipelineRasterizationStateCreateInfo rasterizationState = initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE,0);
 
-        if(geometry) {
+        if(geometry && material != GetImpl().highlightMaterial.get()) {
             switch (geometry->cullMode) {
                 case Geometry::NONE: rasterizationState.cullMode = VK_CULL_MODE_NONE; break;
                 case Geometry::CLOCKWISE: rasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE; break;
@@ -69,6 +69,11 @@ void Vulgine::GeneralPipeline::createImpl() {
                 case Geometry::LINE: rasterizationState.polygonMode = VK_POLYGON_MODE_LINE; break;
                 case Geometry::POINT: rasterizationState.polygonMode = VK_POLYGON_MODE_POINT; break;
             }
+        }
+
+        if(material == GetImpl().highlightMaterial.get()){
+            rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
+            rasterizationState.lineWidth = 2;
         }
 
         VkPipelineColorBlendAttachmentState blendAttachmentState[10];
@@ -134,7 +139,7 @@ void Vulgine::GeneralPipeline::createImpl() {
                         defaultFragmentShader = "frag_color";
                 }
             } else {
-                defaultFragmentShader = "frag_default";
+                defaultFragmentShader = renderPass->deferredEnabled ? "frag_gbuffer_default": "frag_default";
             }
         }
 

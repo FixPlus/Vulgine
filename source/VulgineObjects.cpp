@@ -10,6 +10,7 @@
 
 namespace Vulgine{
 
+    MeshImpl* MeshImpl::highlighted = nullptr;
 
     uint32_t VertexFormat::perVertexSize() const {
         uint32_t ret = 0;
@@ -192,38 +193,74 @@ namespace Vulgine{
         uint32_t instCount = instances.count == 0 ? 1 : instances.count;
 
         if(!indexBuffer.allocated) {
-            auto* material = dynamic_cast<MaterialImpl *>(primitives[0].material.get());
-            auto& boundPipeline = GetImpl().pipelineMap.bind({dynamic_cast<GeometryImpl*>(geometry.get()),
+
+            auto *material = dynamic_cast<MaterialImpl *>(primitives[0].material.get());
+            auto &boundPipeline = GetImpl().pipelineMap.bind({dynamic_cast<GeometryImpl *>(geometry.get()),
                                                               dynamic_cast<MaterialImpl *>(primitives[0].material.get()),
-                                            scene, dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
+                                                              scene, dynamic_cast<RenderPassImpl *>(pass)},
+                                                             commandBuffer);
 
-           // dynamic_cast<SceneImpl*>(parent())->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+            // dynamic_cast<SceneImpl*>(parent())->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
 
-            if(hasMeshDescriptors)
-                set.value().bind(1, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+            if (hasMeshDescriptors)
+                set.value().bind(1, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                 currentFrame);
 
-            if(material->set.isCreated())
-                material->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+            if (material->set.isCreated())
+                material->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                   currentFrame);
 
-            vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(camera->matrices), &(camera->matrices));
+            vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0,
+                               sizeof(camera->matrices), &(camera->matrices));
             vkCmdDraw(commandBuffer, vertices.count, instCount, 0, 0);
+
+           if(this == highlighted){
+
+                auto& highlightPipeline = GetImpl().pipelineMap.bind({dynamic_cast<GeometryImpl*>(geometry.get()),
+                                            dynamic_cast<MaterialImpl *>(GetImpl().highlightMaterial.get()),
+                                            scene, dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
+                if(hasMeshDescriptors)
+                    set.value().bind(1, commandBuffer, highlightPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+                dynamic_cast<MaterialImpl *>(GetImpl().highlightMaterial.get())->
+                        set.bind(0, commandBuffer, highlightPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+                vkCmdPushConstants(commandBuffer, highlightPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(camera->matrices), &(camera->matrices));
+                vkCmdDraw(commandBuffer, vertices.count, instCount, 0, 0);
+            }
         }else{
             indexBuffer.bind(commandBuffer);
-            for (auto primitive: primitives) {
-                auto* material = dynamic_cast<MaterialImpl *>(primitive.material.get());
-                auto& boundPipeline = GetImpl().pipelineMap.bind({dynamic_cast<GeometryImpl*>(geometry.get()), material,
-                                                scene, dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
+            for (const auto& primitive: primitives) {
 
-               // dynamic_cast<SceneImpl*>(parent())->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+                auto *material = dynamic_cast<MaterialImpl *>(primitive.material.get());
+                auto &boundPipeline = GetImpl().pipelineMap.bind(
+                        {dynamic_cast<GeometryImpl *>(geometry.get()), material,
+                         scene, dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
 
-                if(hasMeshDescriptors)
-                    set.value().bind(1, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+                // dynamic_cast<SceneImpl*>(parent())->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
 
-                if(material->set.isCreated())
-                    material->set.bind(0, commandBuffer, boundPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+                if (hasMeshDescriptors)
+                    set.value().bind(1, commandBuffer, boundPipeline.pipelineLayout,
+                                     VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
 
-                vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(camera->matrices), &(camera->matrices));
+                if (material->set.isCreated())
+                    material->set.bind(0, commandBuffer, boundPipeline.pipelineLayout,
+                                       VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+
+                vkCmdPushConstants(commandBuffer, boundPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0,
+                                   sizeof(camera->matrices), &(camera->matrices));
                 vkCmdDrawIndexed(commandBuffer, primitive.indexCount, instCount, primitive.startIdx, 0, 0);
+
+                if(highlighted == this){
+
+                    auto& highlightPipeline = GetImpl().pipelineMap.bind({dynamic_cast<GeometryImpl*>(geometry.get()),
+                                                dynamic_cast<MaterialImpl *>(GetImpl().highlightMaterial.get()),
+                                                scene, dynamic_cast<RenderPassImpl *>(pass)}, commandBuffer);
+                    if(hasMeshDescriptors)
+                        set.value().bind(1, commandBuffer, highlightPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+                    dynamic_cast<MaterialImpl *>(GetImpl().highlightMaterial.get())->
+                            set.bind(0, commandBuffer, highlightPipeline.pipelineLayout, VK_PIPELINE_BIND_POINT_GRAPHICS, currentFrame);
+                    vkCmdPushConstants(commandBuffer, highlightPipeline.pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(camera->matrices), &(camera->matrices));
+                    vkCmdDrawIndexed(commandBuffer, primitive.indexCount, instCount, primitive.startIdx, 0, 0);
+                }
             }
         }
 
@@ -292,8 +329,8 @@ namespace Vulgine{
             assert(((texture.colorMap && texture.sampler) || !texture.colorMap) && "Cannot create material texture without sampler");
 
             ubo = GetImpl().uniformBuffers.getImpl(GetImpl().initNewUniformBuffer()->id());
-            ubo->size = sizeof(specular);
-            ubo->pData = &specular;
+            ubo->size = sizeof(baseColor) + sizeof(specular);
+            ubo->pData = &baseColor;
             ubo->dynamic = true;
             ubo->create();
             ubo->update();
