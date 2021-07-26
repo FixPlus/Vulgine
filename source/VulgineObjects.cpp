@@ -630,7 +630,10 @@ namespace Vulgine{
             for (int i = 0; i < updSize; ++i)
                 updated.at(i) = true;
         } else{
-            assert(0 && "Update of static ubo is not implemented yet");
+            auto* buffer = dynamic_cast<Memory::ImmutableBuffer*>(buffers.back());
+            buffer->free();
+            buffer->create(pData, size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+            //assert(0 && "Update of static ubo is not implemented yet");
         }
     }
 
